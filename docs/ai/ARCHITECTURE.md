@@ -18,7 +18,7 @@
 | Animation | framer-motion | ^12 |
 | Toasts | sonner | ^2.0.7 |
 | Theme | next-themes | ^0.4.6 |
-| AI | YandexGPT Vision API | через серверный /api/ai/analyze |
+| AI | AI Integration Service | мульти-нейросеть (GPT-4o/mini/5, GigaChat, Pollinations, Whisper) |
 | Weather | WeatherAPI.com | free tier (1M calls/mo) |
 | Payments | YooKassa | 199₽/мес, 1990₽/год |
 | Unit Tests | Vitest + React Testing Library | ^3.1.0 / ^16.3.0 |
@@ -52,7 +52,9 @@ app/
     ├── auth/[...nextauth]/route.ts  # NextAuth API
     ├── beds/route.ts                # Beds CRUD (GET+POST+DELETE)
     ├── weather/route.ts             # WeatherAPI.com proxy (3-day forecast + alerts)
-    └── ai/analyze/route.ts          # YandexGPT proxy (секреты на сервере)
+    ├── ai/analyze/route.ts          # GPT-4o Vision анализ фото (через AI Integration)
+    ├── ai/networks/route.ts         # Список доступных нейросетей
+    └── chat/route.ts                # AI-чат ассистент (через AI Integration)
 ```
 
 ## Компоненты
@@ -84,13 +86,15 @@ lib/
 ├── hooks/use-weather.ts           # React Query хук для погоды
 ├── hooks/use-user-location.ts     # React Query хук для координат пользователя
 ├── hooks/use-onboarding-check.ts  # Проверка прохождения онбординга
+├── hooks/use-chat.ts              # Хук AI-чата (состояние, отправка, очистка)
+├── hooks/use-ai-networks.ts       # React Query хук для списка нейросетей
 ├── weather-tips.ts                # Генерация рекомендаций по погоде
 └── generated/prisma/          # Prisma generated (gitignored)
 ```
 
 ## Auth
 - Провайдеры: Google, Yandex
-- Middleware: `middleware.ts` → защищает /garden, /calendar, /camera, /subscribe
+- Middleware: `middleware.ts` → защищает /garden, /calendar, /chat, /camera, /subscribe
 - Callback `authorized` в auth.ts
 - Кастомная страница: `/auth/signin`
 
@@ -100,8 +104,13 @@ lib/
 - 10 таблиц: users, accounts, sessions, verification_tokens, crops, beds, plants, photos, analyses, task_queue, payments
 
 ## AI
-- YandexGPT Vision через серверный `/api/ai/analyze` (ключи НЕ на клиенте)
-- Планируется: сервер-интегратор для мульти-нейросетей
+- **AI Integration Service** — внешний сервис-интегратор нейросетей (Spring Boot)
+- Доступ по `X-API-Key`, ключ хранится в `AI_INTEGRATION_API_KEY`
+- Доступные сети (10): GPT-4o, GPT-4o-mini, GPT-4, GPT-5-mini, GigaChat, DALL·E 3, gpt-image-1.5, Pollinations (free), Whisper, Runway Gen-3
+- `/api/chat` — AI-чат (GPT-4o-mini по умолчанию, system prompt «AI-агроном»)
+- `/api/ai/analyze` — анализ фото растений через GPT-4o Vision
+- `/api/ai/networks` — список доступных chat-сетей для UI
+- YandexGPT Lite/Pro зарегистрированы (inactive, нужен API ключ Яндекса)
 
 ## SEO
 - `robots.ts` → разрешает `/`, `/guide/*`; закрывает защищённые маршруты
@@ -111,5 +120,5 @@ lib/
 - SSG для справочника (20 статических страниц)
 
 ## Тесты
-- 50 unit/component тестов (Vitest): utils, crops, climate-zones, fun-facts, weather-tips, beds-api, Button, BottomNav, motion
+- 54 unit/component тестов (Vitest): utils, crops, climate-zones, fun-facts, weather-tips, beds-api, chat, Button, BottomNav, motion
 - E2E: Playwright конфиг + тест лендинга

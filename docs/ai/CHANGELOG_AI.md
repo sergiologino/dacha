@@ -4,6 +4,44 @@
 
 ---
 
+## 2026-02-22 — AI Integration Service + AI-чат
+
+### AI Integration Service
+- Изучен бэкенд ai-integration (Spring Boot, 16 JPA-сущностей, 9 AI-провайдеров)
+- Зарегистрирован пользователь `dacha@dacha-ai.ru` в сервисе
+- Создан клиент `dacha-ai-app` с привязкой к пользователю
+- Выдан доступ к 10 нейросетям: GPT-4o, GPT-4o-mini, GPT-4, GPT-5-mini, GigaChat, DALL·E 3, gpt-image-1.5, Pollinations Lite (free), Whisper, Runway Gen-3 Alpha
+- Добавлены записи YandexGPT Lite и YandexGPT Pro (inactive, нужен API ключ Яндекса)
+- Протестирован реальный запрос: GPT-4o-mini отвечает на вопросы о садоводстве
+
+### AI-чат `/chat`
+- Серверный proxy `POST /api/chat` — проксирует к AI Integration Service, ключ не на клиенте
+- System prompt: «AI-агроном ДачаAI» — специализированные советы для российских дачников
+- Хук `useChat` — состояние диалога, отправка, очистка, обработка ошибок
+- UI: MessageBubble (user/assistant), анимация появления (framer-motion), typing indicator
+- 6 быстрых вопросов: «Что посадить в мае?», «Желтеют листья томатов» и др.
+- Кнопка «Очистить» для нового диалога
+- Добавлен в BottomNav: иконка MessageCircle, маршрут `/chat`
+
+### Фото-анализ через GPT-4o Vision
+- `/api/ai/analyze` переведён с прямого YandexGPT на AI Integration Service
+- Использует GPT-4o с vision (base64 image в payload, detail: low)
+- System prompt: «опытный агроном, анализируй фото растения»
+
+### API нейросетей
+- `GET /api/ai/networks` — список доступных chat-сетей (кеш 1 час)
+- Хук `useAiNetworks` — React Query для списка сетей
+
+### Env
+- `AI_INTEGRATION_URL`, `AI_INTEGRATION_API_KEY` добавлены в `.env.local` и `.env.example`
+
+### Тесты
+- 4 теста для chat (структуры, quick questions, system prompt)
+- Обновлены тесты BottomNav (5 пунктов вместо 4)
+- Итого: 54 теста, все проходят. Build: 125 страниц.
+
+---
+
 ## 2026-02-22 — WeatherAPI.com интеграция
 
 ### Погода

@@ -4,6 +4,7 @@ export const config = {
   matcher: [
     "/garden/:path*",
     "/calendar/:path*",
+    "/chat/:path*",
     "/camera/:path*",
     "/subscribe/:path*",
     "/onboarding/:path*",

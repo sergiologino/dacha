@@ -21,6 +21,7 @@ describe("BottomNav", () => {
     render(<BottomNav />);
     expect(screen.getByText("Участок")).toBeInTheDocument();
     expect(screen.getByText("Календарь")).toBeInTheDocument();
+    expect(screen.getByText("AI-чат")).toBeInTheDocument();
     expect(screen.getByText("Справочник")).toBeInTheDocument();
     expect(screen.getByText("Камера")).toBeInTheDocument();
   });
@@ -35,6 +36,7 @@ describe("BottomNav", () => {
     render(<BottomNav />);
     expect(screen.getByText("Участок").closest("a")).toHaveAttribute("href", "/garden");
     expect(screen.getByText("Календарь").closest("a")).toHaveAttribute("href", "/calendar");
+    expect(screen.getByText("AI-чат").closest("a")).toHaveAttribute("href", "/chat");
     expect(screen.getByText("Справочник").closest("a")).toHaveAttribute("href", "/guide");
     expect(screen.getByText("Камера").closest("a")).toHaveAttribute("href", "/camera");
   });

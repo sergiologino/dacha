@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Sprout, Calendar as CalendarIcon, BookOpen, Camera } from "lucide-react";
+import { Sprout, Calendar as CalendarIcon, BookOpen, Camera, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/garden", icon: Sprout, label: "Участок" },
   { href: "/calendar", icon: CalendarIcon, label: "Календарь" },
+  { href: "/chat", icon: MessageCircle, label: "AI-чат" },
   { href: "/guide", icon: BookOpen, label: "Справочник" },
   { href: "/camera", icon: Camera, label: "Камера" },
 ];

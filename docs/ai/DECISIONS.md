@@ -22,10 +22,12 @@
 - **Решение**: localForage для персистентного хранения на клиенте
 - **Причина**: Абстракция над IndexedDB/WebSQL/localStorage
 
-## D-005: AI — YandexGPT Vision
-- **Контекст**: Анализ фото растений на болезни
-- **Решение**: YandexGPT через REST API
-- **Причина**: Русскоязычная модель, поддержка изображений
+## D-005: AI — AI Integration Service + GPT-4o Vision
+- **Контекст**: Анализ фото растений + AI-чат для дачников
+- **Решение**: AI Integration Service (внешний Spring Boot сервис) вместо прямого YandexGPT
+- **Причина**: Единый доступ к 10+ нейросетям, fallback между провайдерами, централизованное управление лимитами и ключами
+- **Анализ фото**: GPT-4o Vision через integration service (base64 image в payload)
+- **AI-чат**: GPT-4o-mini (по умолчанию), system prompt «AI-агроном ДачаAI»
 
 ## D-006: Платежи — YooKassa
 - **Контекст**: Подписка Премиум
@@ -55,10 +57,14 @@
 - **Env**: `WEATHER_API_KEY`
 - **Архитектура**: серверный proxy `/api/weather` (ключ не на клиенте), кеш 30 мин (revalidate), `weather-tips.ts` генерирует рекомендации для дачника
 
-## D-011: AI — мульти-нейросеть через сервер-интегратор
-- **Контекст**: Помимо YandexGPT, нужен доступ к другим нейросетям
-- **Решение**: Сервер-интегратор заказчика (URL и доступ будут предоставлены позже)
-- **Статус**: TBD — ожидаем данные по API интегратора
+## D-011: AI Integration Service — мульти-нейросеть
+- **Контекст**: Нужен доступ к нескольким нейросетям через единый API
+- **Решение**: AI Integration Service (Spring Boot) на `sergiologino-zettelkastenapp-ai-integration-bce3.twc1.net`
+- **Аутентификация**: `X-API-Key` header, клиент `dacha-ai-app`
+- **Доступные сети (10)**: GPT-4o (vision), GPT-4o-mini (fast chat), GPT-4, GPT-5-mini, GigaChat (SSL issues), DALL·E 3, gpt-image-1.5, Pollinations Lite (free), Whisper, Runway Gen-3 Alpha
+- **Зарегистрированы, inactive**: YandexGPT Lite, YandexGPT Pro (нужен API ключ Яндекса)
+- **Env**: `AI_INTEGRATION_URL`, `AI_INTEGRATION_API_KEY`
+- **Архитектура**: серверные proxy routes `/api/chat` и `/api/ai/analyze` — ключи не на клиенте
 
 ## D-012: Карта — Leaflet + OpenStreetMap
 - **Контекст**: Онбординг — выбор местоположения участка на карте
@@ -72,4 +78,5 @@
 
 ## Открытые вопросы
 - [ ] PWA стратегия: next-pwa? Serwist? Ручной SW?
-- [ ] API сервера-интегратора нейросетей: URL, формат, auth
+- [ ] Активация YandexGPT в AI Integration Service (нужен API ключ Яндекс.Облака)
+- [ ] GigaChat SSL-сертификат на сервере интегратора (PKIX path building failed)
