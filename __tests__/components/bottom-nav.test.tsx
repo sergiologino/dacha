@@ -6,6 +6,16 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/garden",
 }));
 
+vi.mock("framer-motion", () => ({
+  motion: {
+    div: ({ children, className, ...props }: Record<string, unknown>) => {
+      const { layoutId, transition, ...rest } = props as Record<string, unknown>;
+      return <div className={className as string} data-testid="motion-div" {...rest}>{children as React.ReactNode}</div>;
+    },
+  },
+  AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 describe("BottomNav", () => {
   it("renders all navigation items", () => {
     render(<BottomNav />);
@@ -27,5 +37,11 @@ describe("BottomNav", () => {
     expect(screen.getByText("Календарь").closest("a")).toHaveAttribute("href", "/calendar");
     expect(screen.getByText("Справочник").closest("a")).toHaveAttribute("href", "/guide");
     expect(screen.getByText("Камера").closest("a")).toHaveAttribute("href", "/camera");
+  });
+
+  it("shows active indicator on current route", () => {
+    render(<BottomNav />);
+    const motionDivs = screen.getAllByTestId("motion-div");
+    expect(motionDivs.length).toBeGreaterThanOrEqual(1);
   });
 });

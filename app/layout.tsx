@@ -22,8 +22,11 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://dacha-ai.ru"),
   manifest: "/manifest.json",
   icons: {
-    icon: "/icons/icon.svg",
-    apple: "/icons/icon.svg",
+    icon: [
+      { url: "/icons/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
   },
   appleWebApp: {
     capable: true,

@@ -4,6 +4,68 @@
 
 ---
 
+## 2026-02-22 — WeatherAPI.com интеграция
+
+### Погода
+- Серверный proxy `/api/weather` — проксирует запросы к WeatherAPI.com, ключ не попадает на клиент
+- Кеш 30 мин (`next: { revalidate: 1800 }`)
+- Ответ: текущая погода, 3-дневной прогноз, алерты, AQI
+- React Query хуки: `useWeather`, `useUserLocation`
+- `weather-tips.ts` — генерация рекомендаций для дачника: заморозки, жара, полив, ветер, UV, снег, засуха
+- `WeatherWidget` компонент — 2 режима: compact (для garden) и full (для calendar)
+- Compact: температура, иконка, влажность, ветер + критический тип
+- Full: текущая погода, 4 метрики, 3-дневной прогноз с иконками, алерты, рекомендации
+
+### Интеграция в страницы
+- `/garden` — компактный виджет погоды после приветствия
+- `/calendar` — полный виджет погоды перед списком посадок
+
+### Env
+- `WEATHER_API_KEY` добавлен в `.env.local` и `.env.example`
+
+### Тесты
+- 10 тестов для `weather-tips` (заморозки, жара, дождь, полив, ветер, UV, снег, засуха, нормальная погода)
+- Итого: 50 тестов, все проходят. Build: 122 страницы.
+
+---
+
+## 2026-02-21 — Анимации, интересные факты, PWA-иконки, грядки
+
+### Framer Motion анимации
+- Установлен `framer-motion`
+- Создан `components/motion.tsx` — переиспользуемые компоненты: `MotionDiv` (5 вариантов), `StaggerContainer`/`StaggerItem`, `PageTransition`
+- Лендинг вынесен в клиентский `landing-content.tsx` — анимированные hero, фичи (stagger), CTA (scaleIn), footer
+- BottomNav — `layoutId` spring-анимация активного таба
+- App layout — `AnimatePresence` для переходов между страницами (`app-transition.tsx`)
+- Логотип-росток покачивается (бесконечная анимация)
+
+### Раздел «Интересные факты» (`/facts`)
+- 25 фактов в 5 категориях (растения, урожай, история, наука, рекорды) — `lib/data/fun-facts.ts`
+- Публичная страница с SEO-метаданными
+- Фильтрация по категориям, кнопка «Случайный факт» с подсветкой и скроллом
+- Анимации stagger + layout
+- Добавлено в robots.txt, sitemap.xml, footer лендинга
+
+### PNG-иконки PWA
+- Скрипт `scripts/generate-icons.mjs` (sharp) — генерация 13 иконок из SVG
+- Размеры: 16, 32, 72, 96, 128, 144, 152, 192, 384, 512 + maskable 192/512 + apple-touch-icon 180
+- `manifest.json` — полный набор иконок
+- `layout.tsx` — favicon PNG + SVG fallback + apple-touch-icon
+
+### Грядки с фото
+- API `/api/beds` — CRUD (GET с include plants+photos, POST, DELETE)
+- React Query хуки: `useBeds`, `useCreateBed`, `useDeleteBed` (`lib/hooks/use-beds.ts`)
+- Garden page: 2 вкладки «Растения» / «Грядки»
+- BedCard: название, номер, тип (open/greenhouse/raised), миниатюры фото, бейджи растений
+- Анимации stagger на списках
+
+### Тесты
+- Добавлены: motion (5), fun-facts (6), beds-api (4) — итого 40 тестов, все проходят
+- `vitest.setup.ts` — IntersectionObserver полифилл для framer-motion
+- Build: 121 страница
+
+---
+
 ## 2026-02-21 — PWA, Prisma CRUD, 100 культур, настройки, YooKassa
 
 ### PWA

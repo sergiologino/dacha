@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { Sprout, Calendar as CalendarIcon, BookOpen, Camera } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,14 +26,23 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center py-3 px-5 text-xs rounded-lg transition-colors",
+                "relative flex flex-col items-center py-3 px-5 text-xs rounded-lg transition-colors",
                 isActive
-                  ? "text-white bg-emerald-600 dark:bg-emerald-700"
+                  ? "text-white"
                   : "text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400"
               )}
             >
-              <item.icon className="w-6 h-6 mb-1" />
-              {item.label}
+              {isActive && (
+                <motion.div
+                  layoutId="nav-active"
+                  className="absolute inset-0 bg-emerald-600 dark:bg-emerald-700 rounded-lg"
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                />
+              )}
+              <span className="relative z-10">
+                <item.icon className="w-6 h-6 mb-1" />
+              </span>
+              <span className="relative z-10">{item.label}</span>
             </Link>
           );
         })}

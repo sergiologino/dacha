@@ -15,10 +15,11 @@
 | Local Storage | localForage | ^1.10.0 |
 | Date | date-fns | ^4.1.0 |
 | State | @tanstack/react-query | ^5.90.21 |
+| Animation | framer-motion | ^12 |
 | Toasts | sonner | ^2.0.7 |
 | Theme | next-themes | ^0.4.6 |
 | AI | YandexGPT Vision API | через серверный /api/ai/analyze |
-| Weather | Яндекс.Погода API | TBD |
+| Weather | WeatherAPI.com | free tier (1M calls/mo) |
 | Payments | YooKassa | 199₽/мес, 1990₽/год |
 | Unit Tests | Vitest + React Testing Library | ^3.1.0 / ^16.3.0 |
 | E2E Tests | Playwright | ^1.52.0 |
@@ -41,11 +42,16 @@ app/
 │   ├── page.tsx                     # Список культур (SSR)
 │   ├── guide-search.tsx             # Клиентский поиск
 │   └── [slug]/page.tsx              # Страница культуры (SSG, 20 страниц)
+├── facts/                           # Интересные факты (public, SEO)
+│   ├── page.tsx                     # Серверная обёртка
+│   └── facts-content.tsx            # Клиентский контент с фильтрацией
 ├── auth/signin/                     # Вход
 │   ├── page.tsx                     # Серверная обёртка
 │   └── signin-form.tsx              # Клиентская форма (Google/Яндекс)
 └── api/
     ├── auth/[...nextauth]/route.ts  # NextAuth API
+    ├── beds/route.ts                # Beds CRUD (GET+POST+DELETE)
+    ├── weather/route.ts             # WeatherAPI.com proxy (3-day forecast + alerts)
     └── ai/analyze/route.ts          # YandexGPT proxy (секреты на сервере)
 ```
 
@@ -57,6 +63,8 @@ components/
 ├── bottom-nav.tsx             # Нижняя навигация (Link-based)
 ├── theme-toggle.tsx           # Переключатель темы
 ├── subscribe-modal.tsx        # Модал подписки
+├── motion.tsx                 # Framer Motion обёртки (MotionDiv, StaggerContainer, PageTransition)
+├── weather-widget.tsx         # Виджет погоды (compact + full, прогноз, алерты, рекомендации)
 └── ui/                        # shadcn компоненты
     ├── avatar.tsx, badge.tsx, button.tsx, card.tsx
     ├── dialog.tsx, separator.tsx, sheet.tsx, sonner.tsx
@@ -68,7 +76,15 @@ lib/
 ├── prisma.ts                  # Prisma client singleton
 ├── types.ts                   # Общие типы (Plant, Crop, Analysis)
 ├── utils.ts                   # cn()
-├── data/crops.ts              # 20 культур + регионы (hardcoded)
+├── data/crops.ts              # 100 культур + регионы (hardcoded)
+├── data/fun-facts.ts          # 25 интересных фактов (5 категорий)
+├── data/climate-zones.ts      # 5 климатических зон РФ
+├── hooks/use-plants.ts        # React Query хуки для растений
+├── hooks/use-beds.ts          # React Query хуки для грядок
+├── hooks/use-weather.ts           # React Query хук для погоды
+├── hooks/use-user-location.ts     # React Query хук для координат пользователя
+├── hooks/use-onboarding-check.ts  # Проверка прохождения онбординга
+├── weather-tips.ts                # Генерация рекомендаций по погоде
 └── generated/prisma/          # Prisma generated (gitignored)
 ```
 
@@ -95,5 +111,5 @@ lib/
 - SSG для справочника (20 статических страниц)
 
 ## Тесты
-- 18 unit/component тестов (Vitest): utils, crops data, Button, BottomNav
+- 50 unit/component тестов (Vitest): utils, crops, climate-zones, fun-facts, weather-tips, beds-api, Button, BottomNav, motion
 - E2E: Playwright конфиг + тест лендинга
