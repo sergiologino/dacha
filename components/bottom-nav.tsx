@@ -1,0 +1,42 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Sprout, Calendar as CalendarIcon, BookOpen, Camera } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { href: "/garden", icon: Sprout, label: "Участок" },
+  { href: "/calendar", icon: CalendarIcon, label: "Календарь" },
+  { href: "/guide", icon: BookOpen, label: "Справочник" },
+  { href: "/camera", icon: Camera, label: "Камера" },
+];
+
+export function BottomNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-emerald-200 dark:border-emerald-800">
+      <div className="max-w-md mx-auto flex justify-around py-1">
+        {navItems.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex flex-col items-center py-3 px-5 text-xs rounded-lg transition-colors",
+                isActive
+                  ? "text-white bg-emerald-600 dark:bg-emerald-700"
+                  : "text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400"
+              )}
+            >
+              <item.icon className="w-6 h-6 mb-1" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

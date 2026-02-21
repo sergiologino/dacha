@@ -1,0 +1,15 @@
+import { Metadata } from "next";
+import { SignInForm } from "./signin-form";
+
+export const metadata: Metadata = {
+  title: "Вход — ДачаAI",
+  description: "Войдите через Google или Яндекс, чтобы начать работу с ДачаAI",
+};
+
+export default function SignInPage() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950 dark:via-slate-950 dark:to-amber-950 flex items-center justify-center px-4">
+      <SignInForm />
+    </div>
+  );
+}
