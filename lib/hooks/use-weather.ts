@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface WeatherCondition {
   text: string;
@@ -19,11 +19,6 @@ export interface CurrentWeather {
   cloud: number;
   uv: number;
   condition: WeatherCondition;
-  air_quality: {
-    pm2_5: number;
-    pm10: number;
-    us_epa_index: number;
-  } | null;
 }
 
 export interface ForecastDay {
@@ -57,6 +52,9 @@ export interface WeatherData {
     region: string;
     country: string;
     localtime: string;
+    latitude: number;
+    longitude: number;
+    timezone: string;
   };
   current: CurrentWeather;
   forecast: ForecastDay[];
@@ -64,17 +62,27 @@ export interface WeatherData {
 }
 
 async function fetchWeather(lat: number, lon: number): Promise<WeatherData> {
-  const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}&days=3`);
+  const res = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
   if (!res.ok) throw new Error("Failed to fetch weather");
   return res.json();
 }
 
 export function useWeather(lat: number | null, lon: number | null) {
-  return useQuery({
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
     queryKey: ["weather", lat, lon],
     queryFn: () => fetchWeather(lat!, lon!),
     enabled: lat !== null && lon !== null,
-    staleTime: 30 * 60 * 1000,
+    staleTime: 15 * 60 * 1000,
     refetchInterval: 30 * 60 * 1000,
   });
+
+  const refresh = () => {
+    if (lat !== null && lon !== null) {
+      queryClient.invalidateQueries({ queryKey: ["weather", lat, lon] });
+    }
+  };
+
+  return { ...query, refresh };
 }

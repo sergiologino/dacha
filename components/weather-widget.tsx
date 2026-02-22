@@ -1,8 +1,9 @@
 "use client";
 
-import { Cloud, Droplets, Wind, Thermometer, AlertTriangle, Sun } from "lucide-react";
+import { Cloud, Droplets, Wind, Thermometer, AlertTriangle, Sun, RefreshCw, MapPin } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { MotionDiv } from "@/components/motion";
 import { useWeather, type ForecastDay } from "@/lib/hooks/use-weather";
 import { generateWeatherTips, type WeatherTip } from "@/lib/weather-tips";
@@ -10,6 +11,7 @@ import { generateWeatherTips, type WeatherTip } from "@/lib/weather-tips";
 interface WeatherWidgetProps {
   lat: number | null;
   lon: number | null;
+  locationName?: string;
   compact?: boolean;
 }
 
@@ -29,7 +31,7 @@ function TipBadge({ tip }: { tip: WeatherTip }) {
 }
 
 function ForecastCard({ day }: { day: ForecastDay }) {
-  const date = new Date(day.date);
+  const date = new Date(day.date + "T12:00:00");
   const weekday = date.toLocaleDateString("ru-RU", { weekday: "short" });
   const dayMonth = date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 
@@ -37,11 +39,7 @@ function ForecastCard({ day }: { day: ForecastDay }) {
     <div className="flex flex-col items-center gap-1 p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 min-w-[80px]">
       <span className="text-xs font-medium text-slate-500 capitalize">{weekday}</span>
       <span className="text-xs text-slate-400">{dayMonth}</span>
-      <img
-        src={`https:${day.condition.icon}`}
-        alt={day.condition.text}
-        className="w-10 h-10"
-      />
+      <span className="text-2xl">{day.condition.icon}</span>
       <div className="text-sm font-semibold">
         {Math.round(day.maxtemp_c)}°
         <span className="text-slate-400 font-normal"> / {Math.round(day.mintemp_c)}°</span>
@@ -52,12 +50,23 @@ function ForecastCard({ day }: { day: ForecastDay }) {
           {day.daily_chance_of_rain}%
         </div>
       )}
+      {day.daily_chance_of_snow > 0 && day.daily_chance_of_rain === 0 && (
+        <div className="flex items-center gap-0.5 text-xs text-sky-400">
+          <span className="text-xs">❄️</span>
+          {day.daily_chance_of_snow}%
+        </div>
+      )}
+      {day.astro.sunrise && (
+        <div className="text-[10px] text-slate-400 mt-0.5">
+          🌅 {day.astro.sunrise} &nbsp; 🌇 {day.astro.sunset}
+        </div>
+      )}
     </div>
   );
 }
 
-export function WeatherWidget({ lat, lon, compact = false }: WeatherWidgetProps) {
-  const { data, isLoading, error } = useWeather(lat, lon);
+export function WeatherWidget({ lat, lon, locationName, compact = false }: WeatherWidgetProps) {
+  const { data, isLoading, isFetching, error, refresh } = useWeather(lat, lon);
 
   if (!lat || !lon) return null;
 
@@ -74,6 +83,8 @@ export function WeatherWidget({ lat, lon, compact = false }: WeatherWidgetProps)
   if (error || !data) return null;
 
   const tips = generateWeatherTips(data.current, data.forecast);
+  const displayName = locationName || data.location.name || "";
+  const updatedAt = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 
   if (compact) {
     return (
@@ -81,22 +92,25 @@ export function WeatherWidget({ lat, lon, compact = false }: WeatherWidgetProps)
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img
-                src={`https:${data.current.condition.icon}`}
-                alt={data.current.condition.text}
-                className="w-10 h-10"
-              />
+              <span className="text-3xl">{data.current.condition.icon}</span>
               <div>
                 <span className="text-2xl font-bold">{Math.round(data.current.temp_c)}°C</span>
                 <p className="text-xs text-slate-500">{data.current.condition.text}</p>
               </div>
             </div>
             <div className="text-right text-xs text-slate-500">
-              <p>{data.location.name}</p>
-              <p className="flex items-center gap-1 justify-end">
+              {displayName && <p className="flex items-center gap-1 justify-end"><MapPin className="w-3 h-3" />{displayName}</p>}
+              <p className="flex items-center gap-1 justify-end mt-0.5">
                 <Droplets className="w-3 h-3" /> {data.current.humidity}%
                 <Wind className="w-3 h-3 ml-1" /> {Math.round(data.current.wind_kph)} км/ч
               </p>
+              <button
+                onClick={refresh}
+                className="mt-1 text-emerald-600 hover:text-emerald-700 flex items-center gap-1 ml-auto"
+                title="Обновить погоду"
+              >
+                <RefreshCw className={`w-3 h-3 ${isFetching ? "animate-spin" : ""}`} />
+              </button>
             </div>
           </div>
           {tips.length > 0 && tips[0].severity !== "info" && (
@@ -112,16 +126,17 @@ export function WeatherWidget({ lat, lon, compact = false }: WeatherWidgetProps)
   return (
     <MotionDiv variant="fadeUp">
       <Card className="p-6">
-        {/* Current weather */}
+        {/* Header with location and refresh */}
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-sm text-slate-500 mb-1">{data.location.name}, {data.location.region}</p>
+          <div className="flex-1">
+            {displayName && (
+              <p className="text-sm text-slate-500 mb-1 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5" />
+                {displayName}
+              </p>
+            )}
             <div className="flex items-center gap-3">
-              <img
-                src={`https:${data.current.condition.icon}`}
-                alt={data.current.condition.text}
-                className="w-14 h-14"
-              />
+              <span className="text-4xl">{data.current.condition.icon}</span>
               <div>
                 <span className="text-4xl font-bold">{Math.round(data.current.temp_c)}°C</span>
                 <p className="text-sm text-slate-500">
@@ -129,7 +144,22 @@ export function WeatherWidget({ lat, lon, compact = false }: WeatherWidgetProps)
                 </p>
               </div>
             </div>
-            <p className="text-sm mt-1 capitalize">{data.current.condition.text}</p>
+            <p className="text-sm mt-1">{data.current.condition.text}</p>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={refresh}
+              disabled={isFetching}
+              title="Обновить погоду"
+              className="h-8 w-8"
+            >
+              <RefreshCw className={`w-4 h-4 ${isFetching ? "animate-spin" : ""}`} />
+            </Button>
+            <span className="text-[10px] text-slate-400">
+              {updatedAt}
+            </span>
           </div>
         </div>
 
@@ -143,7 +173,7 @@ export function WeatherWidget({ lat, lon, compact = false }: WeatherWidgetProps)
           <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800">
             <Wind className="w-4 h-4 mx-auto text-slate-500 mb-1" />
             <p className="text-xs text-slate-500">Ветер</p>
-            <p className="font-semibold text-sm">{Math.round(data.current.wind_kph)}</p>
+            <p className="font-semibold text-sm">{Math.round(data.current.wind_kph)} <span className="text-xs font-normal">{data.current.wind_dir}</span></p>
           </div>
           <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800">
             <Cloud className="w-4 h-4 mx-auto text-slate-400 mb-1" />
@@ -157,7 +187,16 @@ export function WeatherWidget({ lat, lon, compact = false }: WeatherWidgetProps)
           </div>
         </div>
 
-        {/* 3-day forecast */}
+        {/* Pressure row */}
+        <div className="flex items-center gap-4 mb-4 text-sm text-slate-500">
+          <span className="flex items-center gap-1">
+            <Thermometer className="w-3.5 h-3.5" />
+            Давление: {data.current.pressure_mb} гПа ({Math.round(data.current.pressure_mb * 0.750062)} мм рт.ст.)
+          </span>
+        </div>
+
+        {/* 5-day forecast */}
+        <h3 className="font-semibold text-sm mb-2">Прогноз на {data.forecast.length} дней</h3>
         <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
           {data.forecast.map((day) => (
             <ForecastCard key={day.date} day={day} />
@@ -184,7 +223,7 @@ export function WeatherWidget({ lat, lon, compact = false }: WeatherWidgetProps)
         {/* Garden tips */}
         <div>
           <h3 className="font-semibold text-sm mb-2 flex items-center gap-1">
-            <Thermometer className="w-4 h-4 text-emerald-600" /> Рекомендации для дачи
+            🌿 Рекомендации для дачи
           </h3>
           <div className="space-y-2">
             {tips.map((tip, i) => (

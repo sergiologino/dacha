@@ -5,7 +5,6 @@ import { getAuthUser } from "@/lib/get-user";
 
 const AI_URL = process.env.AI_INTEGRATION_URL;
 const AI_KEY = process.env.AI_INTEGRATION_API_KEY;
-const WEATHER_KEY = process.env.WEATHER_API_KEY;
 
 const REFUSAL_PATTERNS = [
   "не могу предоставить",
@@ -46,21 +45,37 @@ async function getUserLocation(email: string) {
   return { id: freshUser.id, latitude: freshUser.latitude, longitude: freshUser.longitude, locationName: freshUser.locationName, region: freshUser.region };
 }
 
+const WMO_TEXT: Record<number, string> = {
+  0: "Ясно", 1: "Преимущественно ясно", 2: "Переменная облачность", 3: "Пасмурно",
+  45: "Туман", 48: "Изморозь", 51: "Лёгкая морось", 53: "Морось", 55: "Сильная морось",
+  61: "Небольшой дождь", 63: "Дождь", 65: "Сильный дождь",
+  71: "Небольшой снег", 73: "Снег", 75: "Сильный снег", 77: "Снежная крупа",
+  80: "Небольшой ливень", 81: "Ливень", 82: "Сильный ливень",
+  85: "Небольшой снегопад", 86: "Сильный снегопад",
+  95: "Гроза", 96: "Гроза с градом", 99: "Сильная гроза с градом",
+};
+
 async function fetchWeatherContext(lat: number, lng: number, locationName: string | null): Promise<string | null> {
-  if (!WEATHER_KEY) return null;
   try {
-    const res = await fetch(
-      `https://api.weatherapi.com/v1/forecast.json?key=${WEATHER_KEY}&q=${lat},${lng}&days=3&lang=ru&aqi=no`
-    );
+    const params = new URLSearchParams({
+      latitude: String(lat),
+      longitude: String(lng),
+      current: "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m",
+      daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,snowfall_sum",
+      timezone: "auto",
+      forecast_days: "3",
+    });
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`, { cache: "no-store" });
     if (!res.ok) return null;
     const w = await res.json();
 
-    const current = w.current;
-    const forecasts = w.forecast?.forecastday || [];
-    let ctx = `Актуальная погода для ${locationName || w.location?.name || "участка пользователя"}:\n`;
-    ctx += `Сейчас: ${current.temp_c}°C, ${current.condition?.text}, ветер ${current.wind_kph} км/ч, влажность ${current.humidity}%\n`;
-    for (const day of forecasts) {
-      ctx += `${day.date}: ${day.day.mintemp_c}–${day.day.maxtemp_c}°C, ${day.day.condition?.text}, осадки ${day.day.totalprecip_mm} мм\n`;
+    const cur = w.current;
+    let ctx = `Актуальная погода для ${locationName || "участка пользователя"}:\n`;
+    ctx += `Сейчас: ${cur.temperature_2m}°C, ${WMO_TEXT[cur.weather_code] || "Неизвестно"}, ветер ${cur.wind_speed_10m} км/ч, влажность ${cur.relative_humidity_2m}%\n`;
+    const daily = w.daily;
+    for (let i = 0; i < daily.time.length; i++) {
+      const snow = daily.snowfall_sum?.[i] || 0;
+      ctx += `${daily.time[i]}: ${daily.temperature_2m_min[i]}–${daily.temperature_2m_max[i]}°C, ${WMO_TEXT[daily.weather_code[i]] || "Неизвестно"}, осадки ${daily.precipitation_sum[i] || 0} мм${snow > 0 ? `, снег ${snow} см` : ""}\n`;
     }
     return ctx;
   } catch {

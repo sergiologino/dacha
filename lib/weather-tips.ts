@@ -13,16 +13,30 @@ export function generateWeatherTips(
   const tips: WeatherTip[] = [];
   const tomorrow = forecast[1];
 
-  if (current.temp_c <= 0) {
+  if (current.temp_c <= -15) {
     tips.push({
       emoji: "🥶",
-      text: "Сейчас заморозки! Укройте рассаду и нежные растения.",
+      text: "Сильные морозы! Проверьте укрытие многолетников и деревьев.",
       severity: "danger",
     });
-  } else if (tomorrow && tomorrow.mintemp_c <= 2) {
+  } else if (current.temp_c <= 0) {
     tips.push({
       emoji: "❄️",
-      text: `Завтра ночью до ${Math.round(tomorrow.mintemp_c)}°C — подготовьте укрытие для растений.`,
+      text: "Заморозки. Укройте рассаду и нежные растения, если они на улице.",
+      severity: "warning",
+    });
+  }
+
+  if (tomorrow && tomorrow.mintemp_c <= -10 && current.temp_c > -10) {
+    tips.push({
+      emoji: "📉",
+      text: `Завтра ночью до ${Math.round(tomorrow.mintemp_c)}°C — резкое похолодание.`,
+      severity: "warning",
+    });
+  } else if (tomorrow && tomorrow.mintemp_c <= 2 && current.temp_c > 2) {
+    tips.push({
+      emoji: "⚠️",
+      text: `Завтра ночью до ${Math.round(tomorrow.mintemp_c)}°C — возможны заморозки, подготовьте укрытие.`,
       severity: "warning",
     });
   }
@@ -53,6 +67,14 @@ export function generateWeatherTips(
     });
   }
 
+  if (tomorrow && tomorrow.daily_chance_of_snow > 30) {
+    tips.push({
+      emoji: "🌨️",
+      text: `Завтра возможен снег — укройте посадки если есть незащищённые.`,
+      severity: "warning",
+    });
+  }
+
   if (current.wind_kph > 40) {
     tips.push({
       emoji: "💨",
@@ -69,15 +91,7 @@ export function generateWeatherTips(
     });
   }
 
-  if (tomorrow && tomorrow.daily_chance_of_snow > 30) {
-    tips.push({
-      emoji: "🌨️",
-      text: `Завтра возможен снег (${tomorrow.daily_chance_of_snow}%) — укройте посадки.`,
-      severity: "danger",
-    });
-  }
-
-  const totalPrecip3d = forecast.reduce(
+  const totalPrecip3d = forecast.slice(0, 3).reduce(
     (sum, d) => sum + d.totalprecip_mm,
     0
   );
@@ -87,6 +101,32 @@ export function generateWeatherTips(
       text: "3 дня без дождя ожидается — запланируйте регулярный полив.",
       severity: "info",
     });
+  }
+
+  const month = new Date().getMonth() + 1;
+  if (month >= 12 || month <= 2) {
+    if (current.temp_c > 5) {
+      tips.push({
+        emoji: "🌡️",
+        text: "Оттепель зимой — проверьте состояние укрытий от влаги.",
+        severity: "info",
+      });
+    }
+    if (tips.length === 0) {
+      tips.push({
+        emoji: "🏠",
+        text: "Зимний период — время планировать посадки, проверять семена и инвентарь.",
+        severity: "info",
+      });
+    }
+  } else if (month >= 3 && month <= 4) {
+    if (current.temp_c > 5 && current.temp_c < 15) {
+      tips.push({
+        emoji: "🌱",
+        text: "Весеннее потепление — самое время для рассады на подоконнике.",
+        severity: "info",
+      });
+    }
   }
 
   if (tips.length === 0) {

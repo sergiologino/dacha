@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -32,8 +32,15 @@ export function CropDetailContent({ crop }: Props) {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [expandedVariety, setExpandedVariety] = useState<string | null>(null);
-  const [isPremium] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/user/premium")
+      .then((r) => r.json())
+      .then((data) => setIsPremium(!!data.isPremium))
+      .catch(() => {});
+  }, []);
 
   const loadDetail = async () => {
     if (detailContent) return;

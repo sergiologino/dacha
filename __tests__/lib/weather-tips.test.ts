@@ -3,7 +3,7 @@ import { generateWeatherTips } from "@/lib/weather-tips";
 import type { CurrentWeather, ForecastDay } from "@/lib/hooks/use-weather";
 
 function makeCondition() {
-  return { text: "Ясно", icon: "//cdn.weatherapi.com/weather/64x64/day/113.png", code: 1000 };
+  return { text: "Ясно", icon: "☀️", code: 0 };
 }
 
 function makeCurrent(overrides: Partial<CurrentWeather> = {}): CurrentWeather {
@@ -18,7 +18,6 @@ function makeCurrent(overrides: Partial<CurrentWeather> = {}): CurrentWeather {
     cloud: 20,
     uv: 5,
     condition: makeCondition(),
-    air_quality: null,
     ...overrides,
   };
 }
@@ -56,15 +55,15 @@ describe("generateWeatherTips", () => {
 
   it("warns about current frost", () => {
     const tips = generateWeatherTips(makeCurrent({ temp_c: -2 }), makeForecast());
-    const frost = tips.find((t) => t.severity === "danger" && t.emoji === "🥶");
+    const frost = tips.find((t) => t.emoji === "❄️");
     expect(frost).toBeDefined();
-    expect(frost!.text).toContain("заморозки");
+    expect(frost!.text).toContain("Заморозки");
   });
 
   it("warns about tomorrow night frost", () => {
     const forecast = makeForecast([{}, { mintemp_c: 1 }]);
     const tips = generateWeatherTips(makeCurrent({ temp_c: 8 }), forecast);
-    const frost = tips.find((t) => t.emoji === "❄️");
+    const frost = tips.find((t) => t.emoji === "⚠️");
     expect(frost).toBeDefined();
     expect(frost!.text).toContain("1°C");
   });

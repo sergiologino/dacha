@@ -110,6 +110,7 @@ export default function CalendarPage() {
               <WeatherWidget
                 lat={location?.latitude ?? null}
                 lon={location?.longitude ?? null}
+                locationName={location?.locationName || ""}
               />
             </div>
           )}

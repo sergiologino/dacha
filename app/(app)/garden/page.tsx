@@ -95,6 +95,7 @@ export default function GardenPage() {
         <WeatherWidget
           lat={location?.latitude ?? null}
           lon={location?.longitude ?? null}
+          locationName={location?.locationName || ""}
           compact
         />
       </div>
