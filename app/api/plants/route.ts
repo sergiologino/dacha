@@ -24,17 +24,22 @@ export async function POST(request: NextRequest) {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { name, bed, plantedDate } = await request.json();
+    const { name, bedId, plantedDate } = await request.json();
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+
+    if (bedId) {
+      const bed = await prisma.bed.findFirst({ where: { id: bedId, userId: user.id } });
+      if (!bed) return NextResponse.json({ error: "Bed not found" }, { status: 404 });
     }
 
     const plant = await prisma.plant.create({
       data: {
         userId: user.id,
         name,
-        notes: bed || null,
+        bedId: bedId || null,
         plantedDate: plantedDate ? new Date(plantedDate) : new Date(),
       },
     });

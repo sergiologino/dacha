@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { MapPin, LogOut, Loader2, Save } from "lucide-react";
+import { MapPin, LogOut, Loader2, Save, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 
@@ -19,18 +20,43 @@ export default function SettingsPage() {
   const [locationName, setLocationName] = useState("");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isPremium, setIsPremium] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [togglingPremium, setTogglingPremium] = useState(false);
 
   useEffect(() => {
-    fetch("/api/user/location")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.latitude && data.longitude) {
-          setPosition({ lat: data.latitude, lng: data.longitude });
-          setLocationName(data.locationName || "");
+    Promise.all([
+      fetch("/api/user/location").then((r) => r.json()),
+      fetch("/api/user/premium").then((r) => r.json()),
+    ])
+      .then(([loc, prem]) => {
+        if (loc.latitude && loc.longitude) {
+          setPosition({ lat: loc.latitude, lng: loc.longitude });
+          setLocationName(loc.locationName || "");
         }
+        setIsPremium(!!prem.isPremium);
+        setIsAdmin(!!prem.isAdmin);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const togglePremium = async () => {
+    setTogglingPremium(true);
+    try {
+      const res = await fetch("/api/user/premium", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enable: !isPremium }),
+      });
+      const data = await res.json();
+      setIsPremium(data.isPremium);
+      toast.success(data.isPremium ? "Премиум включён" : "Премиум отключён");
+    } catch {
+      toast.error("Ошибка");
+    } finally {
+      setTogglingPremium(false);
+    }
+  };
 
   const handleMapClick = async (lat: number, lng: number) => {
     setPosition({ lat, lng });
@@ -100,6 +126,37 @@ export default function SettingsPage() {
             {session.user.name}
           </p>
           <p className="text-sm text-slate-500">{session.user.email}</p>
+          <div className="mt-3 flex items-center gap-2">
+            {isPremium ? (
+              <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                <Crown className="w-3 h-3 mr-1" /> Премиум
+              </Badge>
+            ) : (
+              <Badge variant="secondary">Бесплатный</Badge>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Admin: premium toggle */}
+      {isAdmin && (
+        <Card className="p-6 mb-6 border-amber-200 dark:border-amber-800">
+          <h2 className="font-semibold mb-3 flex items-center gap-2">
+            <Crown className="w-5 h-5 text-amber-600" />
+            Управление (Админ)
+          </h2>
+          <p className="text-sm text-slate-500 mb-4">
+            Текущий статус: {isPremium ? "Премиум" : "Бесплатный"}
+          </p>
+          <Button
+            onClick={togglePremium}
+            disabled={togglingPremium}
+            variant={isPremium ? "outline" : "default"}
+            className={`w-full h-11 rounded-2xl ${!isPremium ? "bg-amber-600 hover:bg-amber-700" : "border-amber-300 text-amber-700"}`}
+          >
+            {togglingPremium && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {isPremium ? "Отключить Премиум" : "Включить Премиум"}
+          </Button>
         </Card>
       )}
 

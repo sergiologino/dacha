@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const q = `${lat},${lon}`;
     const url = `${BASE_URL}/forecast.json?key=${WEATHER_API_KEY}&q=${q}&days=${days}&lang=ru&aqi=yes&alerts=yes`;
 
-    const response = await fetch(url, { next: { revalidate: 1800 } });
+    const response = await fetch(url, { cache: "no-store" });
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));

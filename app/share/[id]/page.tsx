@@ -24,16 +24,35 @@ export async function generateMetadata({
   if (!shared) return { title: "Не найдено — ДачаAI" };
 
   const data = shared.data as ShareData;
-  const title =
-    shared.type === "chat"
-      ? `Вопрос нейроэксперту — ДачаAI`
-      : `Фото-анализ растения — ДачаAI`;
-  const description =
-    shared.type === "chat"
-      ? (data.question || "").substring(0, 160)
-      : (data.result || "").substring(0, 160);
+  const isChat = shared.type === "chat";
+  const title = isChat
+    ? "Вопрос нейроэксперту — ДачаAI"
+    : "Фото-анализ растения — ДачаAI";
+  const description = isChat
+    ? (data.question || "Ответ AI-агронома").substring(0, 200)
+    : (data.result || "Диагностика растения от ДачаAI").substring(0, 200);
 
-  return { title, description };
+  const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://dacha-ai.ru";
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      siteName: "ДачаAI — AI-агроном для дачников",
+      type: "article",
+      url: `${baseUrl}/share/${id}`,
+      images: data.imageUrl && !data.imageUrl.startsWith("data:")
+        ? [{ url: data.imageUrl, width: 1200, height: 630, alt: title }]
+        : [{ url: `${baseUrl}/icons/icon-512x512.png`, width: 512, height: 512, alt: "ДачаAI" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
 }
 
 export default async function SharePage({

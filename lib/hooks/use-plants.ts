@@ -2,9 +2,10 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-interface Plant {
+export interface Plant {
   id: string;
   name: string;
+  bedId: string | null;
   notes: string | null;
   plantedDate: string;
   status: string;
@@ -16,7 +17,7 @@ async function fetchPlants(): Promise<Plant[]> {
   return res.json();
 }
 
-async function createPlant(data: { name: string; bed: string; plantedDate?: string }): Promise<Plant> {
+async function createPlant(data: { name: string; bedId?: string; plantedDate?: string }): Promise<Plant> {
   const res = await fetch("/api/plants", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -43,7 +44,10 @@ export function useCreatePlant() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createPlant,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["plants"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["plants"] });
+      qc.invalidateQueries({ queryKey: ["beds"] });
+    },
   });
 }
 
@@ -51,6 +55,9 @@ export function useDeletePlant() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deletePlant,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["plants"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["plants"] });
+      qc.invalidateQueries({ queryKey: ["beds"] });
+    },
   });
 }
