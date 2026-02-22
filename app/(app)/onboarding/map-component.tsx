@@ -9,29 +9,45 @@ interface MapComponentProps {
   onMapClick: (lat: number, lng: number) => void;
 }
 
-const defaultCenter: [number, number] = [55.751, 37.618]; // Moscow
+const defaultCenter: [number, number] = [55.751, 37.618];
+
+const markerIcon = L.divIcon({
+  html: `<div style="width:32px;height:32px;background:#059669;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+  </div>`,
+  className: "",
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+});
 
 export default function MapComponent({ position, onMapClick }: MapComponentProps) {
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const onMapClickRef = useRef(onMapClick);
+  onMapClickRef.current = onMapClick;
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
-    const map = L.map(containerRef.current, {
-      center: position ? [position.lat, position.lng] : defaultCenter,
-      zoom: position ? 12 : 5,
-      zoomControl: true,
-    });
+    const center: [number, number] = position
+      ? [position.lat, position.lng]
+      : defaultCenter;
+    const zoom = position ? 12 : 5;
+
+    const map = L.map(containerRef.current, { center, zoom, zoomControl: true });
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap",
       maxZoom: 18,
     }).addTo(map);
 
+    if (position) {
+      markerRef.current = L.marker([position.lat, position.lng], { icon: markerIcon }).addTo(map);
+    }
+
     map.on("click", (e: L.LeafletMouseEvent) => {
-      onMapClick(e.latlng.lat, e.latlng.lng);
+      onMapClickRef.current(e.latlng.lat, e.latlng.lng);
     });
 
     mapRef.current = map;
@@ -39,28 +55,19 @@ export default function MapComponent({ position, onMapClick }: MapComponentProps
     return () => {
       map.remove();
       mapRef.current = null;
+      markerRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || !position) return;
 
-    if (position) {
-      if (markerRef.current) {
-        markerRef.current.setLatLng([position.lat, position.lng]);
-      } else {
-        const icon = L.divIcon({
-          html: `<div style="width:32px;height:32px;background:#059669;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          </div>`,
-          className: "",
-          iconSize: [32, 32],
-          iconAnchor: [16, 32],
-        });
-        markerRef.current = L.marker([position.lat, position.lng], { icon }).addTo(mapRef.current);
-      }
-      mapRef.current.setView([position.lat, position.lng], 12, { animate: true });
+    if (markerRef.current) {
+      markerRef.current.setLatLng([position.lat, position.lng]);
+    } else {
+      markerRef.current = L.marker([position.lat, position.lng], { icon: markerIcon }).addTo(mapRef.current);
     }
+    mapRef.current.setView([position.lat, position.lng], 12, { animate: true });
   }, [position]);
 
   return <div ref={containerRef} className="w-full h-full" />;

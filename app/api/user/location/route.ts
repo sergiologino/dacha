@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser } from "@/lib/get-user";
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.email) {
+  const user = await getAuthUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -14,28 +14,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
   }
 
-  const user = await prisma.user.update({
-    where: { email: session.user.email },
+  const updated = await prisma.user.update({
+    where: { id: user.id },
     data: { latitude, longitude, locationName },
   });
+
+  return NextResponse.json({
+    latitude: updated.latitude,
+    longitude: updated.longitude,
+    locationName: updated.locationName,
+  });
+}
+
+export async function GET() {
+  const user = await getAuthUser();
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   return NextResponse.json({
     latitude: user.latitude,
     longitude: user.longitude,
     locationName: user.locationName,
+    onboardingDone: user.onboardingDone,
   });
-}
-
-export async function GET() {
-  const session = await auth();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { latitude: true, longitude: true, locationName: true, onboardingDone: true },
-  });
-
-  return NextResponse.json(user);
 }

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
-  networkUsed?: string;
   timestamp: Date;
 }
 
@@ -18,6 +17,30 @@ export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [freeLeft, setFreeLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/chat/history")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.messages?.length) {
+          setMessages(
+            data.messages.map((m: { id: string; role: string; content: string; timestamp: string }) => ({
+              id: m.id,
+              role: m.role as "user" | "assistant",
+              content: m.content,
+              timestamp: new Date(m.timestamp),
+            }))
+          );
+        }
+        if (typeof data.freeLeft === "number") {
+          setFreeLeft(data.freeLeft);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setHistoryLoaded(true));
+  }, []);
 
   const sendMessage = useCallback(
     async (content: string, options?: SendOptions) => {
@@ -58,7 +81,6 @@ export function useChat() {
           id: `ai-${Date.now()}`,
           role: "assistant",
           content: data.message,
-          networkUsed: data.networkUsed,
           timestamp: new Date(),
         };
 
@@ -76,7 +98,8 @@ export function useChat() {
   const clearChat = useCallback(() => {
     setMessages([]);
     setError(null);
+    fetch("/api/chat/history", { method: "DELETE" }).catch(() => {});
   }, []);
 
-  return { messages, isLoading, error, sendMessage, clearChat };
+  return { messages, isLoading, error, sendMessage, clearChat, historyLoaded, freeLeft, setFreeLeft };
 }

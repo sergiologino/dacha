@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Sprout, Calendar as CalendarIcon, BookOpen, Camera, MessageCircle } from "lucide-react";
+import { Sprout, Calendar as CalendarIcon, BookOpen, Camera, MessageCircle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/garden", icon: Sprout, label: "Участок" },
+  { href: "/garden", icon: Sprout, label: "Главная" },
   { href: "/calendar", icon: CalendarIcon, label: "Календарь" },
-  { href: "/chat", icon: MessageCircle, label: "AI-чат" },
+  { href: "/chat", icon: MessageCircle, label: "Нейроэксперт" },
   { href: "/guide", icon: BookOpen, label: "Справочник" },
+  { href: "/facts", icon: Sparkles, label: "Факты" },
   { href: "/camera", icon: Camera, label: "Камера" },
 ];
 
@@ -19,7 +20,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-emerald-200 dark:border-emerald-800">
-      <div className="max-w-md mx-auto flex justify-around py-1">
+      <div className="max-w-5xl mx-auto flex justify-around py-1">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (

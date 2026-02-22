@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Sparkles, Shuffle } from "lucide-react";
+import { Sparkles, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { MotionDiv, StaggerContainer, StaggerItem } from "@/components/motion";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   funFacts,
   factCategories,
@@ -46,19 +45,9 @@ export function FactsContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950 dark:via-slate-950 dark:to-amber-950">
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Header */}
         <MotionDiv variant="fadeUp">
-          <div className="flex items-center justify-between mb-2">
-            <Link
-              href="/"
-              className="flex items-center gap-1 text-sm text-slate-500 hover:text-emerald-600 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" /> На главную
-            </Link>
-            <ThemeToggle />
-          </div>
-
           <div className="flex items-center gap-3 mb-2">
             <Sparkles className="w-8 h-8 text-amber-500" />
             <h1 className="text-3xl font-bold">Интересные факты</h1>
@@ -97,49 +86,46 @@ export function FactsContent() {
         </MotionDiv>
 
         {/* Facts grid */}
-        <AnimatePresence mode="popLayout">
-          <StaggerContainer className="grid gap-4" staggerDelay={0.05}>
-            {filtered.map((fact) => (
-              <StaggerItem key={fact.id}>
-                <motion.div
-                  layout
-                  id={`fact-${fact.id}`}
-                  animate={
+        <StaggerContainer key={activeCategory} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" staggerDelay={0.05}>
+          {filtered.map((fact) => (
+            <StaggerItem key={fact.id}>
+              <motion.div
+                id={`fact-${fact.id}`}
+                animate={
+                  randomFact === fact.id
+                    ? { scale: [1, 1.03, 1], transition: { duration: 0.4 } }
+                    : {}
+                }
+              >
+                <Card
+                  className={`p-6 transition-all ${
                     randomFact === fact.id
-                      ? { scale: [1, 1.03, 1], transition: { duration: 0.4 } }
-                      : {}
-                  }
+                      ? "ring-2 ring-amber-400 shadow-lg shadow-amber-100 dark:shadow-amber-900/30"
+                      : "hover:shadow-md"
+                  }`}
                 >
-                  <Card
-                    className={`p-6 transition-all ${
-                      randomFact === fact.id
-                        ? "ring-2 ring-amber-400 shadow-lg shadow-amber-100 dark:shadow-amber-900/30"
-                        : "hover:shadow-md"
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <span className="text-3xl flex-shrink-0">{fact.emoji}</span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <h3 className="font-semibold text-lg">{fact.title}</h3>
-                          <Badge
-                            variant="secondary"
-                            className={`text-xs ${categoryColors[fact.category] || ""}`}
-                          >
-                            {fact.category}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                          {fact.text}
-                        </p>
+                  <div className="flex items-start gap-4">
+                    <span className="text-3xl flex-shrink-0">{fact.emoji}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h3 className="font-semibold text-lg">{fact.title}</h3>
+                        <Badge
+                          variant="secondary"
+                          className={`text-xs ${categoryColors[fact.category] || ""}`}
+                        >
+                          {fact.category}
+                        </Badge>
                       </div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        {fact.text}
+                      </p>
                     </div>
-                  </Card>
-                </motion.div>
-              </StaggerItem>
-            ))}
-          </StaggerContainer>
-        </AnimatePresence>
+                  </div>
+                </Card>
+              </motion.div>
+            </StaggerItem>
+          ))}
+        </StaggerContainer>
 
         {filtered.length === 0 && (
           <p className="text-center text-slate-500 py-12">

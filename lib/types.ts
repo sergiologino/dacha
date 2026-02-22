@@ -5,6 +5,11 @@ export interface Plant {
   plantedDate: string;
 }
 
+export interface CropVariety {
+  name: string;
+  desc: string;
+}
+
 export interface Crop {
   id: number;
   name: string;
@@ -16,6 +21,8 @@ export interface Crop {
   note: string;
   description?: string;
   category: string;
+  imageUrl?: string;
+  varieties?: CropVariety[];
 }
 
 export interface Analysis {

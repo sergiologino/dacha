@@ -3,21 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import localforage from "localforage";
-import { Camera, RefreshCw } from "lucide-react";
+import { Camera, RefreshCw, Loader2 } from "lucide-react";
+import { ShareIcon, CheckIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SubscribeModal } from "@/components/subscribe-modal";
-import type { Analysis } from "@/lib/types";
+
+interface AnalysisItem {
+  id: string;
+  imageUrl: string;
+  result: string;
+  date: string;
+}
 
 export default function CameraPage() {
   const { status } = useSession();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analyses, setAnalyses] = useState<Analysis[]>([]);
-  const [freeAnalysesLeft, setFreeAnalysesLeft] = useState(3);
-  const [isPremium] = useState(false);
+  const [analyses, setAnalyses] = useState<AnalysisItem[]>([]);
+  const [freeLeft, setFreeLeft] = useState<number | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [sharedOk, setSharedOk] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -25,29 +34,20 @@ export default function CameraPage() {
   }, [status]);
 
   useEffect(() => {
-    localforage.getItem<Analysis[]>("dacha-analyses").then((saved) => {
-      if (saved) setAnalyses(saved);
-    });
-    localforage
-      .getItem<{ count: number; resetDate: string }>("free-analyses")
-      .then((saved) => {
-        if (saved) {
-          const now = new Date();
-          const reset = new Date(saved.resetDate);
-          if (
-            now.getMonth() !== reset.getMonth() ||
-            now.getFullYear() !== reset.getFullYear()
-          ) {
-            localforage.setItem("free-analyses", {
-              count: 3,
-              resetDate: now.toISOString(),
-            });
-            setFreeAnalysesLeft(3);
+    fetch("/api/ai/analyze")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.analyses) setAnalyses(data.analyses);
+        if (typeof data.freeLeft === "number") {
+          if (data.freeLeft === -1) {
+            setIsPremium(true);
           } else {
-            setFreeAnalysesLeft(saved.count);
+            setFreeLeft(data.freeLeft);
           }
         }
-      });
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,7 +62,7 @@ export default function CameraPage() {
   const analyzeImage = async () => {
     if (!selectedImage) return;
 
-    if (!isPremium && freeAnalysesLeft <= 0) {
+    if (!isPremium && freeLeft !== null && freeLeft <= 0) {
       setShowSubscribeModal(true);
       return;
     }
@@ -77,27 +77,22 @@ export default function CameraPage() {
       });
 
       const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
+
       const result =
         data.result || "Не удалось распознать. Попробуй другое фото.";
 
-      const newAnalysis: Analysis = {
-        id: Date.now().toString(),
+      const newAnalysis: AnalysisItem = {
+        id: data.analysisId || Date.now().toString(),
         imageUrl: selectedImage,
         result,
         date: new Date().toLocaleDateString("ru-RU"),
       };
 
-      const updated = [newAnalysis, ...analyses];
-      setAnalyses(updated);
-      await localforage.setItem("dacha-analyses", updated);
+      setAnalyses((prev) => [newAnalysis, ...prev]);
 
-      if (!isPremium) {
-        const newCount = freeAnalysesLeft - 1;
-        setFreeAnalysesLeft(newCount);
-        await localforage.setItem("free-analyses", {
-          count: newCount,
-          resetDate: new Date().toISOString(),
-        });
+      if (!isPremium && freeLeft !== null) {
+        setFreeLeft(freeLeft - 1);
       }
     } catch {
       alert("Ошибка анализа. Проверьте интернет-соединение.");
@@ -107,15 +102,47 @@ export default function CameraPage() {
     }
   };
 
-  if (status === "loading") return null;
+  const shareAnalysis = async (a: AnalysisItem) => {
+    setSharingId(a.id);
+    try {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "analysis",
+          data: { imageUrl: a.imageUrl, result: a.result, date: a.date },
+        }),
+      });
+      const json = await res.json();
+      if (json.url) {
+        await navigator.clipboard.writeText(json.url);
+        setSharedOk(a.id);
+        setTimeout(() => setSharedOk(null), 2000);
+      }
+    } catch {
+      alert("Не удалось создать ссылку");
+    } finally {
+      setSharingId(null);
+    }
+  };
+
+  if (status === "loading" || loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Фото-анализ болезней</h1>
-        <p className="text-sm text-emerald-600">
-          Бесплатно осталось: {freeAnalysesLeft} анализа
-        </p>
+        {!isPremium && freeLeft !== null && (
+          <p className="text-sm text-emerald-600">
+            Бесплатно осталось: {freeLeft} из 3 анализов в месяц
+          </p>
+        )}
 
         {!selectedImage ? (
           <Card className="p-10 text-center border-dashed border-2 border-emerald-300 dark:border-emerald-700">
@@ -178,8 +205,27 @@ export default function CameraPage() {
                   className="w-full rounded-2xl mb-4"
                   alt="analysis"
                 />
-                <p className="text-sm text-slate-500">{a.date}</p>
-                <p className="mt-2 text-emerald-700 dark:text-emerald-400">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-slate-500">{a.date}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => shareAnalysis(a)}
+                    disabled={sharingId === a.id}
+                    className="text-emerald-600"
+                  >
+                    {sharedOk === a.id ? (
+                      <>
+                        <CheckIcon className="w-4 h-4 mr-1" /> Скопировано
+                      </>
+                    ) : (
+                      <>
+                        <ShareIcon className="w-4 h-4 mr-1" /> Поделиться
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-emerald-700 dark:text-emerald-400">
                   {a.result}
                 </p>
               </Card>

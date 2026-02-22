@@ -19,25 +19,27 @@ vi.mock("framer-motion", () => ({
 describe("BottomNav", () => {
   it("renders all navigation items", () => {
     render(<BottomNav />);
-    expect(screen.getByText("Участок")).toBeInTheDocument();
+    expect(screen.getByText("Главная")).toBeInTheDocument();
     expect(screen.getByText("Календарь")).toBeInTheDocument();
-    expect(screen.getByText("AI-чат")).toBeInTheDocument();
+    expect(screen.getByText("Нейроэксперт")).toBeInTheDocument();
     expect(screen.getByText("Справочник")).toBeInTheDocument();
+    expect(screen.getByText("Факты")).toBeInTheDocument();
     expect(screen.getByText("Камера")).toBeInTheDocument();
   });
 
   it("highlights active route", () => {
     render(<BottomNav />);
-    const gardenLink = screen.getByText("Участок").closest("a");
+    const gardenLink = screen.getByText("Главная").closest("a");
     expect(gardenLink).toHaveClass("text-white");
   });
 
   it("renders correct links", () => {
     render(<BottomNav />);
-    expect(screen.getByText("Участок").closest("a")).toHaveAttribute("href", "/garden");
+    expect(screen.getByText("Главная").closest("a")).toHaveAttribute("href", "/garden");
     expect(screen.getByText("Календарь").closest("a")).toHaveAttribute("href", "/calendar");
-    expect(screen.getByText("AI-чат").closest("a")).toHaveAttribute("href", "/chat");
+    expect(screen.getByText("Нейроэксперт").closest("a")).toHaveAttribute("href", "/chat");
     expect(screen.getByText("Справочник").closest("a")).toHaveAttribute("href", "/guide");
+    expect(screen.getByText("Факты").closest("a")).toHaveAttribute("href", "/facts");
     expect(screen.getByText("Камера").closest("a")).toHaveAttribute("href", "/camera");
   });
 

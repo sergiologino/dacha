@@ -1,74 +1,145 @@
 "use client";
 
 import { useState } from "react";
-import { format } from "date-fns";
-import { ru } from "date-fns/locale";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { MotionDiv, StaggerContainer, StaggerItem } from "@/components/motion";
 import { WeatherWidget } from "@/components/weather-widget";
 import { useUserLocation } from "@/lib/hooks/use-user-location";
-import { crops, regions } from "@/lib/data/crops";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  calendarTasks,
+  monthNames,
+  categoryConfig,
+} from "@/lib/data/calendar-tasks";
+import { crops } from "@/lib/data/crops";
 
 export default function CalendarPage() {
-  const [selectedRegion, setSelectedRegion] = useState("Москва");
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const { data: location } = useUserLocation();
 
-  const filteredCrops = crops.filter(
-    (c) => c.region.includes(selectedRegion) || c.region.includes("Все регионы")
-  );
+  const tasks = calendarTasks.filter((t) => t.month === selectedMonth);
+
+  const prevMonth = () =>
+    setSelectedMonth((m) => (m === 1 ? 12 : m - 1));
+  const nextMonth = () =>
+    setSelectedMonth((m) => (m === 12 ? 1 : m + 1));
+
+  const isCurrentMonth = selectedMonth === now.getMonth() + 1;
+
+  const cropSlugs = new Map(crops.map((c) => [c.name, c.slug]));
 
   return (
     <>
       <MotionDiv variant="fadeUp">
-        <h1 className="text-2xl font-semibold mb-4">
-          Календарь — {format(new Date(), "LLLL yyyy", { locale: ru })}
-        </h1>
+        <h1 className="text-2xl font-semibold mb-4">Календарь дачника</h1>
       </MotionDiv>
 
-      {/* Weather widget */}
-      <div className="mb-6">
-        <WeatherWidget
-          lat={location?.latitude ?? null}
-          lon={location?.longitude ?? null}
-        />
-      </div>
+      {isCurrentMonth && (
+        <div className="mb-6">
+          <WeatherWidget
+            lat={location?.latitude ?? null}
+            lon={location?.longitude ?? null}
+          />
+        </div>
+      )}
 
+      {/* Month selector */}
       <MotionDiv variant="fadeUp" delay={0.1}>
-        <select
-          value={selectedRegion}
-          onChange={(e) => setSelectedRegion(e.target.value)}
-          className="w-full p-4 rounded-3xl border mb-6 bg-white dark:bg-slate-900"
-        >
-          {regions
-            .filter((r) => r.value !== "Все регионы")
-            .map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-        </select>
+        <div className="flex items-center justify-between mb-6">
+          <Button variant="ghost" size="icon" onClick={prevMonth}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <div className="text-center">
+            <h2 className="text-xl font-bold">
+              {monthNames[selectedMonth - 1]}
+            </h2>
+            {isCurrentMonth && (
+              <Badge variant="secondary" className="mt-1 text-xs">
+                Сейчас
+              </Badge>
+            )}
+          </div>
+          <Button variant="ghost" size="icon" onClick={nextMonth}>
+            <ChevronRight className="w-5 h-5" />
+          </Button>
+        </div>
       </MotionDiv>
 
+      {/* Category legend */}
       <MotionDiv variant="fadeUp" delay={0.15}>
-        <Card className="p-6">
-          <p className="font-medium text-emerald-600 mb-4">
-            Сейчас можно сажать в твоём регионе:
-          </p>
-          <StaggerContainer staggerDelay={0.03}>
-            {filteredCrops.map((c) => (
-              <StaggerItem key={c.id}>
-                <div className="border-t py-4 first:border-t-0">
-                  <div className="font-semibold">{c.name}</div>
-                  <div className="text-sm text-slate-500">
-                    Посадка: {c.plantMonth} · Урожай: {c.harvestMonth}
-                  </div>
-                  <div className="text-xs text-slate-400 mt-1">{c.note}</div>
-                </div>
-              </StaggerItem>
-            ))}
-          </StaggerContainer>
-        </Card>
+        <div className="flex flex-wrap gap-2 mb-6">
+          {Object.entries(categoryConfig).map(([cat, cfg]) => (
+            <Badge key={cat} variant="secondary" className={cfg.color}>
+              {cfg.emoji} {cat}
+            </Badge>
+          ))}
+        </div>
       </MotionDiv>
+
+      {/* Tasks */}
+      <StaggerContainer key={selectedMonth} staggerDelay={0.05}>
+        {tasks.length === 0 ? (
+          <Card className="p-6 text-center text-slate-500">
+            Задач на этот месяц пока нет
+          </Card>
+        ) : (
+          tasks.map((task, idx) => {
+            const cfg = categoryConfig[task.category] || categoryConfig.уход;
+            return (
+              <StaggerItem key={idx}>
+                <Card className="p-5 mb-3">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl flex-shrink-0">{cfg.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <h3 className="font-semibold">{task.title}</h3>
+                        <Badge
+                          variant="secondary"
+                          className={`text-xs ${cfg.color}`}
+                        >
+                          {task.category}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        {task.description}
+                      </p>
+                      {task.crops && task.crops.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                          {task.crops.map((name) => {
+                            const slug = cropSlugs.get(name);
+                            return slug ? (
+                              <Link key={name} href={`/guide/${slug}`}>
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                                >
+                                  {name}
+                                </Badge>
+                              </Link>
+                            ) : (
+                              <Badge
+                                key={name}
+                                variant="outline"
+                                className="text-xs"
+                              >
+                                {name}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              </StaggerItem>
+            );
+          })
+        )}
+      </StaggerContainer>
     </>
   );
 }

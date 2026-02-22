@@ -17,6 +17,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/auth/signin",
   },
   callbacks: {
+    async signIn({ user }) {
+      if (!user.email) return true;
+      try {
+        const { prisma } = await import("@/lib/prisma");
+        await prisma.user.upsert({
+          where: { email: user.email },
+          update: { name: user.name ?? undefined, image: user.image ?? undefined },
+          create: { email: user.email, name: user.name, image: user.image },
+        });
+      } catch (err) {
+        console.error("Failed to upsert user on signIn:", err);
+      }
+      return true;
+    },
     authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user;
       const isProtected = request.nextUrl.pathname.startsWith("/garden") ||

@@ -27,13 +27,14 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts Account[]
-  sessions Session[]
-  plants   Plant[]
-  beds     Bed[]
-  analyses Analysis[]
-  photos   Photo[]
-  tasks    TaskQueue[]
+  accounts     Account[]
+  sessions     Session[]
+  plants       Plant[]
+  beds         Bed[]
+  analyses     Analysis[]
+  photos       Photo[]
+  tasks        TaskQueue[]
+  chatMessages ChatMessage[]
 
   @@map("users")
 }
@@ -173,6 +174,44 @@ model Analysis {
   plant Plant? @relation(fields: [plantId], references: [id], onDelete: SetNull)
 
   @@map("analyses")
+}
+
+// ─── Chat messages (persisted) ───────────────────────────────
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String   // user | assistant
+  content   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("chat_messages")
+}
+
+// ─── Shared content (public links) ──────────────────────────
+
+model SharedContent {
+  id        String   @id @default(cuid())
+  type      String   // chat | analysis
+  data      Json
+  createdAt DateTime @default(now())
+
+  @@map("shared_content")
+}
+
+// ─── AI-generated crop guides (cached) ──────────────────────
+
+model CropGuide {
+  id        String   @id @default(cuid())
+  cropSlug  String   @unique
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("crop_guides")
 }
 
 // ─── Offline sync ───────────────────────────────────────────
