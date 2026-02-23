@@ -9,6 +9,9 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
+ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+ENV DATABASE_URL=${DATABASE_URL}
+
 RUN npm ci --ignore-scripts
 RUN npm rebuild sharp
 RUN npx prisma generate
@@ -20,6 +23,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
+ENV DATABASE_URL=${DATABASE_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
