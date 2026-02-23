@@ -45,7 +45,7 @@ export async function generateMetadata({
       url: `${baseUrl}/share/${id}`,
       images: data.imageUrl && !data.imageUrl.startsWith("data:")
         ? [{ url: data.imageUrl, width: 1200, height: 630, alt: title }]
-        : [{ url: `${baseUrl}/icons/icon-512x512.png`, width: 512, height: 512, alt: "ДачаAI" }],
+        : [{ url: `${baseUrl}/icons/icon-512.png`, width: 512, height: 512, alt: "ДачаAI" }],
     },
     twitter: {
       card: "summary_large_image",

@@ -1,6 +1,14 @@
+import type { Metadata } from "next";
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
 import { AppPageTransition } from "./app-transition";
+
+export const metadata: Metadata = {
+  title: {
+    default: "ДачаAI",
+    template: "%s | ДачаAI",
+  },
+};
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { YandexMetrika, GoogleAnalytics } from "@/components/analytics";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
@@ -18,7 +19,7 @@ export const metadata: Metadata = {
     template: "%s | ДачаAI",
   },
   description:
-    "Персональный AI-помощник для садоводов: календарь, фото-анализ, справочник. Работает без интернета.",
+    "Персональный AI-помощник для садоводов: календарь посадок, анализ болезней по фото, справочник 100+ культур, лунный календарь.",
   metadataBase: new URL("https://dacha-ai.ru"),
   manifest: "/manifest.json",
   icons: {
@@ -28,10 +29,41 @@ export const metadata: Metadata = {
     ],
     apple: "/icons/apple-touch-icon.png",
   },
+  openGraph: {
+    title: "ДачаAI — умный AI-помощник для дачников",
+    description:
+      "Календарь посадок, анализ болезней по фото, справочник 100+ культур, лунный календарь. Работает без интернета.",
+    siteName: "ДачаAI",
+    type: "website",
+    locale: "ru_RU",
+    url: "https://dacha-ai.ru",
+    images: [
+      {
+        url: "/icons/icon-512.png",
+        width: 512,
+        height: 512,
+        alt: "ДачаAI — AI-помощник для дачников",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "ДачаAI — умный AI-помощник для дачников",
+    description:
+      "Календарь посадок, анализ болезней по фото, справочник культур, лунный календарь.",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "ДачаAI",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  verification: {
+    yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION || undefined,
+    google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || undefined,
   },
 };
 
@@ -44,6 +76,8 @@ export default function RootLayout({
     <html lang="ru" suppressHydrationWarning>
       <body className={`${inter.className} antialiased`}>
         <Providers>{children}</Providers>
+        <YandexMetrika />
+        <GoogleAnalytics />
       </body>
     </html>
   );
