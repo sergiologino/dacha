@@ -21,6 +21,7 @@ FROM base AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/lib/generated ./lib/generated
 COPY . .
 
 ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
