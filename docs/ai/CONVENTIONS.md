@@ -26,8 +26,7 @@
 - Aliases: `@/components`, `@/lib`, `@/components/ui`
 
 ## Git
-- .gitignore: стандартный Next.js + .env*
-- TODO: `.idea/` и `Идентификатор ключа.txt` нужно добавить в .gitignore
+- .gitignore: стандартный Next.js + .env* + .idea/ + `Идентификатор ключа.txt` + test artifacts, prisma generated
 
 ## Scripts
 ```

@@ -7,6 +7,7 @@
 - [x] **126 страниц** (19 маршрутов + 100 SSG страниц культур)
 - [x] **PWA** — manifest.json, service worker, полный набор PNG-иконок (13 шт, включая maskable + apple-touch)
 - [x] **SEO** — robots.txt, sitemap.xml (103 URL), metadata, h1/h2, OpenGraph, viewport
+- [x] **Аналитика** — Яндекс.Метрика (NEXT_PUBLIC_YM_ID), Google Analytics gtag (NEXT_PUBLIC_GA_ID), верификация Яндекса (meta yandex-verification, fallback 57dacdee3aae7bf0)
 - [x] **Справочник 100 культур** — фото (Unsplash), сорта (3–6 шт для топ-20), AI-подробности с кешем в БД
 - [x] **Интересные факты** `/facts` — 25 фактов в 5 категориях, фильтрация, случайный факт
 - [x] **Лендинг** — hero, 6 фич, CTA, footer, **Framer Motion анимации**
@@ -51,5 +52,6 @@ npm run dev
 - `WEATHER_API_KEY` — WeatherAPI.com
 - `AI_INTEGRATION_URL` — URL AI Integration Service
 - `AI_INTEGRATION_API_KEY` — API-ключ клиента в AI Integration Service
+- `NEXT_PUBLIC_YM_ID` / `NEXT_PUBLIC_GA_ID` — счётчики аналитики; `NEXT_PUBLIC_YANDEX_VERIFICATION` — код верификации в Вебмастере (по умолчанию 57dacdee3aae7bf0)
 
 Без auth работают: лендинг (`/`), справочник (`/guide`, `/guide/[slug]`), интересные факты (`/facts`)

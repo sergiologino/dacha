@@ -62,7 +62,8 @@ export const metadata: Metadata = {
     follow: true,
   },
   verification: {
-    yandex: process.env.NEXT_PUBLIC_YANDEX_VERIFICATION || undefined,
+    yandex:
+      process.env.NEXT_PUBLIC_YANDEX_VERIFICATION || "57dacdee3aae7bf0",
     google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || undefined,
   },
 };

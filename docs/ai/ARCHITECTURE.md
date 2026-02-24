@@ -41,20 +41,29 @@ app/
 ├── guide/                           # Публичный справочник (SEO)
 │   ├── page.tsx                     # Список культур (SSR)
 │   ├── guide-search.tsx             # Клиентский поиск
-│   └── [slug]/page.tsx              # Страница культуры (SSG, 20 страниц)
+│   └── [slug]/crop-detail.tsx       # Страница культуры (SSG, 100 страниц)
 ├── facts/                           # Интересные факты (public, SEO)
 │   ├── page.tsx                     # Серверная обёртка
-│   └── facts-content.tsx            # Клиентский контент с фильтрацией
+│   └── facts-content.tsx           # Клиентский контент с фильтрацией
 ├── auth/signin/                     # Вход
 │   ├── page.tsx                     # Серверная обёртка
 │   └── signin-form.tsx              # Клиентская форма (Google/Яндекс)
 └── api/
     ├── auth/[...nextauth]/route.ts  # NextAuth API
+    ├── plants/route.ts              # Plants CRUD (GET+POST+DELETE)
     ├── beds/route.ts                # Beds CRUD (GET+POST+DELETE)
     ├── weather/route.ts             # WeatherAPI.com proxy (3-day forecast + alerts)
     ├── ai/analyze/route.ts          # GPT-4o Vision анализ фото (через AI Integration)
     ├── ai/networks/route.ts         # Список доступных нейросетей
-    └── chat/route.ts                # AI-чат ассистент (через AI Integration)
+    ├── chat/route.ts                # AI-чат (через AI Integration)
+    ├── chat/history/route.ts        # История чата
+    ├── guide/detail/route.ts        # AI-подробности культуры (кеш CropGuide)
+    ├── user/location/route.ts       # Координаты пользователя
+    ├── user/premium/route.ts        # Статус премиума
+    ├── region/analyze/route.ts      # Анализ региона (онбординг)
+    ├── payments/route.ts            # YooKassa (создание платежа)
+    ├── share/route.ts               # Шаринг
+    └── health/route.ts              # Health check
 ```
 
 ## Компоненты
@@ -101,7 +110,7 @@ lib/
 ## Database
 - PostgreSQL на 82.97.242.40:5432 (dacha_db)
 - Prisma ORM, миграция `init` применена
-- 10 таблиц: users, accounts, sessions, verification_tokens, crops, beds, plants, photos, analyses, task_queue, payments
+- Таблицы: users, accounts, sessions, verification_tokens, crops, beds, plants, photos, analyses, task_queue, payments, crop_guides (кеш AI-руководств)
 
 ## AI
 - **AI Integration Service** — внешний сервис-интегратор нейросетей (Spring Boot)
@@ -117,7 +126,7 @@ lib/
 - `sitemap.ts` → лендинг + справочник + все страницы культур
 - Per-page metadata: title, description, keywords, OpenGraph
 - h1/h2 структура на каждой странице
-- SSG для справочника (20 статических страниц)
+- SSG для справочника (100 статических страниц культур)
 
 ## Тесты
 - 54 unit/component тестов (Vitest): utils, crops, climate-zones, fun-facts, weather-tips, beds-api, chat, Button, BottomNav, motion

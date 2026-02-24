@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-02-24 — Исправление аналитики (Яндекс и Google)
+
+- Яндекс: в layout добавлен meta yandex-verification (значение из NEXT_PUBLIC_YANDEX_VERIFICATION или fallback 57dacdee3aae7bf0), чтобы Вебмастер видел счётчик.
+- Google: gtag вынесен в head (strategy beforeInteractive), формат скрипта приведён к официальному (dataLayer, gtag('config', id)).
+- .env.example: в примере указан NEXT_PUBLIC_YANDEX_VERIFICATION=57dacdee3aae7bf0.
+
+---
+
+## 2026-02-24 — Инициализация контракта памяти
+
+- Подтверждён протокол работы: память в docs/ai/, перед задачей — чтение памяти, после — обновление CURRENT_STATE/DECISIONS/CHANGELOG_AI.
+- ARCHITECTURE: приведён в соответствие с фактом (API routes: plants, guide/detail, user/location, user/premium, region/analyze, payments, share, health, chat/history; SSG 100 страниц; crop_guides в БД).
+- CONVENTIONS: устаревший TODO по .gitignore удалён.
+
+---
+
 ## 2026-02-22 — Календарь дачника + AI-поиск в справочнике
 
 ### Календарь — полная переработка

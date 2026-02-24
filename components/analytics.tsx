@@ -44,14 +44,14 @@ export function GoogleAnalytics() {
     <>
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${id}`}
-        strategy="afterInteractive"
+        strategy="beforeInteractive"
       />
-      <Script id="google-analytics" strategy="afterInteractive">
+      <Script id="google-analytics" strategy="beforeInteractive">
         {`
-          window.dataLayer=window.dataLayer||[];
+          window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
-          gtag('js',new Date());
-          gtag('config','${id}',{page_path:window.location.pathname});
+          gtag('js', new Date());
+          gtag('config', '${id}');
         `}
       </Script>
     </>
