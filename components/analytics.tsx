@@ -8,7 +8,7 @@ export function YandexMetrika() {
 
   return (
     <>
-      <Script id="yandex-metrika" strategy="afterInteractive">
+      <Script id="yandex-metrika" strategy="beforeInteractive">
         {`
           (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
           m[i].l=1*new Date();
@@ -44,9 +44,9 @@ export function GoogleAnalytics() {
     <>
       <Script
         src={`https://www.googletagmanager.com/gtag/js?id=${id}`}
-        strategy="afterInteractive"
+        strategy="beforeInteractive"
       />
-      <Script id="google-analytics" strategy="afterInteractive">
+      <Script id="google-analytics" strategy="beforeInteractive">
         {`
           window.dataLayer=window.dataLayer||[];
           function gtag(){dataLayer.push(arguments);}
