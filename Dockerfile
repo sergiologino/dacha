@@ -29,6 +29,15 @@ ENV DATABASE_URL=${DATABASE_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# NEXT_PUBLIC_* вшиваются в бандл при сборке — передать через --build-arg при docker build
+ARG NEXT_PUBLIC_GA_ID
+ARG NEXT_PUBLIC_YM_ID
+ENV NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID}
+ENV NEXT_PUBLIC_YM_ID=${NEXT_PUBLIC_YM_ID}
+
+# Увеличить лимит памяти Node при сборке (100+ SSG страниц), иначе билд может «висеть» или падать по OOM
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 RUN npm run build
 
 # ── Production ───────────────────────────────────────────────

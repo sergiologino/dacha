@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-02-24 — Деплой: зависание билда и Google-тег
+
+- **Dockerfile**: добавлены ARG/ENV для NEXT_PUBLIC_GA_ID и NEXT_PUBLIC_YM_ID в стадии builder — счётчики вшиваются при сборке; без build args тег Google не появляется в прод-HTML.
+- **Dockerfile**: NODE_OPTIONS=--max-old-space-size=4096 в builder — снижение риска зависания/падения билда при 100+ SSG страницах (нехватка памяти).
+- **CURRENT_STATE**: добавлена секция «Деплой (Docker)» с инструкцией передавать --build-arg NEXT_PUBLIC_GA_ID и NEXT_PUBLIC_YM_ID при docker build и в CI/TimeWeb.
+
+---
+
 ## 2026-02-24 — Исправление аналитики (Яндекс и Google)
 
 - Яндекс: в layout добавлен meta yandex-verification (значение из NEXT_PUBLIC_YANDEX_VERIFICATION или fallback 57dacdee3aae7bf0), чтобы Вебмастер видел счётчик.
