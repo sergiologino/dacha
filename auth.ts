@@ -2,19 +2,32 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Yandex from "next-auth/providers/yandex";
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
+const providers = [];
+
+if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
+  providers.push(
     Google({
-      clientId: process.env.AUTH_GOOGLE_ID!,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET!,
-    }),
+      clientId: process.env.AUTH_GOOGLE_ID,
+      clientSecret: process.env.AUTH_GOOGLE_SECRET,
+    })
+  );
+}
+
+if (process.env.AUTH_YANDEX_ID && process.env.AUTH_YANDEX_SECRET) {
+  providers.push(
     Yandex({
-      clientId: process.env.AUTH_YANDEX_ID!,
-      clientSecret: process.env.AUTH_YANDEX_SECRET!,
-    }),
-  ],
+      clientId: process.env.AUTH_YANDEX_ID,
+      clientSecret: process.env.AUTH_YANDEX_SECRET,
+    })
+  );
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  providers,
+  trustHost: true,
   pages: {
     signIn: "/auth/signin",
+    error: "/auth/signin",
   },
   callbacks: {
     async signIn({ user }) {
@@ -27,12 +40,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           create: { email: user.email, name: user.name, image: user.image },
         });
       } catch (err) {
-        console.error("Failed to upsert user on signIn:", err);
+        console.error("[Auth] Failed to upsert user:", err);
       }
       return true;
     },
-    authorized({ auth, request }) {
-      const isLoggedIn = !!auth?.user;
+    authorized({ auth: session, request }) {
+      const isLoggedIn = !!session?.user;
       const isProtected = request.nextUrl.pathname.startsWith("/garden") ||
         request.nextUrl.pathname.startsWith("/calendar") ||
         request.nextUrl.pathname.startsWith("/camera") ||
