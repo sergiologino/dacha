@@ -4,6 +4,13 @@
 
 ---
 
+## 2026-02-24 — Деплой: EOF при npm ci (таймаут и ретраи)
+
+- Dockerfile (deps): увеличен таймаут и число повторов для npm — fetch-timeout 120000, fetch-retries 5, fetch-retry-mintimeout 20000; npm ci с --fetch-timeout=120000. Снижает обрывы при нестабильной сети на хостинге.
+- В комментарии указано, как перейти на зеркало registry.npmmirror.com при повторных EOF.
+
+---
+
 ## 2026-02-24 — Деплой: зависание билда и Google-тег
 
 - **Dockerfile**: добавлены ARG/ENV для NEXT_PUBLIC_GA_ID и NEXT_PUBLIC_YM_ID в стадии builder — счётчики вшиваются при сборке; без build args тег Google не появляется в прод-HTML.

@@ -12,7 +12,12 @@ COPY prisma.config.ts ./
 ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 ENV DATABASE_URL=${DATABASE_URL}
 
-RUN npm ci --ignore-scripts
+# Увеличенный таймаут и повторы при нестабильной сети (EOF при npm ci на хостинге).
+# Если ошибка повторяется — раскомментировать зеркало: npm config set registry https://registry.npmmirror.com
+RUN npm config set fetch-timeout 120000 && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm ci --ignore-scripts --fetch-timeout=120000
 RUN npm rebuild sharp
 RUN npx prisma generate
 
