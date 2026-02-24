@@ -28,7 +28,18 @@
 - [x] **Framer Motion** — анимации лендинга, переходы страниц, BottomNav layoutId, stagger-списки
 - [x] **PNG-иконки PWA** — 13 иконок из SVG (sharp), manifest.json обновлён
 - [x] **Vitest** — 54 теста (10 файлов)
-- [x] **Dockerfile** — multi-stage для TimeWeb
+- [x] **Dockerfile** — multi-stage для TimeWeb; build args для NEXT_PUBLIC_GA_ID/YM_ID; NODE_OPTIONS=4096 для билда (избежать зависания)
+
+## Деплой (Docker)
+При сборке образа **обязательно** передать build args, иначе аналитика не попадёт в HTML (NEXT_PUBLIC_* вшиваются при `next build`):
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_GA_ID=G-YVBBGEXKMN \
+  --build-arg NEXT_PUBLIC_YM_ID=ВАШ_YM_ID \
+  --build-arg DATABASE_URL="postgresql://..." \
+  -t dacha-ai .
+```
+В TimeWeb/CI: в настройках сборки добавить переменные окружения **на этап build** (NEXT_PUBLIC_GA_ID, NEXT_PUBLIC_YM_ID). NODE_OPTIONS=--max-old-space-size=4096 уже задан в Dockerfile — снижает риск зависания билда из‑за нехватки памяти (100+ SSG страниц).
 
 ## Что НЕ реализовано
 - [ ] **Детальный календарь (Премиум)** — переключение с краткого на детальный по дням с лунным календарём посадок и народным российским календарём с приметами

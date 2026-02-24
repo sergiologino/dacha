@@ -12,7 +12,12 @@ COPY prisma.config.ts ./
 ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 ENV DATABASE_URL=${DATABASE_URL}
 
-RUN npm ci --ignore-scripts
+# Увеличенный таймаут и повторы при нестабильной сети (EOF при npm ci на хостинге).
+# Если ошибка повторяется — раскомментировать зеркало: npm config set registry https://registry.npmmirror.com
+RUN npm config set fetch-timeout 120000 && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-mintimeout 20000 && \
+    npm ci --ignore-scripts --fetch-timeout=120000
 RUN npm rebuild sharp
 RUN npx prisma generate
 
@@ -28,6 +33,15 @@ ARG DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 ENV DATABASE_URL=${DATABASE_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+
+# NEXT_PUBLIC_* вшиваются в бандл при сборке — передать через --build-arg при docker build
+ARG NEXT_PUBLIC_GA_ID
+ARG NEXT_PUBLIC_YM_ID
+ENV NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID}
+ENV NEXT_PUBLIC_YM_ID=${NEXT_PUBLIC_YM_ID}
+
+# Увеличить лимит памяти Node при сборке (100+ SSG страниц), иначе билд может «висеть» или падать по OOM
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 RUN npm run build
 
