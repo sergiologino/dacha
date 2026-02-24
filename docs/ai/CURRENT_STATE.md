@@ -13,7 +13,7 @@
 - [x] **Лендинг** — hero, 6 фич, CTA, footer, **Framer Motion анимации**
 - [x] **Auth** — Google + Яндекс, `/auth/signin`, middleware
 - [x] **Онбординг** — геолокация + карта (Leaflet), анализ региона, литературный отчёт
-- [x] **Мой участок** `/garden` — CRUD растений + **вкладка «Грядки»** (CRUD, типы, фото, привязка растений)
+- [x] **Мой участок** `/garden` — CRUD растений + **грядки** (CRUD; типы: открытый грунт, теплица, высокая грядка, **рассада дома**); дата посадки при добавлении и редактируемая в строке; **фото растения на грядке** (иконка камеры → съёмка/выбор файла → привязка к растению, грядке, дате; превью под растением)
 - [x] **Календарь** `/calendar` — 50+ задач на 12 месяцев, 5 категорий, переключатель месяцев, ссылки на справочник
 - [x] **AI-чат** `/chat` — диалоговый помощник, быстрые вопросы, лимит 5 запросов/мес для бесплатных, paywall
 - [x] **Справочник** `/guide` — 100 культур, **аккордеон по категориям**, поиск + AI-поиск неизвестных, SSG, paywall на руководство
@@ -22,7 +22,7 @@
 - [x] **Настройки** `/settings` — редактирование координат на карте, выход
 - [x] **Погода** — WeatherAPI.com, серверный proxy `/api/weather`, виджет (компактный + полный), рекомендации для дачника
 - [x] **AI Integration Service** — мульти-нейросетевой интегратор, 10 нейросетей (4 chat, 3 image_gen, 1 transcription, 1 video, 1 free)
-- [x] **API routes**: plants CRUD, beds CRUD, weather proxy, chat, ai/analyze, ai/networks, payments (YooKassa), user/location, region/analyze
+- [x] **API routes**: plants CRUD + PATCH, beds CRUD, **photos POST** (upload в public/uploads), weather proxy, chat, ai/analyze, ai/networks, payments (YooKassa), user/location, region/analyze
 - [x] **React Query** — для plants, beds, weather, ai-networks и серверного состояния
 - [x] **Prisma + PostgreSQL** — 2 миграции, 10 таблиц
 - [x] **Framer Motion** — анимации лендинга, переходы страниц, BottomNav layoutId, stagger-списки
@@ -35,7 +35,7 @@
 - [ ] Оффлайн-синхронизация (Background Sync, очередь задач)
 - [ ] Push-уведомления
 - [ ] Галерея с sharing
-- [ ] Загрузка фото грядок (API upload + хранение)
+- [ ] Таймлайн роста растения на грядке (всходы, пересадка и т.д.); напоминания по расписанию (полив, рыхление, освещение/температура для рассады)
 - [ ] Активация YandexGPT / GigaChat (нужны API ключи)
 
 ## Для запуска

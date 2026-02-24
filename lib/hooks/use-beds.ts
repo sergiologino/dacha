@@ -9,11 +9,18 @@ export interface BedPhoto {
   takenAt: string;
 }
 
+export interface BedPlantPhoto {
+  id: string;
+  url: string;
+  takenAt: string;
+}
+
 export interface BedPlant {
   id: string;
   name: string;
   status: string;
   plantedDate: string;
+  photos?: BedPlantPhoto[];
 }
 
 export interface Bed {
@@ -51,6 +58,35 @@ async function deleteBed(id: string): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete bed");
 }
 
+export interface UploadPlantPhotoParams {
+  file: File;
+  plantId: string;
+  bedId: string;
+  takenAt?: string;
+}
+
+async function uploadPlantPhoto({
+  file,
+  plantId,
+  bedId,
+  takenAt,
+}: UploadPlantPhotoParams): Promise<BedPhoto> {
+  const formData = new FormData();
+  formData.set("file", file);
+  formData.set("plantId", plantId);
+  formData.set("bedId", bedId);
+  if (takenAt) formData.set("takenAt", takenAt);
+  const res = await fetch("/api/photos", {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to upload photo");
+  }
+  return res.json();
+}
+
 export function useBeds() {
   return useQuery({ queryKey: ["beds"], queryFn: fetchBeds });
 }
@@ -67,6 +103,14 @@ export function useDeleteBed() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteBed,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["beds"] }),
+  });
+}
+
+export function useUploadPlantPhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: uploadPlantPhoto,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["beds"] }),
   });
 }

@@ -51,6 +51,39 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const user = await getAuthUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await request.json();
+    const { id, plantedDate, name, notes, status } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Plant id is required" }, { status: 400 });
+    }
+
+    const plant = await prisma.plant.findFirst({ where: { id, userId: user.id } });
+    if (!plant) return NextResponse.json({ error: "Plant not found" }, { status: 404 });
+
+    const data: { plantedDate?: Date; name?: string; notes?: string; status?: string } = {};
+    if (plantedDate != null) data.plantedDate = new Date(plantedDate);
+    if (name != null) data.name = name;
+    if (notes != null) data.notes = notes;
+    if (status != null) data.status = status;
+
+    const updated = await prisma.plant.update({
+      where: { id },
+      data,
+    });
+
+    return NextResponse.json(updated);
+  } catch (err) {
+    console.error("Plants PATCH error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const user = await getAuthUser();

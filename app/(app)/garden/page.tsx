@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import {
   Plus,
@@ -11,27 +11,38 @@ import {
   MapPin,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  Camera,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { MotionDiv, StaggerContainer, StaggerItem } from "@/components/motion";
 import { WeatherWidget } from "@/components/weather-widget";
 import { useOnboardingCheck } from "@/lib/hooks/use-onboarding-check";
 import { useUserLocation } from "@/lib/hooks/use-user-location";
-import { usePlants, useCreatePlant, useDeletePlant, type Plant } from "@/lib/hooks/use-plants";
-import { useBeds, useCreateBed, useDeleteBed, type Bed } from "@/lib/hooks/use-beds";
+import { usePlants, useCreatePlant, useUpdatePlant, useDeletePlant, type Plant } from "@/lib/hooks/use-plants";
+import { useBeds, useCreateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
 
 const bedTypeLabels: Record<string, string> = {
   open: "Открытый грунт",
   greenhouse: "Теплица",
   raised: "Высокая грядка",
+  seedling_home: "Рассада дома",
 };
 
 const bedTypeEmoji: Record<string, string> = {
   open: "🌿",
   greenhouse: "🏠",
   raised: "📦",
+  seedling_home: "🪴",
 };
 
 export default function GardenPage() {
@@ -46,11 +57,13 @@ export default function GardenPage() {
 
   const { data: plants = [], isLoading: plantsLoading } = usePlants();
   const createPlant = useCreatePlant();
+  const updatePlant = useUpdatePlant();
   const deletePlant = useDeletePlant();
 
   const { data: beds = [], isLoading: bedsLoading } = useBeds();
   const createBed = useCreateBed();
   const deleteBed = useDeleteBed();
+  const uploadPhoto = useUploadPlantPhoto();
 
   const unassignedPlants = plants.filter((p) => !p.bedId);
 
@@ -146,6 +159,7 @@ export default function GardenPage() {
                   <option value="open">🌿 Открытый грунт</option>
                   <option value="greenhouse">🏠 Теплица</option>
                   <option value="raised">📦 Высокая грядка</option>
+                  <option value="seedling_home">🪴 Рассада дома</option>
                 </select>
               </div>
               <div className="flex gap-2">
@@ -193,11 +207,19 @@ export default function GardenPage() {
                 <BedCard
                   bed={bed}
                   onDelete={() => deleteBed.mutate(bed.id)}
-                  onAddPlant={(name) =>
-                    createPlant.mutate({ name, bedId: bed.id })
+                  onAddPlant={(name, plantedDate) =>
+                    createPlant.mutate({ name, bedId: bed.id, plantedDate })
+                  }
+                  onUpdatePlant={(id, plantedDate) =>
+                    updatePlant.mutate({ id, plantedDate })
                   }
                   onDeletePlant={(id) => deletePlant.mutate(id)}
+                  onUploadPhoto={(file, plantId, bedId, takenAt) =>
+                    uploadPhoto.mutate({ file, plantId, bedId, takenAt })
+                  }
                   addingPlant={createPlant.isPending}
+                  updatingPlant={updatePlant.isPending}
+                  uploadingPhoto={uploadPhoto.isPending}
                 />
               </StaggerItem>
             ))}
@@ -242,31 +264,104 @@ export default function GardenPage() {
   );
 }
 
+function toDateInputValue(iso: string) {
+  return iso.slice(0, 10);
+}
+
 function BedCard({
   bed,
   onDelete,
   onAddPlant,
+  onUpdatePlant,
   onDeletePlant,
+  onUploadPhoto,
   addingPlant,
+  updatingPlant,
+  uploadingPhoto,
 }: {
   bed: Bed;
   onDelete: () => void;
-  onAddPlant: (name: string) => void;
+  onAddPlant: (name: string, plantedDate?: string) => void;
+  onUpdatePlant: (id: string, plantedDate: string) => void;
   onDeletePlant: (id: string) => void;
+  onUploadPhoto: (file: File, plantId: string, bedId: string, takenAt?: string) => void;
   addingPlant: boolean;
+  updatingPlant: boolean;
+  uploadingPhoto: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [newPlantName, setNewPlantName] = useState("");
+  const [newPlantDate, setNewPlantDate] = useState(() => toDateInputValue(new Date().toISOString()));
   const [showPlantInput, setShowPlantInput] = useState(false);
+  const [editingDatePlantId, setEditingDatePlantId] = useState<string | null>(null);
+  const [editingDateValue, setEditingDateValue] = useState("");
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [photoPlantId, setPhotoPlantId] = useState<string | null>(null);
+  const [gallery, setGallery] = useState<{
+    plantName: string;
+    photos: { id: string; url: string; takenAt: string }[];
+    index: number;
+  } | null>(null);
 
   const handleAddPlant = () => {
     if (!newPlantName.trim()) return;
-    onAddPlant(newPlantName.trim());
+    const plantedDate = newPlantDate ? `${newPlantDate}T12:00:00.000Z` : undefined;
+    onAddPlant(newPlantName.trim(), plantedDate);
     setNewPlantName("");
+    setNewPlantDate(toDateInputValue(new Date().toISOString()));
     setShowPlantInput(false);
   };
 
+  const startEditDate = (plant: Bed["plants"][0]) => {
+    setEditingDatePlantId(plant.id);
+    setEditingDateValue(toDateInputValue(plant.plantedDate));
+  };
+
+  const saveEditDate = () => {
+    if (editingDatePlantId && editingDateValue) {
+      onUpdatePlant(editingDatePlantId, `${editingDateValue}T12:00:00.000Z`);
+    }
+    setEditingDatePlantId(null);
+    setEditingDateValue("");
+  };
+
+  const handlePhotoInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && photoPlantId) {
+      const takenAt = toDateInputValue(new Date().toISOString());
+      onUploadPhoto(file, photoPlantId, bed.id, `${takenAt}T12:00:00.000Z`);
+      setPhotoPlantId(null);
+    }
+    e.target.value = "";
+  };
+
+  const openGallery = (plant: Bed["plants"][0], index: number) => {
+    if (!plant.photos?.length) return;
+    setGallery({
+      plantName: plant.name,
+      photos: plant.photos,
+      index: Math.min(index, plant.photos.length - 1),
+    });
+  };
+
+  const closeGallery = () => setGallery(null);
+
+  const galleryPrev = () => {
+    if (!gallery) return;
+    setGallery((g) =>
+      g ? { ...g, index: g.index > 0 ? g.index - 1 : g.photos.length - 1 } : null
+    );
+  };
+
+  const galleryNext = () => {
+    if (!gallery) return;
+    setGallery((g) =>
+      g ? { ...g, index: g.index < g.photos.length - 1 ? g.index + 1 : 0 } : null
+    );
+  };
+
   return (
+    <>
     <Card className="overflow-hidden hover:shadow-md transition-shadow">
       {/* Header — clickable */}
       <button
@@ -309,22 +404,106 @@ function BedCard({
           {/* Plants list */}
           {bed.plants.length > 0 ? (
             <div className="space-y-2 mb-4">
-              {bed.plants.map((plant) => (
+              <input
+            type="file"
+            ref={photoInputRef}
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handlePhotoInputChange}
+          />
+            {bed.plants.map((plant) => (
                 <div
                   key={plant.id}
-                  className="flex justify-between items-center py-2 px-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10"
+                  className="flex justify-between items-center py-2 px-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10 gap-2"
                 >
-                  <div className="flex items-center gap-2">
-                    <Sprout className="w-3.5 h-3.5 text-emerald-500" />
-                    <span className="text-sm font-medium">{plant.name}</span>
-                    <span className="text-xs text-slate-400">
-                      {new Date(plant.plantedDate).toLocaleDateString("ru-RU")}
-                    </span>
+                  <div className="flex flex-col gap-1 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Sprout className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                      <span className="text-sm font-medium truncate">{plant.name}</span>
+                      {editingDatePlantId === plant.id ? (
+                      <span className="flex items-center gap-1 flex-shrink-0">
+                        <input
+                          type="date"
+                          value={editingDateValue}
+                          onChange={(e) => setEditingDateValue(e.target.value)}
+                          onBlur={saveEditDate}
+                          onKeyDown={(e) => e.key === "Enter" && saveEditDate()}
+                          autoFocus
+                          className="text-xs px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-900"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-emerald-600"
+                          onClick={saveEditDate}
+                          disabled={updatingPlant}
+                        >
+                          {updatingPlant ? <Loader2 className="w-3 h-3 animate-spin" /> : "✓"}
+                        </Button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startEditDate(plant)}
+                        className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 flex-shrink-0"
+                        title="Изменить дату посадки"
+                      >
+                        {new Date(plant.plantedDate).toLocaleDateString("ru-RU")}
+                      </button>
+                    )}
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                        {(plant.photos?.length ?? 0) > 0 && (
+                          <div className="flex gap-0.5">
+                            {(plant.photos ?? []).slice(0, 3).map((ph, idx) => (
+                              <button
+                                key={ph.id}
+                                type="button"
+                                onClick={() => openGallery(plant, idx)}
+                                className="block w-8 h-8 rounded overflow-hidden border border-slate-200 dark:border-slate-600 flex-shrink-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                              >
+                                <img
+                                  src={ph.url}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                />
+                              </button>
+                            ))}
+                            {(plant.photos?.length ?? 0) > 3 && (
+                              <button
+                                type="button"
+                                onClick={() => openGallery(plant, 0)}
+                                className="text-[10px] text-slate-400 self-center px-1 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                              >
+                                +{(plant.photos ?? []).length - 3}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-400 hover:text-emerald-600 flex-shrink-0"
+                          onClick={() => {
+                            setPhotoPlantId(plant.id);
+                            photoInputRef.current?.click();
+                          }}
+                          disabled={uploadingPhoto}
+                          title="Сделать фото растения"
+                        >
+                          {uploadingPhoto && photoPlantId === plant.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Camera className="w-3.5 h-3.5" />
+                          )}
+                        </Button>
+                      </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-red-400 hover:text-red-600"
+                    className="h-7 w-7 text-red-400 hover:text-red-600 flex-shrink-0"
                     onClick={() => onDeletePlant(plant.id)}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -340,16 +519,26 @@ function BedCard({
 
           {/* Add plant */}
           {showPlantInput ? (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Название растения"
-                value={newPlantName}
-                onChange={(e) => setNewPlantName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddPlant()}
-                autoFocus
-                className="flex-1 px-3 py-2 text-sm rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900"
-              />
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Название растения"
+                  value={newPlantName}
+                  onChange={(e) => setNewPlantName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddPlant()}
+                  autoFocus
+                  className="flex-1 px-3 py-2 text-sm rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900"
+                />
+                <input
+                  type="date"
+                  value={newPlantDate}
+                  onChange={(e) => setNewPlantDate(e.target.value)}
+                  className="px-3 py-2 text-sm rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 w-[140px]"
+                  title="Дата посадки"
+                />
+              </div>
+              <div className="flex gap-2">
               <Button
                 size="sm"
                 onClick={handleAddPlant}
@@ -365,11 +554,12 @@ function BedCard({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => { setShowPlantInput(false); setNewPlantName(""); }}
+                onClick={() => { setShowPlantInput(false); setNewPlantName(""); setNewPlantDate(toDateInputValue(new Date().toISOString())); }}
                 className="rounded-xl"
               >
                 ✕
               </Button>
+              </div>
             </div>
           ) : (
             <div className="flex gap-2">
@@ -394,5 +584,80 @@ function BedCard({
         </div>
       )}
     </Card>
+
+    {/* Галерея фото растения — полноэкранная на мобильном */}
+    <Dialog open={!!gallery} onOpenChange={(open) => !open && closeGallery()}>
+      <DialogContent
+        showCloseButton={false}
+        className="inset-0 w-full h-full max-w-none translate-x-0 translate-y-0 rounded-none border-0 bg-black/95 p-0 gap-0 flex flex-col sm:inset-[5%] sm:h-[90%] sm:max-w-4xl sm:mx-auto sm:rounded-2xl sm:border sm:border-slate-700"
+      >
+        {gallery && (
+          <>
+            <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/50 sm:rounded-t-2xl">
+              <DialogTitle className="text-white font-semibold text-base">
+                {gallery.plantName} — фото {gallery.index + 1} из {gallery.photos.length}
+              </DialogTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/20 rounded-full"
+                onClick={closeGallery}
+                aria-label="Закрыть"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <div className="flex-1 flex items-center justify-center min-h-0 relative">
+              <img
+                src={gallery.photos[gallery.index].url}
+                alt=""
+                className="max-w-full max-h-full object-contain"
+              />
+              {gallery.photos.length > 1 && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 text-white hover:bg-black/70"
+                    onClick={galleryPrev}
+                    aria-label="Предыдущее фото"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 text-white hover:bg-black/70"
+                    onClick={galleryNext}
+                    aria-label="Следующее фото"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </Button>
+                </>
+              )}
+            </div>
+            {gallery.photos.length > 1 && (
+              <div className="flex justify-center gap-1.5 py-3 flex-shrink-0 bg-black/50 sm:rounded-b-2xl">
+                {gallery.photos.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setGallery((g) => (g ? { ...g, index: i } : null))}
+                    className={[
+                      "w-2 h-2 rounded-full transition-colors",
+                      i === gallery.index
+                        ? "bg-emerald-400"
+                        : "bg-white/40 hover:bg-white/60",
+                    ].join(" ")}
+                    aria-label={`Фото ${i + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
