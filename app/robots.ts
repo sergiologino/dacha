@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: ["/", "/guide", "/guide/*", "/facts"],
-        disallow: ["/garden", "/calendar", "/camera", "/subscribe", "/api/", "/auth/"],
+        disallow: ["/garden", "/calendar", "/camera", "/subscribe", "/api/", "/auth/", "/settings"],
       },
     ],
     sitemap: "https://dacha-ai.ru/sitemap.xml",
