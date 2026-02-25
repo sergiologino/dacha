@@ -111,6 +111,31 @@ export function useUploadPlantPhoto() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: uploadPlantPhoto,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["beds"] }),
+    onSuccess: (data, variables) => {
+      const { plantId, bedId } = variables;
+      const newPhoto: BedPlantPhoto = {
+        id: data.id,
+        url: data.url,
+        takenAt:
+          typeof data.takenAt === "string"
+            ? data.takenAt
+            : new Date(data.takenAt).toISOString(),
+      };
+      qc.setQueryData<Bed[]>(["beds"], (old) => {
+        if (!old) return old;
+        return old.map((bed) => {
+          if (bed.id !== bedId) return bed;
+          return {
+            ...bed,
+            plants: bed.plants.map((plant) => {
+              if (plant.id !== plantId) return plant;
+              const photos = [newPhoto, ...(plant.photos ?? [])];
+              return { ...plant, photos };
+            }),
+          };
+        });
+      });
+      qc.invalidateQueries({ queryKey: ["beds"] });
+    },
   });
 }
