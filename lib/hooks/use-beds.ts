@@ -21,6 +21,7 @@ export interface BedPlant {
   name: string;
   status: string;
   plantedDate: string;
+  cropSlug?: string | null;
   photos?: BedPlantPhoto[];
 }
 

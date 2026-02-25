@@ -121,6 +121,7 @@ model Plant {
   id          String    @id @default(cuid())
   userId      String
   cropId      Int?
+  cropSlug    String?   // slug из справочника для ссылки на /guide/[slug]
   bedId       String?
   name        String
   plantedDate DateTime  @default(now())

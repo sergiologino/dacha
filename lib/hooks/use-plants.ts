@@ -17,7 +17,7 @@ async function fetchPlants(): Promise<Plant[]> {
   return res.json();
 }
 
-async function createPlant(data: { name: string; bedId?: string; plantedDate?: string }): Promise<Plant> {
+async function createPlant(data: { name: string; bedId?: string; plantedDate?: string; cropSlug?: string }): Promise<Plant> {
   const res = await fetch("/api/plants", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
