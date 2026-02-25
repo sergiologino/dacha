@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { crops as staticCrops } from "@/lib/data/crops";
 import { prisma } from "@/lib/prisma";
-import { getMergedCrops } from "@/lib/crops-merge";
+import { getMergedCrops, type CropWithSource } from "@/lib/crops-merge";
 import { GuideSearch } from "./guide-search";
 import { GuideAccordion } from "./guide-accordion";
 
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function GuidePage() {
-  let crops = staticCrops.map((c) => ({ ...c, addedByCommunity: false as const }));
+  let crops: CropWithSource[] = staticCrops.map((c) => ({ ...c, addedByCommunity: false }));
   try {
     crops = await getMergedCrops(() =>
       prisma.crop.findMany({
