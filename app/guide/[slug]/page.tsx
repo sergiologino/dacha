@@ -49,7 +49,15 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const crop = staticCrops.find((c) => c.slug === slug) ?? await prisma.crop.findUnique({ where: { slug } }).then((r) => r ? dbRowToCrop(r) : null);
+  let crop: (Crop & { addedByCommunity?: boolean }) | null = staticCrops.find((c) => c.slug === slug) ?? null;
+  if (!crop) {
+    try {
+      const row = await prisma.crop.findUnique({ where: { slug } });
+      crop = row ? dbRowToCrop(row) : null;
+    } catch {
+      crop = null;
+    }
+  }
   if (!crop) return {};
 
   return {
@@ -63,8 +71,12 @@ export default async function CropPage({ params }: Props) {
   const { slug } = await params;
   let crop: (Crop & { addedByCommunity?: boolean }) | null = staticCrops.find((c) => c.slug === slug) ?? null;
   if (!crop) {
-    const row = await prisma.crop.findUnique({ where: { slug } });
-    crop = row ? dbRowToCrop(row) : null;
+    try {
+      const row = await prisma.crop.findUnique({ where: { slug } });
+      crop = row ? dbRowToCrop(row) : null;
+    } catch {
+      crop = null;
+    }
   }
   if (!crop) notFound();
 

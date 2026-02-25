@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { crops as staticCrops } from "@/lib/data/crops";
 import { prisma } from "@/lib/prisma";
 import { getMergedCrops } from "@/lib/crops-merge";
 import { GuideSearch } from "./guide-search";
@@ -13,25 +14,31 @@ export const metadata: Metadata = {
 };
 
 export default async function GuidePage() {
-  const crops = await getMergedCrops(() =>
-    prisma.crop.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        category: true,
-        description: true,
-        plantMonths: true,
-        harvestMonths: true,
-        waterSchedule: true,
-        regions: true,
-        careNotes: true,
-        imageUrl: true,
-        varieties: true,
-      },
-    })
-  );
+  let crops = staticCrops.map((c) => ({ ...c, addedByCommunity: false as const }));
+  try {
+    crops = await getMergedCrops(() =>
+      prisma.crop.findMany({
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          category: true,
+          description: true,
+          plantMonths: true,
+          harvestMonths: true,
+          waterSchedule: true,
+          regions: true,
+          careNotes: true,
+          imageUrl: true,
+          varieties: true,
+        },
+      })
+    );
+  } catch (err) {
+    // P2022 или другая ошибка БД (например, колонка varieties ещё не создана миграцией) — показываем только статический справочник
+    console.error("[Guide] getMergedCrops failed, using static crops only:", err);
+  }
 
   return (
     <div>
