@@ -28,6 +28,7 @@ import { MotionDiv, StaggerContainer, StaggerItem } from "@/components/motion";
 import { WeatherWidget } from "@/components/weather-widget";
 import { useOnboardingCheck } from "@/lib/hooks/use-onboarding-check";
 import { useUserLocation } from "@/lib/hooks/use-user-location";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePlants, useCreatePlant, useUpdatePlant, useDeletePlant, type Plant } from "@/lib/hooks/use-plants";
 import { useBeds, useCreateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
 
@@ -60,6 +61,7 @@ export default function GardenPage() {
   const updatePlant = useUpdatePlant();
   const deletePlant = useDeletePlant();
 
+  const qc = useQueryClient();
   const { data: beds = [], isLoading: bedsLoading } = useBeds();
   const createBed = useCreateBed();
   const deleteBed = useDeleteBed();
@@ -215,7 +217,14 @@ export default function GardenPage() {
                   }
                   onDeletePlant={(id) => deletePlant.mutate(id)}
                   onUploadPhoto={(file, plantId, bedId, takenAt) =>
-                    uploadPhoto.mutate({ file, plantId, bedId, takenAt })
+                    uploadPhoto.mutate(
+                      { file, plantId, bedId, takenAt },
+                      {
+                        onSuccess: () => {
+                          qc.refetchQueries({ queryKey: ["beds"] });
+                        },
+                      }
+                    )
                   }
                   addingPlant={createPlant.isPending}
                   updatingPlant={updatePlant.isPending}

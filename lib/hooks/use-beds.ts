@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export interface BedPhoto {
   id: string;
@@ -111,15 +112,18 @@ export function useUploadPlantPhoto() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: uploadPlantPhoto,
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       const { plantId, bedId } = variables;
+      const takenAtStr =
+        typeof data.takenAt === "string"
+          ? data.takenAt
+          : data.takenAt != null
+            ? new Date(data.takenAt).toISOString()
+            : new Date().toISOString();
       const newPhoto: BedPlantPhoto = {
-        id: data.id,
-        url: data.url,
-        takenAt:
-          typeof data.takenAt === "string"
-            ? data.takenAt
-            : new Date(data.takenAt).toISOString(),
+        id: String(data.id),
+        url: String(data.url),
+        takenAt: takenAtStr,
       };
       qc.setQueryData<Bed[]>(["beds"], (old) => {
         if (!old) return old;
@@ -135,7 +139,11 @@ export function useUploadPlantPhoto() {
           };
         });
       });
-      qc.invalidateQueries({ queryKey: ["beds"] });
+      toast.success("Фото добавлено");
+      await qc.refetchQueries({ queryKey: ["beds"] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Не удалось загрузить фото");
     },
   });
 }
