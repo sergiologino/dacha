@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Crown, Check, Sparkles, Camera, Calendar, BookOpen } from "lucide-react";
+import { Crown, Check, Sparkles, Camera, Calendar, BookOpen, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
 
 const features = [
   { icon: Camera, text: "Безлимитный AI-анализ фото" },
@@ -14,6 +15,26 @@ const features = [
 
 export default function SubscribePage() {
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
+  const [checking, setChecking] = useState(false);
+
+  const checkPayment = async () => {
+    setChecking(true);
+    try {
+      const r = await fetch("/api/payments/sync");
+      const data = await r.json();
+      if (data.activated) {
+        toast.success("Премиум активирован!");
+      } else if (data.isPremium) {
+        toast.success("У вас уже есть Премиум");
+      } else {
+        toast.info("Оплата пока не найдена. Вернитесь сюда после оплаты по кнопке «Вернуться на сайт».");
+      }
+    } catch {
+      toast.error("Не удалось проверить оплату");
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const createPayment = async () => {
     const amount = selectedPlan === "yearly" ? 1990 : 199;
@@ -106,6 +127,22 @@ export default function SubscribePage() {
       <p className="text-center text-xs text-slate-500 mt-4">
         Отмена подписки в любой момент
       </p>
+
+      <Button
+        variant="outline"
+        onClick={checkPayment}
+        disabled={checking}
+        className="w-full mt-4 rounded-2xl border-slate-200 text-slate-600"
+      >
+        {checking ? (
+          "Проверяем..."
+        ) : (
+          <>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Уже оплатили? Проверить оплату
+          </>
+        )}
+      </Button>
     </>
   );
 }

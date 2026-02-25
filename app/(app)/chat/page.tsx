@@ -45,7 +45,7 @@ function MessageBubble({
   const isUser = message.role === "user";
   const [expanded, setExpanded] = useState(false);
   const isAssistant = !isUser;
-  const needsCollapse = message.content.length > 280 || message.content.split(/\n/).length > 5;
+  const needsCollapse = message.content.length > 80 || message.content.split(/\n/).length > 3;
   const shouldCollapse = isAssistant && !expanded && needsCollapse;
 
   return (
@@ -68,11 +68,17 @@ function MessageBubble({
         }`}
       >
         <div
-          className={
+          style={
             shouldCollapse
-              ? "relative max-h-[7.5rem] overflow-hidden [mask-image:linear-gradient(to_bottom,black_0,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0,black_60%,transparent_100%)]"
-              : ""
+              ? {
+                  maxHeight: "7.5rem",
+                  overflow: "hidden",
+                  WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
+                  maskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
+                }
+              : undefined
           }
+          className={shouldCollapse ? "relative" : ""}
         >
           <p className="text-sm whitespace-pre-wrap leading-relaxed">
             {message.content}

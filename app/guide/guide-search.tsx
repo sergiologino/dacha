@@ -178,10 +178,16 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
             <h3 className="font-bold">Ответ нейроэксперта</h3>
           </div>
           <div
-            className={
-              !aiExpanded && aiResult.length > 280
-                ? "relative max-h-[7.5rem] overflow-hidden [mask-image:linear-gradient(to_bottom,black_0,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0,black_60%,transparent_100%)]"
-                : ""
+            className={!aiExpanded && aiResult.length > 80 ? "relative" : ""}
+            style={
+              !aiExpanded && aiResult.length > 80
+                ? {
+                    maxHeight: "7.5rem",
+                    overflow: "hidden",
+                    WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
+                    maskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
+                  }
+                : undefined
             }
           >
             <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-emerald-700 dark:prose-headings:text-emerald-400">
@@ -218,7 +224,7 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
                 );
               })}
             </div>
-            {!aiExpanded && aiResult.length > 280 && (
+            {!aiExpanded && aiResult.length > 80 && (
               <button
                 type="button"
                 onClick={() => setAiExpanded(true)}

@@ -61,9 +61,14 @@ export default function GardenPage() {
   useOnboardingCheck();
   const { data: location } = useUserLocation();
 
+  // Проверка оплаты при возврате с ЮKassa: срабатывает по URL (window), т.к. searchParams может быть пуст при гидрации
   useEffect(() => {
-    if (searchParams.get("payment") !== "success") return;
+    const hasSuccess =
+      typeof window !== "undefined" &&
+      (window.location.search.includes("payment=success") || searchParams.get("payment") === "success");
+    if (!hasSuccess) return;
     let mounted = true;
+    toast.info("Проверяем оплату...");
     const run = (attempt: number) => {
       fetch("/api/payments/sync")
         .then((r) => r.json())
@@ -71,24 +76,23 @@ export default function GardenPage() {
           if (!mounted) return;
           if (data.activated) {
             toast.success("Премиум активирован!");
-            router.replace("/garden", { scroll: false });
+            window.history.replaceState(null, "", "/garden");
             router.refresh();
             return;
           }
           if (attempt < 3) {
             setTimeout(() => run(attempt + 1), 2000);
           } else {
-            router.replace("/garden", { scroll: false });
+            window.history.replaceState(null, "", "/garden");
           }
         })
         .catch(() => {
           if (mounted && attempt < 3) setTimeout(() => run(attempt + 1), 2000);
         });
     };
-    toast.info("Проверяем оплату...");
     run(1);
     return () => { mounted = false; };
-  }, [searchParams, router]);
+  }, [searchParams]);
 
   const [newBedName, setNewBedName] = useState("");
   const [newBedNumber, setNewBedNumber] = useState("");
