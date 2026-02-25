@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { CropDetailContent } from "./crop-detail";
 import type { Crop } from "@/lib/types";
 
+/** Страница культуры подгружается из БД при неизвестном slug (добавленные дачниками). */
+export const dynamic = "force-dynamic";
+
 interface Props {
   params: Promise<{ slug: string }>;
 }

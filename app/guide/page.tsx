@@ -5,6 +5,9 @@ import { getMergedCrops, type CropWithSource } from "@/lib/crops-merge";
 import { GuideSearch } from "./guide-search";
 import { GuideAccordion } from "./guide-accordion";
 
+/** Список культур подгружается из БД при каждом запросе (в т.ч. добавленные дачниками). */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Справочник растений — Любимая Дача",
   description:
