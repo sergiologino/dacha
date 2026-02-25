@@ -21,16 +21,16 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const shared = await prisma.sharedContent.findUnique({ where: { id } });
-  if (!shared) return { title: "Не найдено — ДачаAI" };
+  if (!shared) return { title: "Не найдено — Любимая Дача" };
 
   const data = shared.data as ShareData;
   const isChat = shared.type === "chat";
   const title = isChat
-    ? "Вопрос нейроэксперту — ДачаAI"
-    : "Фото-анализ растения — ДачаAI";
+    ? "Вопрос нейроэксперту — Любимая Дача"
+    : "Фото-анализ растения — Любимая Дача";
   const description = isChat
     ? (data.question || "Ответ AI-агронома").substring(0, 200)
-    : (data.result || "Диагностика растения от ДачаAI").substring(0, 200);
+    : (data.result || "Диагностика растения от Любимая Дача").substring(0, 200);
 
   const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://dacha-ai.ru";
 
@@ -40,12 +40,12 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      siteName: "ДачаAI — AI-агроном для дачников",
+      siteName: "Любимая Дача — AI-агроном для дачников",
       type: "article",
       url: `${baseUrl}/share/${id}`,
       images: data.imageUrl && !data.imageUrl.startsWith("data:")
         ? [{ url: data.imageUrl, width: 1200, height: 630, alt: title }]
-        : [{ url: `${baseUrl}/icons/icon-512.png`, width: 512, height: 512, alt: "ДачаAI" }],
+        : [{ url: `${baseUrl}/icons/icon-512.png`, width: 512, height: 512, alt: "Любимая Дача" }],
     },
     twitter: {
       card: "summary_large_image",
@@ -73,7 +73,7 @@ export default async function SharePage({
         <Link href="/" className="flex items-center gap-2">
           <Sprout className="w-7 h-7 text-emerald-600" />
           <span className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-amber-600 bg-clip-text text-transparent">
-            ДачаAI
+            Любимая Дача
           </span>
         </Link>
       </header>
@@ -148,7 +148,7 @@ export default async function SharePage({
           >
             <Link href="/">
               <Sprout className="w-5 h-5 mr-2" />
-              Попробовать ДачаAI бесплатно
+              Попробовать Любимая Дача бесплатно
             </Link>
           </Button>
         </div>

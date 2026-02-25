@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
-import { crops } from "@/lib/data/crops";
+import { crops as staticCrops } from "@/lib/data/crops";
 
 const AI_URL = process.env.AI_INTEGRATION_URL;
 const AI_KEY = process.env.AI_INTEGRATION_API_KEY;
 
-function buildPrompt(crop: (typeof crops)[0], locationName: string | null) {
+function buildPrompt(
+  crop: { name: string; varieties?: { name: string }[] },
+  locationName: string | null
+) {
   const varietyList = crop.varieties?.map((v) => v.name).join(", ") || "";
   const regionNote = locationName
     ? `Руководство для региона: ${locationName}. Учитывай климатические особенности этого региона при указании сроков.`
@@ -58,7 +61,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "slug is required" }, { status: 400 });
   }
 
-  const crop = crops.find((c) => c.slug === slug);
+  let crop: { name: string; varieties?: { name: string }[] } | null =
+    staticCrops.find((c) => c.slug === slug) ?? null;
+  if (!crop) {
+    try {
+      const row = await prisma.crop.findUnique({ where: { slug } });
+      if (row) {
+        const varieties = Array.isArray(row.varieties)
+          ? (row.varieties as { name: string; desc?: string }[]).map((v) => ({ name: v.name }))
+          : undefined;
+        crop = { name: row.name, varieties };
+      }
+    } catch {
+      crop = null;
+    }
+  }
   if (!crop) {
     return NextResponse.json({ error: "Crop not found" }, { status: 404 });
   }

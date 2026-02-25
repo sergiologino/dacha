@@ -23,8 +23,8 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
     const amount = selectedPlan === "yearly" ? 1990 : 199;
     const description =
       selectedPlan === "yearly"
-        ? "ДачаAI Премиум на год"
-        : "ДачаAI Премиум на месяц";
+        ? "Любимая Дача Премиум на год"
+        : "Любимая Дача Премиум на месяц";
 
     try {
       const response = await fetch("/api/payments", {
@@ -49,7 +49,7 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-2xl text-center flex items-center justify-center gap-2">
-            <Crown className="w-8 h-8 text-amber-500" /> ДачаAI Премиум
+            <Crown className="w-8 h-8 text-amber-500" /> Любимая Дача Премиум
           </DialogTitle>
         </DialogHeader>
 

@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { name, bedId, plantedDate } = await request.json();
+    const { name, bedId, plantedDate, cropSlug } = await request.json();
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
         name,
         bedId: bedId || null,
         plantedDate: plantedDate ? new Date(plantedDate) : new Date(),
+        cropSlug: cropSlug || null,
       },
     });
 

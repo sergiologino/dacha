@@ -10,7 +10,7 @@ export function SignInForm() {
     <Card className="w-full max-w-sm p-8">
       <div className="flex flex-col items-center mb-8">
         <Sprout className="w-12 h-12 text-emerald-600 mb-4" />
-        <h1 className="text-2xl font-bold">Вход в ДачаAI</h1>
+        <h1 className="text-2xl font-bold">Вход в Любимая Дача</h1>
         <p className="text-slate-500 text-sm mt-2">Выберите способ входа</p>
       </div>
 

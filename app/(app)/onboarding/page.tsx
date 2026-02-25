@@ -67,7 +67,7 @@ export default function OnboardingPage() {
             <Sprout className="w-10 h-10 text-emerald-600" />
           </div>
           <h1 className="text-3xl font-bold mb-4">
-            Добро пожаловать в ДачаAI!
+            Добро пожаловать в Любимая Дача!
           </h1>
           <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
             Чтобы давать точные рекомендации по посадке и уходу,

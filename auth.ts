@@ -30,18 +30,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: "/auth/signin",
   },
   callbacks: {
-    async signIn({ user }) {
-      if (!user.email) return true;
-      try {
-        const { prisma } = await import("@/lib/prisma");
-        await prisma.user.upsert({
-          where: { email: user.email },
-          update: { name: user.name ?? undefined, image: user.image ?? undefined },
-          create: { email: user.email, name: user.name, image: user.image },
-        });
-      } catch (err) {
-        console.error("[Auth] Failed to upsert user:", err);
-      }
+    // Не используем Prisma здесь: middleware работает в Edge Runtime, где Prisma (node:*) недоступен.
+    // Пользователь создаётся/обновляется при первом вызове getAuthUser() в API/Server Components.
+    async signIn() {
       return true;
     },
     authorized({ auth: session, request }) {

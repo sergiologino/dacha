@@ -17,14 +17,14 @@ vi.mock("framer-motion", () => ({
 }));
 
 describe("BottomNav", () => {
-  it("renders all navigation items", () => {
+  it("renders all navigation items (5 items, Факты moved to guide page)", () => {
     render(<BottomNav />);
     expect(screen.getByText("Главная")).toBeInTheDocument();
     expect(screen.getByText("Календарь")).toBeInTheDocument();
     expect(screen.getByText("Нейроэксперт")).toBeInTheDocument();
     expect(screen.getByText("Справочник")).toBeInTheDocument();
-    expect(screen.getByText("Факты")).toBeInTheDocument();
     expect(screen.getByText("Камера")).toBeInTheDocument();
+    expect(screen.queryByText("Факты")).not.toBeInTheDocument();
   });
 
   it("highlights active route", () => {
@@ -39,7 +39,6 @@ describe("BottomNav", () => {
     expect(screen.getByText("Календарь").closest("a")).toHaveAttribute("href", "/calendar");
     expect(screen.getByText("Нейроэксперт").closest("a")).toHaveAttribute("href", "/chat");
     expect(screen.getByText("Справочник").closest("a")).toHaveAttribute("href", "/guide");
-    expect(screen.getByText("Факты").closest("a")).toHaveAttribute("href", "/facts");
     expect(screen.getByText("Камера").closest("a")).toHaveAttribute("href", "/camera");
   });
 

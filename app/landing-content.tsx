@@ -87,7 +87,7 @@ export function LandingContent() {
             <Sprout className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
           </motion.div>
           <span className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-amber-600 bg-clip-text text-transparent">
-            ДачаAI
+            Любимая Дача
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -191,7 +191,7 @@ export function LandingContent() {
           <div className="max-w-4xl mx-auto px-4 py-8 flex justify-between items-center text-sm text-slate-500">
             <div className="flex items-center gap-2">
               <Sprout className="w-4 h-4" />
-              ДачаAI © {new Date().getFullYear()}
+              Любимая Дача © {new Date().getFullYear()}
             </div>
           <div className="flex gap-6">
             <Link href="/guide" className="hover:text-emerald-600">

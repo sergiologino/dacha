@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 import { Sprout, Crown } from "lucide-react";
 import { ShareIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -11,14 +12,23 @@ import { toast } from "sonner";
 
 export function AppHeader() {
   const { data: session } = useSession();
+  const [isPremium, setIsPremium] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    fetch("/api/user/premium")
+      .then((r) => r.json())
+      .then((data) => setIsPremium(!!data.isPremium))
+      .catch(() => {});
+  }, [session?.user]);
 
   const shareApp = async () => {
     const url = window.location.origin;
-    const text = "ДачаAI — умный помощник для вашей дачи. AI-агроном, справочник, календарь.";
+    const text = "Любимая Дача — умный помощник для вашей дачи. AI-агроном, справочник, календарь.";
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: "ДачаAI", text, url });
+        await navigator.share({ title: "Любимая Дача", text, url });
         return;
       } catch {
         // fallback to clipboard
@@ -38,7 +48,7 @@ export function AppHeader() {
       <Link href="/garden" className="flex items-center gap-3">
         <Sprout className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
         <span className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-amber-600 bg-clip-text text-transparent">
-          ДачаAI
+          Любимая Дача
         </span>
       </Link>
       <div className="flex items-center gap-2">
@@ -52,16 +62,22 @@ export function AppHeader() {
           <ShareIcon className="w-5 h-5" />
         </Button>
         <ThemeToggle />
-        <Button
-          variant="outline"
-          size="sm"
-          asChild
-          className="flex items-center gap-1 border-emerald-600 text-emerald-600"
-        >
-          <Link href="/subscribe">
-            <Crown className="w-4 h-4" /> Премиум
-          </Link>
-        </Button>
+        {isPremium ? (
+          <span className="flex items-center justify-center w-9 h-9 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/50" title="Премиум">
+            <Crown className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          </span>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            asChild
+            className="flex items-center gap-1 border-emerald-600 text-emerald-600"
+          >
+            <Link href="/subscribe">
+              <Crown className="w-4 h-4" /> Премиум
+            </Link>
+          </Button>
+        )}
         {session?.user && (
           <Link href="/settings">
             <Avatar className="w-9 h-9 ring-2 ring-emerald-200 dark:ring-emerald-800 cursor-pointer hover:ring-emerald-400 transition-all">

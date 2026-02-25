@@ -5,8 +5,8 @@ import { AppPageTransition } from "./app-transition";
 
 export const metadata: Metadata = {
   title: {
-    default: "ДачаAI",
-    template: "%s | ДачаAI",
+    default: "Любимая Дача",
+    template: "%s | Любимая Дача",
   },
 };
 
