@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Landing page", () => {
   test("shows app name and sign-in button", async ({ page }) => {
     await page.goto("/");
-    await expect(page.locator("h1")).toContainText("ДачаAI");
+    await expect(page.locator("h1")).toContainText("Любимая Дача");
     await expect(page.getByRole("button", { name: /войти/i })).toBeVisible();
   });
 

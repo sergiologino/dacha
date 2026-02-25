@@ -19,8 +19,8 @@ export default function SubscribePage() {
     const amount = selectedPlan === "yearly" ? 1990 : 199;
     const description =
       selectedPlan === "yearly"
-        ? "ДачаAI Премиум на год"
-        : "ДачаAI Премиум на месяц";
+        ? "Любимая Дача Премиум на год"
+        : "Любимая Дача Премиум на месяц";
 
     try {
       const response = await fetch("/api/payments", {
@@ -41,7 +41,7 @@ export default function SubscribePage() {
     <>
       <div className="text-center mb-8">
         <Crown className="w-16 h-16 text-amber-500 mx-auto mb-4" />
-        <h1 className="text-3xl font-bold mb-2">ДачаAI Премиум</h1>
+        <h1 className="text-3xl font-bold mb-2">Любимая Дача Премиум</h1>
         <p className="text-slate-500">Разблокируй все возможности</p>
       </div>
 

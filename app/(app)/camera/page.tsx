@@ -185,7 +185,7 @@ export default function CameraPage() {
                 className="w-full h-14 rounded-3xl bg-gradient-to-r from-emerald-600 to-teal-600"
               >
                 {isAnalyzing && <RefreshCw className="animate-spin mr-2" />}
-                {isAnalyzing ? "Анализирую..." : "Анализировать с ДачаAI"}
+                {isAnalyzing ? "Анализирую..." : "Анализировать с Любимая Дача"}
               </Button>
             </div>
           </Card>

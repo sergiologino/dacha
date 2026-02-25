@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { FactsContent } from "./facts-content";
 
 export const metadata: Metadata = {
-  title: "Интересные факты о растениях — ДачаAI",
+  title: "Интересные факты о растениях — Любимая Дача",
   description:
     "25 удивительных фактов о растениях, огороде и садоводстве. Узнайте, почему морковь была фиолетовой и как тыква весит тонну.",
   keywords:

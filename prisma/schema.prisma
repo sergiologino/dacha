@@ -82,19 +82,20 @@ model VerificationToken {
 // ─── Garden domain ──────────────────────────────────────────
 
 model Crop {
-  id          Int      @id @default(autoincrement())
-  name        String
-  slug        String   @unique
-  category    String
-  description String?
-  plantMonths String[]
+  id            Int      @id @default(autoincrement())
+  name          String
+  slug          String   @unique
+  category      String
+  description   String?
+  plantMonths   String[]
   harvestMonths String[]
   waterSchedule String?
-  difficulty  Int      @default(1) // 1-5
-  regions     String[]
-  careNotes   String?
-  imageUrl    String?
-  createdAt   DateTime @default(now())
+  difficulty    Int      @default(1) // 1-5
+  regions       String[]
+  careNotes     String?
+  imageUrl      String?
+  varieties     Json?    // [{ name, desc }] — сорта для культур, добавленных дачниками
+  createdAt     DateTime @default(now())
 
   plants Plant[]
 

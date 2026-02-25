@@ -14,11 +14,11 @@ export function AppHeader() {
 
   const shareApp = async () => {
     const url = window.location.origin;
-    const text = "ДачаAI — умный помощник для вашей дачи. AI-агроном, справочник, календарь.";
+    const text = "Любимая Дача — умный помощник для вашей дачи. AI-агроном, справочник, календарь.";
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: "ДачаAI", text, url });
+        await navigator.share({ title: "Любимая Дача", text, url });
         return;
       } catch {
         // fallback to clipboard
@@ -38,7 +38,7 @@ export function AppHeader() {
       <Link href="/garden" className="flex items-center gap-3">
         <Sprout className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
         <span className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-amber-600 bg-clip-text text-transparent">
-          ДачаAI
+          Любимая Дача
         </span>
       </Link>
       <div className="flex items-center gap-2">

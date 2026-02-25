@@ -1,17 +1,38 @@
 import { Metadata } from "next";
-import { crops } from "@/lib/data/crops";
+import { prisma } from "@/lib/prisma";
+import { getMergedCrops } from "@/lib/crops-merge";
 import { GuideSearch } from "./guide-search";
 import { GuideAccordion } from "./guide-accordion";
 
 export const metadata: Metadata = {
-  title: "Справочник растений — ДачаAI",
+  title: "Справочник растений — Любимая Дача",
   description:
-    "Справочник садовых и огородных культур России: томаты, огурцы, картофель, ягоды и другие. Как сажать, ухаживать, поливать — советы от AI-агронома.",
+    "Справочник садовых и огородных культур России: томаты, огурцы, картофель, ягоды и другие. Как сажать, ухаживать, поливать — советы от нейроэксперта.",
   keywords:
     "справочник растений, огород, дача, как сажать помидоры, полив огурцов, выращивание картофеля",
 };
 
-export default function GuidePage() {
+export default async function GuidePage() {
+  const crops = await getMergedCrops(() =>
+    prisma.crop.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        category: true,
+        description: true,
+        plantMonths: true,
+        harvestMonths: true,
+        waterSchedule: true,
+        regions: true,
+        careNotes: true,
+        imageUrl: true,
+        varieties: true,
+      },
+    })
+  );
+
   return (
     <div>
       <div className="max-w-5xl mx-auto px-4 py-8">

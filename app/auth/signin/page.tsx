@@ -2,8 +2,8 @@ import { Metadata } from "next";
 import { SignInForm } from "./signin-form";
 
 export const metadata: Metadata = {
-  title: "Вход — ДачаAI",
-  description: "Войдите через Google или Яндекс, чтобы начать работу с ДачаAI",
+  title: "Вход — Любимая Дача",
+  description: "Войдите через Google или Яндекс, чтобы начать работу с Любимая Дача",
 };
 
 export default function SignInPage() {

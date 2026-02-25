@@ -24,7 +24,7 @@ import { SubscribeModal } from "@/components/subscribe-modal";
 import type { Crop } from "@/lib/types";
 
 interface Props {
-  crop: Crop;
+  crop: Crop & { addedByCommunity?: boolean };
 }
 
 export function CropDetailContent({ crop }: Props) {
@@ -84,10 +84,15 @@ export function CropDetailContent({ crop }: Props) {
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <div className="absolute bottom-4 left-4">
                 <h1 className="text-3xl font-bold text-white">{crop.name}</h1>
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-2 mt-2 flex-wrap">
                   <Badge className="bg-white/20 text-white backdrop-blur-sm border-0">
                     {crop.category}
                   </Badge>
+                  {crop.addedByCommunity && (
+                    <Badge className="bg-amber-500/90 text-white border-0">
+                      Добавлено дачниками
+                    </Badge>
+                  )}
                 </div>
               </div>
             </div>
@@ -97,8 +102,13 @@ export function CropDetailContent({ crop }: Props) {
         {!crop.imageUrl && (
           <MotionDiv variant="fadeUp">
             <h1 className="text-3xl font-bold mb-2">{crop.name}</h1>
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-6 flex-wrap">
               <Badge variant="secondary">{crop.category}</Badge>
+              {crop.addedByCommunity && (
+                <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">
+                  Добавлено дачниками
+                </Badge>
+              )}
             </div>
           </MotionDiv>
         )}

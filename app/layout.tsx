@@ -15,11 +15,11 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "ДачаAI — умный AI-помощник для дачников",
-    template: "%s | ДачаAI",
+    default: "Любимая Дача — помощник для дачников",
+    template: "%s | Любимая Дача",
   },
   description:
-    "Персональный AI-помощник для садоводов: календарь посадок, анализ болезней по фото, справочник 100+ культур, лунный календарь.",
+    "Помощник для садоводов: календарь посадок, анализ болезней по фото, справочник 100+ культур, лунный календарь.",
   metadataBase: new URL("https://dacha-ai.ru"),
   manifest: "/manifest.json",
   icons: {
@@ -30,10 +30,10 @@ export const metadata: Metadata = {
     apple: "/icons/apple-touch-icon.png",
   },
   openGraph: {
-    title: "ДачаAI — умный AI-помощник для дачников",
+    title: "Любимая Дача — помощник для дачников",
     description:
       "Календарь посадок, анализ болезней по фото, справочник 100+ культур, лунный календарь. Работает без интернета.",
-    siteName: "ДачаAI",
+    siteName: "Любимая Дача",
     type: "website",
     locale: "ru_RU",
     url: "https://dacha-ai.ru",
@@ -42,20 +42,20 @@ export const metadata: Metadata = {
         url: "/icons/icon-512.png",
         width: 512,
         height: 512,
-        alt: "ДачаAI — AI-помощник для дачников",
+        alt: "Любимая Дача — помощник для дачников",
       },
     ],
   },
   twitter: {
     card: "summary",
-    title: "ДачаAI — умный AI-помощник для дачников",
+    title: "Любимая Дача — помощник для дачников",
     description:
       "Календарь посадок, анализ болезней по фото, справочник культур, лунный календарь.",
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "ДачаAI",
+    title: "Любимая Дача",
   },
   robots: {
     index: true,
