@@ -33,8 +33,10 @@ import { useUserLocation } from "@/lib/hooks/use-user-location";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlants, useCreatePlant, useUpdatePlant, useDeletePlant, type Plant } from "@/lib/hooks/use-plants";
 import { useBeds, useCreateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
-import { crops } from "@/lib/data/crops";
+import { useCrops } from "@/lib/hooks/use-crops";
+import { crops as staticCrops } from "@/lib/data/crops";
 import { searchCropsAndVarieties, type CropSearchHit } from "@/lib/crops-search";
+import type { CropWithSource } from "@/lib/crops-merge";
 
 const bedTypeLabels: Record<string, string> = {
   open: "Открытый грунт",
@@ -67,9 +69,14 @@ export default function GardenPage() {
 
   const qc = useQueryClient();
   const { data: beds = [], isLoading: bedsLoading } = useBeds();
+  const { data: cropsList } = useCrops();
   const createBed = useCreateBed();
   const deleteBed = useDeleteBed();
   const uploadPhoto = useUploadPlantPhoto();
+
+  const crops: CropWithSource[] =
+    cropsList ??
+    staticCrops.map((c) => ({ ...c, addedByCommunity: false }));
 
   const unassignedPlants = plants.filter((p) => !p.bedId);
 
