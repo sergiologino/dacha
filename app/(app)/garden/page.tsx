@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 import {
   Plus,
   Trash2,
@@ -53,9 +55,22 @@ const bedTypeEmoji: Record<string, string> = {
 };
 
 export default function GardenPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   useOnboardingCheck();
   const { data: location } = useUserLocation();
+
+  useEffect(() => {
+    if (searchParams.get("payment") !== "success") return;
+    fetch("/api/payments/sync")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.activated) toast.success("Премиум активирован!");
+        router.replace("/garden", { scroll: false });
+      })
+      .catch(() => {});
+  }, [searchParams, router]);
 
   const [newBedName, setNewBedName] = useState("");
   const [newBedNumber, setNewBedNumber] = useState("");

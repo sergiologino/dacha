@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { getAuthUser } from "@/lib/get-user";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user) {
+  const user = await getAuthUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -37,18 +38,29 @@ export async function POST(request: NextRequest) {
           return_url: `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/garden?payment=success`,
         },
         description,
-        metadata: { plan, userId: session.user.email },
+        metadata: { plan, userId: user.email },
       }),
     });
 
     const data = await response.json();
 
-    if (data.confirmation?.confirmation_url) {
+    if (data.confirmation?.confirmation_url && data.id) {
+      await prisma.payment.create({
+        data: {
+          userId: user.id,
+          yookassaId: data.id,
+          amount: Math.round(Number(amount)),
+          plan: plan ?? "monthly",
+          description: description ?? null,
+          status: "pending",
+        },
+      });
       return NextResponse.json({ paymentUrl: data.confirmation.confirmation_url });
     }
 
     return NextResponse.json({ error: "Payment creation failed" }, { status: 500 });
-  } catch {
+  } catch (e) {
+    console.error("Payment creation error:", e);
     return NextResponse.json({ error: "Payment service error" }, { status: 500 });
   }
 }
