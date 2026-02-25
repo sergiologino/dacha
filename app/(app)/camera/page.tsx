@@ -27,7 +27,8 @@ export default function CameraPage() {
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [sharedOk, setSharedOk] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") redirect("/auth/signin");
@@ -153,24 +154,31 @@ export default function CameraPage() {
             </p>
             <div className="flex flex-col gap-3">
               <Button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => cameraInputRef.current?.click()}
                 className="h-14 rounded-3xl bg-emerald-600"
               >
                 📸 Сфотографировать
               </Button>
               <Button
                 variant="outline"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => galleryInputRef.current?.click()}
                 className="h-14 rounded-3xl"
               >
                 Выбрать из галереи
               </Button>
             </div>
             <input
-              ref={fileInputRef}
+              ref={cameraInputRef}
               type="file"
               accept="image/*"
               capture="environment"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
               onChange={handleImageSelect}
               className="hidden"
             />
