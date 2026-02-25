@@ -30,15 +30,25 @@ export async function POST(request: NextRequest) {
     const bed = await prisma.bed.findFirst({ where: { id: bedId, userId: user.id } });
     if (!bed) return NextResponse.json({ error: "Bed not found" }, { status: 404 });
 
-    const ext = path.extname(file.name) || ".jpg";
+    const ext = path.extname(file.name || "") || ".jpg";
     const filename = `${randomUUID()}${ext}`;
     const dir = path.join(process.cwd(), UPLOAD_DIR);
-    await mkdir(dir, { recursive: true });
-    const filepath = path.join(dir, filename);
-    const bytes = await file.arrayBuffer();
-    await writeFile(filepath, Buffer.from(bytes));
+    let url: string;
 
-    const url = `/uploads/${filename}`;
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const mimeType = file.type || "image/jpeg";
+
+    try {
+      await mkdir(dir, { recursive: true });
+      const filepath = path.join(dir, filename);
+      await writeFile(filepath, buffer);
+      url = `/uploads/${filename}`;
+    } catch {
+      const base64 = buffer.toString("base64");
+      url = `data:${mimeType};base64,${base64}`;
+    }
+
     const takenAt = takenAtStr ? new Date(takenAtStr) : new Date();
 
     const photo = await prisma.photo.create({
@@ -53,7 +63,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(photo, { status: 201 });
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     console.error("Photos POST error:", err);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        details: process.env.NODE_ENV === "development" ? message : undefined,
+      },
+      { status: 500 }
+    );
   }
 }
