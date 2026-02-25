@@ -1,12 +1,27 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { MessageCircle } from "lucide-react";
 
 type FeedbackLinksProps = { variant?: "bar" | "inline" };
 
 export function FeedbackLinks({ variant = "bar" }: FeedbackLinksProps) {
-  const telegramUrl = process.env.NEXT_PUBLIC_FEEDBACK_TELEGRAM_URL || "";
-  const maxUrl = process.env.NEXT_PUBLIC_FEEDBACK_MAX_URL || "";
+  const [links, setLinks] = useState<{ telegram: string; max: string }>({ telegram: "", max: "" });
+
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((data: { feedbackTelegramUrl?: string; feedbackMaxUrl?: string }) => {
+        setLinks({
+          telegram: data.feedbackTelegramUrl || "",
+          max: data.feedbackMaxUrl || "",
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const telegramUrl = links.telegram;
+  const maxUrl = links.max;
   const show = telegramUrl || maxUrl;
 
   if (!show) return null;
