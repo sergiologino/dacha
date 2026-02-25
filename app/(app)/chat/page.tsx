@@ -43,6 +43,10 @@ function MessageBubble({
   shared?: boolean;
 }) {
   const isUser = message.role === "user";
+  const [expanded, setExpanded] = useState(false);
+  const isAssistant = !isUser;
+  const needsCollapse = message.content.length > 280 || message.content.split(/\n/).length > 5;
+  const shouldCollapse = isAssistant && !expanded && needsCollapse;
 
   return (
     <motion.div
@@ -63,9 +67,26 @@ function MessageBubble({
             : "bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700"
         }`}
       >
-        <p className="text-sm whitespace-pre-wrap leading-relaxed">
-          {message.content}
-        </p>
+        <div
+          className={
+            shouldCollapse
+              ? "relative max-h-[7.5rem] overflow-hidden [mask-image:linear-gradient(to_bottom,black_0,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0,black_60%,transparent_100%)]"
+              : ""
+          }
+        >
+          <p className="text-sm whitespace-pre-wrap leading-relaxed">
+            {message.content}
+          </p>
+          {shouldCollapse && (
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+            >
+              Развернуть
+            </button>
+          )}
+        </div>
         {!isUser && (
           <div className="flex items-center justify-between mt-1">
             <p className="text-[10px] text-slate-400">Нейроэксперт</p>

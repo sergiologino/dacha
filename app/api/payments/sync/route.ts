@@ -10,6 +10,13 @@ function yookassaAuth() {
   return "Basic " + Buffer.from(`${shopId}:${secretKey}`).toString("base64");
 }
 
+function addPremiumMonths(from: Date, plan: string): Date {
+  if (plan === "yearly") {
+    return new Date(from.getFullYear() + 1, from.getMonth(), from.getDate());
+  }
+  return new Date(from.getFullYear(), from.getMonth() + 1, from.getDate());
+}
+
 export async function GET() {
   const user = await getAuthUser();
   if (!user) {
@@ -33,12 +40,9 @@ export async function GET() {
         headers: { Authorization: authHeader },
       });
       const data = await res.json();
-      if (data.status === "succeeded") {
+      if (data.status === "succeeded" || data.status === "waiting_for_capture") {
         const now = new Date();
-        const premiumUntil =
-          payment.plan === "yearly"
-            ? new Date(now.getFullYear() + 1, now.getMonth(), now.getDate())
-            : new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+        const premiumUntil = addPremiumMonths(now, payment.plan);
         await prisma.$transaction([
           prisma.payment.update({
             where: { id: payment.id },
@@ -59,6 +63,34 @@ export async function GET() {
       }
     } catch (e) {
       console.error("YooKassa fetch payment error:", e);
+    }
+  }
+
+  // Fallback: нет записей pending (платёж создан до сохранения в БД или с другой вкладки).
+  // Пробуем взять список платежей ЮKassa и найти успешный по metadata.userId (email).
+  if (pending.length === 0 && user.email) {
+    try {
+      const listRes = await fetch("https://api.yookassa.ru/v3/payments?limit=20", {
+        headers: { Authorization: authHeader },
+      });
+      const listData = await listRes.json();
+      const items = listData.items ?? [];
+      const succeeded = items.find(
+        (p: { status?: string; metadata?: { userId?: string } }) =>
+          (p.status === "succeeded" || p.status === "waiting_for_capture") &&
+          p.metadata?.userId === user.email
+      );
+      if (succeeded) {
+        const plan = (succeeded.metadata?.plan as string) || "yearly";
+        const premiumUntil = addPremiumMonths(new Date(), plan);
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { isPremium: true, premiumUntil },
+        });
+        return NextResponse.json({ isPremium: true, activated: true });
+      }
+    } catch (e) {
+      console.error("YooKassa list payments error:", e);
     }
   }
 

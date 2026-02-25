@@ -19,6 +19,7 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
   const [aiError, setAiError] = useState<string | null>(null);
   const [addToGuideLoading, setAddToGuideLoading] = useState(false);
   const [addToGuideError, setAddToGuideError] = useState<string | null>(null);
+  const [aiExpanded, setAiExpanded] = useState(false);
 
   const filtered = searchTerm
     ? crops.filter(
@@ -176,39 +177,56 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
             <Sparkles className="w-5 h-5 text-amber-500" />
             <h3 className="font-bold">Ответ нейроэксперта</h3>
           </div>
-          <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-emerald-700 dark:prose-headings:text-emerald-400">
-            {aiResult.split("\n").map((line, i) => {
-              if (line.startsWith("## "))
+          <div
+            className={
+              !aiExpanded && aiResult.length > 280
+                ? "relative max-h-[7.5rem] overflow-hidden [mask-image:linear-gradient(to_bottom,black_0,black_60%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_bottom,black_0,black_60%,transparent_100%)]"
+                : ""
+            }
+          >
+            <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-emerald-700 dark:prose-headings:text-emerald-400">
+              {aiResult.split("\n").map((line, i) => {
+                if (line.startsWith("## "))
+                  return (
+                    <h2
+                      key={i}
+                      className="text-lg font-bold mt-4 mb-2 text-emerald-700 dark:text-emerald-400"
+                    >
+                      {line.replace("## ", "")}
+                    </h2>
+                  );
+                if (line.startsWith("### "))
+                  return (
+                    <h3
+                      key={i}
+                      className="text-base font-bold mt-3 mb-1 text-emerald-700 dark:text-emerald-400"
+                    >
+                      {line.replace("### ", "")}
+                    </h3>
+                  );
+                if (line.startsWith("- "))
+                  return (
+                    <li key={i} className="ml-4 list-disc text-sm">
+                      {line.replace("- ", "")}
+                    </li>
+                  );
+                if (line.trim() === "") return <br key={i} />;
                 return (
-                  <h2
-                    key={i}
-                    className="text-lg font-bold mt-4 mb-2 text-emerald-700 dark:text-emerald-400"
-                  >
-                    {line.replace("## ", "")}
-                  </h2>
+                  <p key={i} className="text-sm leading-relaxed">
+                    {line}
+                  </p>
                 );
-              if (line.startsWith("### "))
-                return (
-                  <h3
-                    key={i}
-                    className="text-base font-bold mt-3 mb-1 text-emerald-700 dark:text-emerald-400"
-                  >
-                    {line.replace("### ", "")}
-                  </h3>
-                );
-              if (line.startsWith("- "))
-                return (
-                  <li key={i} className="ml-4 list-disc text-sm">
-                    {line.replace("- ", "")}
-                  </li>
-                );
-              if (line.trim() === "") return <br key={i} />;
-              return (
-                <p key={i} className="text-sm leading-relaxed">
-                  {line}
-                </p>
-              );
-            })}
+              })}
+            </div>
+            {!aiExpanded && aiResult.length > 280 && (
+              <button
+                type="button"
+                onClick={() => setAiExpanded(true)}
+                className="mt-2 text-sm text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+              >
+                Развернуть
+              </button>
+            )}
           </div>
           <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
             <Button

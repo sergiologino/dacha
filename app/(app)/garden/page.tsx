@@ -63,13 +63,31 @@ export default function GardenPage() {
 
   useEffect(() => {
     if (searchParams.get("payment") !== "success") return;
-    fetch("/api/payments/sync")
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.activated) toast.success("Премиум активирован!");
-        router.replace("/garden", { scroll: false });
-      })
-      .catch(() => {});
+    let mounted = true;
+    const run = (attempt: number) => {
+      fetch("/api/payments/sync")
+        .then((r) => r.json())
+        .then((data) => {
+          if (!mounted) return;
+          if (data.activated) {
+            toast.success("Премиум активирован!");
+            router.replace("/garden", { scroll: false });
+            router.refresh();
+            return;
+          }
+          if (attempt < 3) {
+            setTimeout(() => run(attempt + 1), 2000);
+          } else {
+            router.replace("/garden", { scroll: false });
+          }
+        })
+        .catch(() => {
+          if (mounted && attempt < 3) setTimeout(() => run(attempt + 1), 2000);
+        });
+    };
+    toast.info("Проверяем оплату...");
+    run(1);
+    return () => { mounted = false; };
   }, [searchParams, router]);
 
   const [newBedName, setNewBedName] = useState("");
