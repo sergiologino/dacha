@@ -175,7 +175,7 @@ export default function GardenContent() {
             onClick={() => setShowBedForm(!showBedForm)}
             className="bg-emerald-600 hover:bg-emerald-700 rounded-2xl"
           >
-            <Plus className="w-4 h-4 mr-1" /> ╨Э╨╛╨▓╨░╤П ╨│╤А╤П╨┤╨║╨░
+            <Plus className="w-4 h-4 mr-1" /> Новая грядка
           </Button>
         </div>
       </MotionDiv>
@@ -184,7 +184,7 @@ export default function GardenContent() {
       {showBedForm && (
         <MotionDiv variant="fadeUp">
           <Card className="p-5 mb-6 border-emerald-200 dark:border-emerald-800">
-            <h3 className="font-semibold mb-3">╨Э╨╛╨▓╨░╤П ╨│╤А╤П╨┤╨║╨░</h3>
+            <h3 className="font-semibold mb-3">Новая грядка</h3>
             <div className="flex flex-col gap-3">
               <input
                 type="text"
@@ -196,7 +196,7 @@ export default function GardenContent() {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="╨Э╨╛╨╝╨╡╤А"
+                  placeholder="Номер"
                   value={newBedNumber}
                   onChange={(e) => setNewBedNumber(e.target.value)}
                   className="w-1/3 px-4 py-3 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900"
@@ -206,9 +206,9 @@ export default function GardenContent() {
                   onChange={(e) => setNewBedType(e.target.value)}
                   className="flex-1 px-4 py-3 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900"
                 >
-                  <option value="open">ЁЯМ┐ ╨Ю╤В╨║╤А╤Л╤В╤Л╨╣ ╨│╤А╤Г╨╜╤В</option>
+                  <option value="open">🌿 Открытый грунт</option>
                   <option value="greenhouse">🏠 Теплица</option>
-                  <option value="raised">ЁЯУж ╨Т╤Л╤Б╨╛╨║╨░╤П ╨│╤А╤П╨┤╨║╨░</option>
+                  <option value="raised">📦 Высокая грядка</option>
                   <option value="seedling_home">🪴 Рассада дома</option>
                 </select>
               </div>
