@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { FeedbackLinks } from "@/components/feedback-links";
 import {
   MotionDiv,
   StaggerContainer,
@@ -188,19 +189,20 @@ export function LandingContent() {
       {/* Footer */}
       <MotionDiv variant="fadeIn">
         <footer className="border-t border-slate-200 dark:border-slate-800">
-          <div className="max-w-4xl mx-auto px-4 py-8 flex justify-between items-center text-sm text-slate-500">
+          <div className="max-w-4xl mx-auto px-4 py-6 flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center text-sm text-slate-500">
             <div className="flex items-center gap-2">
               <Sprout className="w-4 h-4" />
               Любимая Дача © {new Date().getFullYear()}
             </div>
-          <div className="flex gap-6">
-            <Link href="/guide" className="hover:text-emerald-600">
-              Справочник
-            </Link>
-            <Link href="/facts" className="hover:text-emerald-600">
-              Интересные факты
-            </Link>
-          </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <Link href="/guide" className="hover:text-emerald-600">
+                Справочник
+              </Link>
+              <Link href="/facts" className="hover:text-emerald-600">
+                Интересные факты
+              </Link>
+              <FeedbackLinks variant="inline" />
+            </div>
           </div>
         </footer>
       </MotionDiv>
