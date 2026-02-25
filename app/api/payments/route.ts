@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         capture: true,
         confirmation: {
           type: "redirect",
-          return_url: `${request.nextUrl.origin}/garden?payment=success`,
+          return_url: `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/garden?payment=success`,
         },
         description,
         metadata: { plan, userId: session.user.email },
