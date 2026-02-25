@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export interface BedPhoto {
   id: string;
@@ -9,11 +10,18 @@ export interface BedPhoto {
   takenAt: string;
 }
 
+export interface BedPlantPhoto {
+  id: string;
+  url: string;
+  takenAt: string;
+}
+
 export interface BedPlant {
   id: string;
   name: string;
   status: string;
   plantedDate: string;
+  photos?: BedPlantPhoto[];
 }
 
 export interface Bed {
@@ -51,6 +59,35 @@ async function deleteBed(id: string): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete bed");
 }
 
+export interface UploadPlantPhotoParams {
+  file: File;
+  plantId: string;
+  bedId: string;
+  takenAt?: string;
+}
+
+async function uploadPlantPhoto({
+  file,
+  plantId,
+  bedId,
+  takenAt,
+}: UploadPlantPhotoParams): Promise<BedPhoto> {
+  const formData = new FormData();
+  formData.set("file", file);
+  formData.set("plantId", plantId);
+  formData.set("bedId", bedId);
+  if (takenAt) formData.set("takenAt", takenAt);
+  const res = await fetch("/api/photos", {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to upload photo");
+  }
+  return res.json();
+}
+
 export function useBeds() {
   return useQuery({ queryKey: ["beds"], queryFn: fetchBeds });
 }
@@ -68,5 +105,45 @@ export function useDeleteBed() {
   return useMutation({
     mutationFn: deleteBed,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["beds"] }),
+  });
+}
+
+export function useUploadPlantPhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: uploadPlantPhoto,
+    onSuccess: async (data, variables) => {
+      const { plantId, bedId } = variables;
+      const takenAtStr =
+        typeof data.takenAt === "string"
+          ? data.takenAt
+          : data.takenAt != null
+            ? new Date(data.takenAt).toISOString()
+            : new Date().toISOString();
+      const newPhoto: BedPlantPhoto = {
+        id: String(data.id),
+        url: String(data.url),
+        takenAt: takenAtStr,
+      };
+      qc.setQueryData<Bed[]>(["beds"], (old) => {
+        if (!old) return old;
+        return old.map((bed) => {
+          if (bed.id !== bedId) return bed;
+          return {
+            ...bed,
+            plants: bed.plants.map((plant) => {
+              if (plant.id !== plantId) return plant;
+              const photos = [newPhoto, ...(plant.photos ?? [])];
+              return { ...plant, photos };
+            }),
+          };
+        });
+      });
+      toast.success("Фото добавлено");
+      await qc.refetchQueries({ queryKey: ["beds"] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Не удалось загрузить фото");
+    },
   });
 }

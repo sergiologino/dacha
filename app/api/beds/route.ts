@@ -10,7 +10,10 @@ export async function GET() {
     const beds = await prisma.bed.findMany({
       where: { userId: user.id },
       include: {
-        plants: { orderBy: { createdAt: "desc" } },
+        plants: {
+          orderBy: { createdAt: "desc" },
+          include: { photos: { orderBy: { takenAt: "desc" } } },
+        },
         photos: { orderBy: { createdAt: "desc" }, take: 4 },
       },
       orderBy: { createdAt: "desc" },
