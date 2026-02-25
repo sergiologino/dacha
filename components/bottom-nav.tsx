@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Sprout, Calendar as CalendarIcon, BookOpen, Camera, MessageCircle, Sparkles } from "lucide-react";
+import { Sprout, Calendar as CalendarIcon, BookOpen, Camera, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -11,7 +11,6 @@ const navItems = [
   { href: "/calendar", icon: CalendarIcon, label: "Календарь" },
   { href: "/chat", icon: MessageCircle, label: "Нейроэксперт" },
   { href: "/guide", icon: BookOpen, label: "Справочник" },
-  { href: "/facts", icon: Sparkles, label: "Факты" },
   { href: "/camera", icon: Camera, label: "Камера" },
 ];
 
@@ -19,8 +18,8 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-emerald-200 dark:border-emerald-800">
-      <div className="max-w-5xl mx-auto flex justify-around py-1">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-emerald-200 dark:border-emerald-800 safe-area-pb">
+      <div className="max-w-5xl mx-auto flex justify-around items-stretch py-1.5 px-1 min-w-0">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
@@ -28,7 +27,7 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "relative flex flex-col items-center py-3 px-5 text-xs rounded-lg transition-colors",
+                "relative flex flex-col items-center justify-center flex-1 min-w-0 py-2 px-1 sm:px-2 text-[10px] sm:text-xs rounded-lg transition-colors",
                 isActive
                   ? "text-white"
                   : "text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400"
@@ -41,10 +40,10 @@ export function BottomNav() {
                   transition={{ type: "spring", stiffness: 350, damping: 30 }}
                 />
               )}
-              <span className="relative z-10">
-                <item.icon className="w-6 h-6 mb-1" />
+              <span className="relative z-10 flex-shrink-0">
+                <item.icon className="w-5 h-5 sm:w-6 sm:h-6 mb-0.5" />
               </span>
-              <span className="relative z-10">{item.label}</span>
+              <span className="relative z-10 truncate max-w-full">{item.label}</span>
             </Link>
           );
         })}

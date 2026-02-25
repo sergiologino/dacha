@@ -1,4 +1,6 @@
 import { Metadata } from "next";
+import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { crops as staticCrops } from "@/lib/data/crops";
 import { prisma } from "@/lib/prisma";
 import { getMergedCrops, type CropWithSource } from "@/lib/crops-merge";
@@ -57,6 +59,19 @@ export default async function GuidePage() {
         <GuideSearch crops={crops} />
 
         <GuideAccordion crops={crops} />
+
+        <div className="mt-10 pt-6 border-t border-slate-200 dark:border-slate-700">
+          <Link
+            href="/facts"
+            className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium"
+          >
+            <Sparkles className="w-5 h-5 flex-shrink-0" />
+            Интересные факты для дачников
+          </Link>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Короткие факты о растениях, сезонных работах и природе
+          </p>
+        </div>
       </div>
     </div>
   );

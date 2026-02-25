@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegister } from "@/components/sw-register";
+import { PwaInstallBanner } from "@/components/pwa-install-banner";
 import { useState } from "react";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -26,6 +27,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           {children}
           <Toaster position="top-center" richColors />
           <ServiceWorkerRegister />
+          <PwaInstallBanner />
         </QueryClientProvider>
       </SessionProvider>
     </ThemeProvider>
