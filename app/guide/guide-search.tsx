@@ -177,21 +177,22 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
             <Sparkles className="w-5 h-5 text-amber-500" />
             <h3 className="font-bold">Ответ нейроэксперта</h3>
           </div>
-          <div
-            className={!aiExpanded && aiResult.length > 80 ? "relative" : ""}
-            style={
-              !aiExpanded && aiResult.length > 80
-                ? {
-                    maxHeight: "7.5rem",
-                    overflow: "hidden",
-                    WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
-                    maskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
-                  }
-                : undefined
-            }
-          >
-            <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-emerald-700 dark:prose-headings:text-emerald-400">
-              {aiResult.split("\n").map((line, i) => {
+          <div className="space-y-2">
+            <div
+              className={!aiExpanded && aiResult.length > 80 ? "relative" : ""}
+              style={
+                !aiExpanded && aiResult.length > 80
+                  ? {
+                      maxHeight: "7.5rem",
+                      overflow: "hidden",
+                      WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
+                      maskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
+                    }
+                  : undefined
+              }
+            >
+              <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-emerald-700 dark:prose-headings:text-emerald-400">
+                {aiResult.split("\n").map((line, i) => {
                 if (line.startsWith("## "))
                   return (
                     <h2
@@ -222,15 +223,16 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
                     {line}
                   </p>
                 );
-              })}
+                })}
+              </div>
             </div>
             {!aiExpanded && aiResult.length > 80 && (
               <button
                 type="button"
                 onClick={() => setAiExpanded(true)}
-                className="mt-2 text-sm text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+                className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
               >
-                Развернуть
+                Развернуть ответ
               </button>
             )}
           </div>

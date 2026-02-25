@@ -67,29 +67,31 @@ function MessageBubble({
             : "bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700"
         }`}
       >
-        <div
-          style={
-            shouldCollapse
-              ? {
-                  maxHeight: "7.5rem",
-                  overflow: "hidden",
-                  WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
-                  maskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
-                }
-              : undefined
-          }
-          className={shouldCollapse ? "relative" : ""}
-        >
-          <p className="text-sm whitespace-pre-wrap leading-relaxed">
-            {message.content}
-          </p>
+        <div className={shouldCollapse ? "space-y-1" : ""}>
+          <div
+            style={
+              shouldCollapse
+                ? {
+                    maxHeight: "7.5rem",
+                    overflow: "hidden",
+                    WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
+                    maskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
+                  }
+                : undefined
+            }
+            className={shouldCollapse ? "relative" : ""}
+          >
+            <p className="text-sm whitespace-pre-wrap leading-relaxed">
+              {message.content}
+            </p>
+          </div>
           {shouldCollapse && (
             <button
               type="button"
               onClick={() => setExpanded(true)}
-              className="mt-1 text-xs text-emerald-600 dark:text-emerald-400 hover:underline font-medium"
+              className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline font-medium inline-flex items-center gap-1"
             >
-              Развернуть
+              Развернуть ответ
             </button>
           )}
         </div>

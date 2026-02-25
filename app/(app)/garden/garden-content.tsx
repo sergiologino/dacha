@@ -68,7 +68,7 @@ export default function GardenContent() {
       (window.location.search.includes("payment=success") || searchParams.get("payment") === "success");
     if (!hasSuccess) return;
     let mounted = true;
-    toast.info("╨Я╤А╨╛╨▓╨╡╤А╤П╨╡╨╝ ╨╛╨┐╨╗╨░╤В╤Г...");
+    toast.info("Проверяем оплату...");
     const run = (attempt: number) => {
       fetch("/api/payments/sync")
         .then((r) => r.json())
@@ -144,7 +144,7 @@ export default function GardenContent() {
     <>
       <MotionDiv variant="fadeUp">
         <h1 className="text-2xl font-semibold mb-1">
-          ╨Я╤А╨╕╨▓╨╡╤В, {session?.user?.name?.split(" ")[0]}!
+          Привет, {session?.user?.name?.split(" ")[0]}!
         </h1>
         {location?.locationName && (
           <p className="text-sm text-slate-500 mb-3 flex items-center gap-1">
@@ -168,7 +168,7 @@ export default function GardenContent() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <LayoutGrid className="w-5 h-5 text-emerald-600" />
-            ╨Ь╨╛╨╣ ╤Г╤З╨░╤Б╤В╨╛╨║
+            Мой участок
           </h2>
           <Button
             size="sm"
@@ -188,7 +188,7 @@ export default function GardenContent() {
             <div className="flex flex-col gap-3">
               <input
                 type="text"
-                placeholder="╨Э╨░╨╖╨▓╨░╨╜╨╕╨╡ (╨в╨╛╨╝╨░╤В╨╜╨░╤П ╤В╨╡╨┐╨╗╨╕╤Ж╨░)"
+                placeholder="Название (Томатная теплица)"
                 value={newBedName}
                 onChange={(e) => setNewBedName(e.target.value)}
                 className="w-full px-4 py-3 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900"
@@ -207,9 +207,9 @@ export default function GardenContent() {
                   className="flex-1 px-4 py-3 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900"
                 >
                   <option value="open">ЁЯМ┐ ╨Ю╤В╨║╤А╤Л╤В╤Л╨╣ ╨│╤А╤Г╨╜╤В</option>
-                  <option value="greenhouse">ЁЯПа ╨в╨╡╨┐╨╗╨╕╤Ж╨░</option>
+                  <option value="greenhouse">🏠 Теплица</option>
                   <option value="raised">ЁЯУж ╨Т╤Л╤Б╨╛╨║╨░╤П ╨│╤А╤П╨┤╨║╨░</option>
-                  <option value="seedling_home">ЁЯк┤ ╨а╨░╤Б╤Б╨░╨┤╨░ ╨┤╨╛╨╝╨░</option>
+                  <option value="seedling_home">🪴 Рассада дома</option>
                 </select>
               </div>
               <div className="flex gap-2">
@@ -223,14 +223,14 @@ export default function GardenContent() {
                   ) : (
                     <Plus className="mr-2 w-4 h-4" />
                   )}
-                  ╨б╨╛╨╖╨┤╨░╤В╤М
+                  Создать
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => setShowBedForm(false)}
                   className="h-11 rounded-2xl"
                 >
-                  ╨Ю╤В╨╝╨╡╨╜╨░
+                  Отмена
                 </Button>
               </div>
             </div>
@@ -244,7 +244,7 @@ export default function GardenContent() {
           <StaggerItem>
             <Card className="p-12 text-center">
               <LayoutGrid className="w-12 h-12 mx-auto text-emerald-300 mb-4" />
-              <p className="text-slate-500 mb-2">╨г╤З╨░╤Б╤В╨╛╨║ ╨┐╨╛╨║╨░ ╨┐╤Г╤Б╤В╨╛╨╣</p>
+              <p className="text-slate-500 mb-2">Участок пока пустой</p>
               <p className="text-sm text-slate-400">
                 ╨б╨╛╨╖╨┤╨░╨╣╤В╨╡ ╨│╤А╤П╨┤╨║╤Г ╨╕ ╨┤╨╛╨▒╨░╨▓╤М╤В╨╡ ╨▓ ╨╜╨╡╤С ╤А╨░╤Б╤В╨╡╨╜╨╕╤П
               </p>
@@ -464,7 +464,7 @@ function BedCard({
         className="w-full p-5 flex items-center justify-between text-left"
       >
         <div className="flex items-center gap-3">
-          <span className="text-2xl">{bedTypeEmoji[bed.type] || "ЁЯМ▒"}</span>
+          <span className="text-2xl">{bedTypeEmoji[bed.type] || "🌱"}</span>
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-semibold">{bed.name}</h3>
@@ -481,7 +481,7 @@ function BedCard({
               </span>
               <span className="flex items-center gap-1">
                 <Sprout className="w-3 h-3" />
-                {bed.plants.length} ╤А╨░╤Б╤В╨╡╨╜╨╕{bed.plants.length === 1 ? "╨╡" : bed.plants.length < 5 ? "╤П" : "╨╣"}
+                {bed.plants.length} растени{bed.plants.length === 1 ? "е" : bed.plants.length < 5 ? "я" : "й"}
               </span>
             </div>
           </div>
@@ -551,7 +551,7 @@ function BedCard({
                         type="button"
                         onClick={() => startEditDate(plant)}
                         className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 flex-shrink-0"
-                        title="╨Ш╨╖╨╝╨╡╨╜╨╕╤В╤М ╨┤╨░╤В╤Г ╨┐╨╛╤Б╨░╨┤╨║╨╕"
+                        title="Изменить дату посадки"
                       >
                         {new Date(plant.plantedDate).toLocaleDateString("ru-RU")}
                       </button>
@@ -630,7 +630,7 @@ function BedCard({
                   onClick={() => setAddMode("search")}
                   className={`px-2 py-1 rounded ${addMode === "search" ? "bg-emerald-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"}`}
                 >
-                  <Search className="w-3.5 h-3.5 inline mr-1" /> ╨Я╨╛╨╕╤Б╨║
+                  <Search className="w-3.5 h-3.5 inline mr-1" /> Поиск
                 </button>
                 <button
                   type="button"
@@ -660,7 +660,7 @@ function BedCard({
                   {searchQuery.trim().length >= 3 && !selectedHit && (
                     <div className="absolute z-10 top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 shadow-lg">
                       {searchHits.length === 0 ? (
-                        <div className="px-3 py-2 text-sm text-slate-500">╨Э╨╕╤З╨╡╨│╨╛ ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜╨╛</div>
+                        <div className="px-3 py-2 text-sm text-slate-500">Ничего не найдено</div>
                       ) : (
                         searchHits.slice(0, 15).map((hit) => (
                           <button
@@ -730,7 +730,7 @@ function BedCard({
                   value={newPlantDate}
                   onChange={(e) => setNewPlantDate(e.target.value)}
                   className="px-3 py-2 text-sm rounded-xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900"
-                  title="╨Ф╨░╤В╨░ ╨┐╨╛╤Б╨░╨┤╨║╨╕"
+                  title="Дата посадки"
                 />
                 <Button
                   size="sm"
@@ -743,7 +743,7 @@ function BedCard({
                   ) : (
                     <Plus className="w-4 h-4" />
                   )}{" "}
-                  ╨Ф╨╛╨▒╨░╨▓╨╕╤В╤М
+                  Добавить
                 </Button>
                 <Button
                   size="sm"
@@ -771,7 +771,7 @@ function BedCard({
                 onClick={() => setShowPlantInput(true)}
                 className="rounded-xl flex-1"
               >
-                <Plus className="w-4 h-4 mr-1" /> ╨Ф╨╛╨▒╨░╨▓╨╕╤В╤М ╤А╨░╤Б╤В╨╡╨╜╨╕╨╡
+                <Plus className="w-4 h-4 mr-1" /> Добавить ╤А╨░╤Б╤В╨╡╨╜╨╕╨╡
               </Button>
               <Button
                 size="sm"
@@ -797,7 +797,7 @@ function BedCard({
           <>
             <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/50 sm:rounded-t-2xl">
               <DialogTitle className="text-white font-semibold text-base">
-                {gallery.plantName} тАФ ╤Д╨╛╤В╨╛ {gallery.index + 1} ╨╕╨╖ {gallery.photos.length}
+                {gallery.plantName}  — фото {gallery.index + 1} из {gallery.photos.length}
               </DialogTitle>
               <Button
                 variant="ghost"
@@ -822,7 +822,7 @@ function BedCard({
                     size="icon"
                     className="absolute left-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 text-white hover:bg-black/70"
                     onClick={galleryPrev}
-                    aria-label="╨Я╤А╨╡╨┤╤Л╨┤╤Г╤Й╨╡╨╡ ╤Д╨╛╤В╨╛"
+                    aria-label="Предыдущее фото"
                   >
                     <ChevronLeft className="w-6 h-6" />
                   </Button>
@@ -831,7 +831,7 @@ function BedCard({
                     size="icon"
                     className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 text-white hover:bg-black/70"
                     onClick={galleryNext}
-                    aria-label="╨б╨╗╨╡╨┤╤Г╤О╤Й╨╡╨╡ ╤Д╨╛╤В╨╛"
+                    aria-label="Следующее фото"
                   >
                     <ChevronRight className="w-6 h-6" />
                   </Button>
@@ -851,7 +851,7 @@ function BedCard({
                         ? "bg-emerald-400"
                         : "bg-white/40 hover:bg-white/60",
                     ].join(" ")}
-                    aria-label={`╨д╨╛╤В╨╛ ${i + 1}`}
+                    aria-label={`Фото ${i + 1}`}
                   />
                 ))}
               </div>
