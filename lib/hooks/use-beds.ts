@@ -14,6 +14,9 @@ export interface BedPlantPhoto {
   id: string;
   url: string;
   takenAt: string;
+  analysisResult?: string | null;
+  analysisStatus?: string | null;
+  analyzedAt?: string | null;
 }
 
 export interface BedPlantTimelineEvent {
@@ -138,6 +141,9 @@ export function useUploadPlantPhoto() {
         id: String(data.id),
         url: String(data.url),
         takenAt: takenAtStr,
+        analysisResult: data.analysisResult ?? undefined,
+        analysisStatus: data.analysisStatus ?? undefined,
+        analyzedAt: data.analyzedAt != null ? new Date(data.analyzedAt).toISOString() : undefined,
       };
       qc.setQueryData<Bed[]>(["beds"], (old) => {
         if (!old) return old;

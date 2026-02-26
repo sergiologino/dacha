@@ -35,7 +35,7 @@ import { useUserLocation } from "@/lib/hooks/use-user-location";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlants, useCreatePlant, useUpdatePlant, useDeletePlant, type Plant } from "@/lib/hooks/use-plants";
 import { useBeds, useCreateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
-import { PlantTimelineLabels, PlantTimelineBar } from "@/components/plant-timeline";
+import { PlantTimelineLabels, PlantTimelineBar, type PhotoCheck } from "@/components/plant-timeline";
 import { useCrops } from "@/lib/hooks/use-crops";
 import { crops as staticCrops } from "@/lib/data/crops";
 import { searchCropsAndVarieties, type CropSearchHit } from "@/lib/crops-search";
@@ -375,7 +375,7 @@ function BedCard({
   const [photoPlantId, setPhotoPlantId] = useState<string | null>(null);
   const [gallery, setGallery] = useState<{
     plantName: string;
-    photos: { id: string; url: string; takenAt: string }[];
+    photos: { id: string; url: string; takenAt: string; analysisResult?: string | null; analysisStatus?: string | null }[];
     index: number;
   } | null>(null);
   const [regeneratingPlantId, setRegeneratingPlantId] = useState<string | null>(null);
@@ -594,6 +594,14 @@ function BedCard({
                   </div>
                   {/* Полоса миниатюр над таймлайном по дате съёмки */}
                   {((plant.photos?.length ?? 0) > 0 || (plant.timelineEvents?.length ?? 0) > 0) && (() => {
+                    const photoChecks: PhotoCheck[] = (plant.photos ?? [])
+                      .filter((p) => p.analysisStatus && p.analysisResult)
+                      .map((p) => ({
+                        id: p.id,
+                        date: p.takenAt,
+                        status: p.analysisStatus as "ok" | "problem",
+                        verdict: p.analysisResult!,
+                      }));
                     const startMs = new Date(plant.plantedDate).setHours(0, 0, 0, 0);
                     const endFromEvents = (plant.timelineEvents ?? []).length > 0
                       ? Math.max(...(plant.timelineEvents ?? []).map((e) => (e.dateTo ? new Date(e.dateTo) : new Date(e.scheduledDate)).getTime()))
@@ -625,7 +633,7 @@ function BedCard({
                             })}
                           </div>
                         )}
-                        {(plant.timelineEvents?.length ?? 0) > 0 ? (
+                        {((plant.timelineEvents?.length ?? 0) > 0 || photoChecks.length > 0) ? (
                           <>
                             <PlantTimelineLabels
                               events={plant.timelineEvents ?? []}
@@ -635,6 +643,7 @@ function BedCard({
                               <PlantTimelineBar
                                 events={plant.timelineEvents ?? []}
                                 plantedDate={plant.plantedDate}
+                                photoChecks={photoChecks}
                               />
                             </div>
                           </>
@@ -874,12 +883,20 @@ function BedCard({
                 <X className="w-5 h-5" />
               </Button>
             </div>
-            <div className="flex-1 flex items-center justify-center min-h-0 relative">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative">
               <img
                 src={gallery.photos[gallery.index].url}
                 alt=""
                 className="max-w-full max-h-full object-contain"
               />
+              {gallery.photos[gallery.index]?.analysisResult && (
+                <div className="w-full flex-shrink-0 px-4 py-2 bg-black/60 text-white text-sm sm:rounded-b-2xl">
+                  <p className="font-medium">
+                    {gallery.photos[gallery.index].analysisStatus === "problem" ? "Отклонения: " : "Вердикт: "}
+                  </p>
+                  <p className="mt-0.5">{gallery.photos[gallery.index].analysisResult}</p>
+                </div>
+              )}
               {gallery.photos.length > 1 && (
                 <>
                   <Button

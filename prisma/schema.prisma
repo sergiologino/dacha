@@ -163,16 +163,19 @@ model PlantTimelineEvent {
 }
 
 model Photo {
-  id        String   @id @default(cuid())
-  userId    String
-  plantId   String?
-  bedId     String?
-  url       String
-  caption   String?
-  isPublic  Boolean  @default(false)
-  takenAt   DateTime @default(now())
-  createdAt DateTime @default(now())
-  syncedAt  DateTime?
+  id             String    @id @default(cuid())
+  userId         String
+  plantId        String?
+  bedId         String?
+  url            String
+  caption        String?
+  isPublic       Boolean   @default(false)
+  takenAt        DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  syncedAt       DateTime?
+  analysisResult String?   // вердикт нейросети по состоянию растения на фото
+  analysisStatus String?   // ok | problem — для точки на таймлайне (синяя/красная)
+  analyzedAt     DateTime? // когда выполнен анализ
 
   user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   plant Plant? @relation(fields: [plantId], references: [id], onDelete: SetNull)

@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "photos" ADD COLUMN IF NOT EXISTS "analysisResult" TEXT;
+ALTER TABLE "photos" ADD COLUMN IF NOT EXISTS "analysisStatus" TEXT;
+ALTER TABLE "photos" ADD COLUMN IF NOT EXISTS "analyzedAt" TIMESTAMP(3);
