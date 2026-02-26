@@ -35,6 +35,7 @@ model User {
   photos       Photo[]
   tasks        TaskQueue[]
   chatMessages ChatMessage[]
+  payments     Payment[]
 
   @@map("users")
 }
@@ -240,6 +241,7 @@ model TaskQueue {
 model Payment {
   id            String   @id @default(cuid())
   userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   yookassaId    String?  @unique
   amount        Int
   currency      String   @default("RUB")
