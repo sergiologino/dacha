@@ -623,12 +623,12 @@ function BedCard({
                   {((plant.timelineEvents?.length ?? 0) > 0 ? (
                     <div className="mt-2 pl-8">
                       <PlantTimelineLabels
-                        events={plant.timelineEvents}
+                        events={plant.timelineEvents ?? []}
                         plantedDate={plant.plantedDate}
                       />
                       <div className="mt-1">
                         <PlantTimelineBar
-                          events={plant.timelineEvents}
+                          events={plant.timelineEvents ?? []}
                           plantedDate={plant.plantedDate}
                         />
                       </div>
