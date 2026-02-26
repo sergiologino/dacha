@@ -170,34 +170,32 @@ export default function GardenContent() {
         />
       </div>
 
-      {/* Add bed button + Help */}
-      <MotionDiv variant="fadeUp" delay={0.05}>
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <LayoutGrid className="w-5 h-5 text-emerald-600" />
-            Мой участок
-          </h2>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowHelp(true)}
-              className="rounded-2xl border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/50 hover:border-amber-400 dark:hover:border-amber-500"
-              aria-label="Как пользоваться страницей"
-            >
-              <HelpCircle className="w-4 h-4 mr-1.5" />
-              Помощь
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => setShowBedForm(!showBedForm)}
-              className="bg-emerald-600 hover:bg-emerald-700 rounded-2xl"
-            >
-              <Plus className="w-4 h-4 mr-1" /> Новая грядка
-            </Button>
-          </div>
+      {/* Заголовок и кнопки — без MotionDiv (whileInView может не сработать), чтобы кнопка «Помощь» всегда была видна */}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <LayoutGrid className="w-5 h-5 text-emerald-600" />
+          Мой участок
+        </h2>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowHelp(true)}
+            className="rounded-2xl border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/50 hover:border-amber-400 dark:hover:border-amber-500"
+            aria-label="Как пользоваться страницей"
+          >
+            <HelpCircle className="w-4 h-4 mr-1.5" />
+            Помощь
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setShowBedForm(!showBedForm)}
+            className="bg-emerald-600 hover:bg-emerald-700 rounded-2xl"
+          >
+            <Plus className="w-4 h-4 mr-1" /> Новая грядка
+          </Button>
         </div>
-      </MotionDiv>
+      </div>
 
       {/* Модалка помощи — контент на фронте, без задержек */}
       <Dialog open={showHelp} onOpenChange={setShowHelp}>
