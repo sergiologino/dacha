@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getMergedCrops } from "@/lib/crops-merge";
+import { getPromptByKey } from "@/lib/get-prompt";
+import { logAiCall } from "@/lib/log-ai-call";
 
 const AI_URL = process.env.AI_INTEGRATION_URL;
 const AI_KEY = process.env.AI_INTEGRATION_API_KEY;
@@ -52,9 +54,16 @@ export async function GET() {
 }
 
 /** Генерация изображения культуры через интегратор (image_gen). */
-async function generateCropImage(cropName: string, category: string): Promise<string | null> {
-  if (!AI_URL || !AI_KEY) return null;
-  const prompt = `Реалистичное фото растения или овоща/фрукта: ${cropName}, категория ${category}. Красивое, чёткое, на белом или нейтральном фоне, для каталога растений.`;
+async function generateCropImage(
+  cropName: string,
+  category: string,
+  userId: string | null
+): Promise<{ url: string | null; responseData?: Record<string, unknown> }> {
+  if (!AI_URL || !AI_KEY) return { url: null };
+  const template =
+    (await getPromptByKey("crops_image")) ??
+    "Реалистичное фото растения или овоща/фрукта: {{cropName}}, категория {{category}}. Красивое, чёткое, на белом или нейтральном фоне, для каталога растений.";
+  const prompt = template.replace("{{cropName}}", cropName).replace("{{category}}", category);
   try {
     const res = await fetch(`${AI_URL}/api/ai/process`, {
       method: "POST",
@@ -66,22 +75,44 @@ async function generateCropImage(cropName: string, category: string): Promise<st
         payload: { prompt, size: "1024x1024" },
       }),
     });
-    const data = await res.json();
-    if (data.status === "failed") return null;
+    const data = (await res.json()) as Record<string, unknown>;
     const url =
-      data.response?.data?.[0]?.url ??
-      data.response?.url ??
-      data.response?.data?.[0]?.b64_json
-        ? `data:image/png;base64,${data.response.data[0].b64_json}`
-        : null;
-    return url || null;
-  } catch {
-    return null;
+      (data.response as { data?: { url?: string; b64_json?: string }[]; url?: string })?.data?.[0]?.url ??
+      (data.response as { url?: string })?.url ??
+      ((data.response as { data?: { b64_json?: string }[] })?.data?.[0]?.b64_json
+        ? `data:image/png;base64,${(data.response as { data: { b64_json: string }[] }).data[0].b64_json}`
+        : null);
+    await logAiCall({
+      userId,
+      endpoint: "/api/crops",
+      requestType: "image_gen",
+      messages: [{ role: "user", content: prompt }],
+      response: url ? "[image generated]" : null,
+      responseData: data,
+      status: data.status === "failed" ? "failed" : "success",
+      errorMessage: data.status === "failed" ? (data.errorMessage as string) : undefined,
+    });
+    if (data.status === "failed") return { url: null, responseData: data };
+    return { url: url || null, responseData: data };
+  } catch (err) {
+    await logAiCall({
+      userId,
+      endpoint: "/api/crops",
+      requestType: "image_gen",
+      messages: [{ role: "user", content: prompt }],
+      status: "failed",
+      errorMessage: err instanceof Error ? err.message : undefined,
+    });
+    return { url: null };
   }
 }
 
 /** Извлечение структурированных данных культуры через AI (из текста ответа нейроэксперта или по запросу). */
-async function extractCropFromAI(query: string, aiResult?: string): Promise<{
+async function extractCropFromAI(
+  query: string,
+  userId: string | null,
+  aiResult?: string
+): Promise<{
   name: string;
   slug: string;
   category: string;
@@ -94,11 +125,17 @@ async function extractCropFromAI(query: string, aiResult?: string): Promise<{
   varieties: { name: string; desc: string }[];
 } | null> {
   if (!AI_URL || !AI_KEY) return null;
-  const systemPrompt = `Ты помощник для справочника растений. Верни ТОЛЬКО валидный JSON без markdown и без комментариев.
-Поля: name (строка, название культуры на русском), slug (строка, латиница, lowercase, без пробелов, например tomat), category (строка, одна из: ${CATEGORIES.join(", ")}), description (строка, 1-2 предложения), plantMonths (массив строк месяцев, например ["Май"]), harvestMonths (массив строк месяцев), waterSchedule (строка, как часто поливать), careNotes (строка, краткая заметка), regions (массив строк, например ["Все регионы"]), varieties (массив объектов с полями name и desc, 2-4 сорта).`;
+  const systemTemplate =
+    (await getPromptByKey("crops_extract_system")) ??
+    `Ты помощник для справочника растений. Верни ТОЛЬКО валидный JSON без markdown и без комментариев. Поля: name, slug, category (одна из: {{categories}}), description, plantMonths, harvestMonths, waterSchedule, careNotes, regions, varieties.`;
+  const systemPrompt = systemTemplate.replace("{{categories}}", CATEGORIES.join(", "));
   const userContent = aiResult
     ? `По тексту ниже выдели данные культуры для справочника и верни JSON.\n\nТекст:\n${aiResult.slice(0, 4000)}`
     : `Дай данные для справочника дачника по культуре: "${query}". Верни только JSON.`;
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userContent },
+  ];
 
   try {
     const res = await fetch(`${AI_URL}/api/ai/process`, {
@@ -108,18 +145,24 @@ async function extractCropFromAI(query: string, aiResult?: string): Promise<{
         userId: "guide@dacha-ai.ru",
         networkName: "openai-gpt4o-mini",
         requestType: "chat",
-        payload: {
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userContent },
-          ],
-        },
+        payload: { messages },
       }),
     });
-    const data = await res.json();
-    if (data.status === "failed") return null;
+    const data = (await res.json()) as Record<string, unknown>;
+    if (data.status === "failed") {
+      await logAiCall({
+        userId,
+        endpoint: "/api/crops",
+        requestType: "chat",
+        messages,
+        responseData: data,
+        status: "failed",
+        errorMessage: (data.errorMessage as string) ?? undefined,
+      });
+      return null;
+    }
     const raw =
-      data.response?.choices?.[0]?.message?.content?.trim() ?? "";
+      (data.response as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content?.trim() ?? "";
     const jsonStr = raw.replace(/^```json?\s*/i, "").replace(/\s*```$/i, "").trim();
     const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
     const name = String(parsed.name || query).trim();
@@ -142,7 +185,7 @@ async function extractCropFromAI(query: string, aiResult?: string): Promise<{
         }))
       : [];
 
-    return {
+    const extracted = {
       name,
       slug: slugBase,
       category,
@@ -154,7 +197,25 @@ async function extractCropFromAI(query: string, aiResult?: string): Promise<{
       regions,
       varieties,
     };
-  } catch {
+    await logAiCall({
+      userId,
+      endpoint: "/api/crops",
+      requestType: "chat",
+      messages,
+      response: raw,
+      responseData: data,
+      status: "success",
+    });
+    return extracted;
+  } catch (err) {
+    await logAiCall({
+      userId,
+      endpoint: "/api/crops",
+      requestType: "chat",
+      messages,
+      status: "failed",
+      errorMessage: err instanceof Error ? err.message : undefined,
+    });
     return null;
   }
 }
@@ -186,7 +247,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "query is required" }, { status: 400 });
     }
 
-    const extracted = await extractCropFromAI(query, aiResult);
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+    const extracted = await extractCropFromAI(query, user?.id ?? null, aiResult);
     if (!extracted) {
       return NextResponse.json(
         { error: "Не удалось извлечь данные культуры из ответа нейросети" },
@@ -198,7 +263,8 @@ export async function POST(request: NextRequest) {
 
     let imageUrl: string | null = null;
     try {
-      imageUrl = await generateCropImage(extracted.name, extracted.category);
+      const { url } = await generateCropImage(extracted.name, extracted.category, user?.id ?? null);
+      imageUrl = url;
     } catch {
       // сохраняем без фото
     }

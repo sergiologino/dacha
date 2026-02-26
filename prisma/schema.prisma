@@ -255,6 +255,41 @@ model TaskQueue {
   @@map("task_queue")
 }
 
+// ─── AI prompts (редактируемые в БД) ────────────────────────
+
+model Prompt {
+  id          String   @id @default(cuid())
+  key         String   @unique // slug для выбора в коде: chat_system, vision_system, ...
+  prompt      String   @db.Text
+  description String
+  endpoint    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("prompts")
+}
+
+// ─── Логи вызовов нейросетей (мониторинг расходов) ──────────
+
+model AiCallLog {
+  id             String   @id @default(cuid())
+  userId         String?  // опционально (guide-generator и т.п. без пользователя)
+  createdAt      DateTime @default(now())
+  endpoint       String   // наш роут: /api/chat, /api/ai/analyze, ...
+  requestType    String   // chat | vision | image_gen
+  messages       Json?    // сводка: роли и длины/превью сообщений
+  responsePreview String?
+  tokensInput    Int?
+  tokensOutput   Int?
+  tokensTotal    Int?
+  status         String
+  errorMessage   String?
+
+  @@index([userId, createdAt])
+  @@index([endpoint, createdAt])
+  @@map("ai_call_logs")
+}
+
 // ─── Payments ───────────────────────────────────────────────
 
 model Payment {

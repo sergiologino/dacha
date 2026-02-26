@@ -2,9 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
+import { getPromptByKey } from "@/lib/get-prompt";
+import { logAiCall } from "@/lib/log-ai-call";
 
 const AI_URL = process.env.AI_INTEGRATION_URL;
 const AI_KEY = process.env.AI_INTEGRATION_API_KEY;
+
+const CHAT_SYSTEM_FALLBACK = `Ты — нейроэксперт-агроном, помощник для дачников и садоводов в России. Твоё имя — Любимая Дача.
+
+Правила:
+- Отвечай на русском языке
+- Давай конкретные, практичные советы по садоводству и огородничеству
+- Учитывай российский климат и условия
+- При анализе болезней растений описывай симптомы и предлагай лечение
+- Будь дружелюбным и кратким (2-4 предложения, если не нужен подробный ответ)
+- Если спрашивают о погоде — используй предоставленные данные о погоде
+- Отвечай на любые вопросы, связанные с дачей, домом, участком, сезонными работами
+- Если не уверен — честно скажи и предложи обратиться к агроному`;
 
 const REFUSAL_PATTERNS = [
   "не могу предоставить",
@@ -83,26 +97,12 @@ async function fetchWeatherContext(lat: number, lng: number, locationName: strin
   }
 }
 
-function buildSystemPrompt(locationName: string | null, hasLocation: boolean): string {
-  let prompt = `Ты — нейроэксперт-агроном, помощник для дачников и садоводов в России. Твоё имя — Любимая Дача.
-
-Правила:
-- Отвечай на русском языке
-- Давай конкретные, практичные советы по садоводству и огородничеству
-- Учитывай российский климат и условия
-- При анализе болезней растений описывай симптомы и предлагай лечение
-- Будь дружелюбным и кратким (2-4 предложения, если не нужен подробный ответ)
-- Если спрашивают о погоде — используй предоставленные данные о погоде
-- Отвечай на любые вопросы, связанные с дачей, домом, участком, сезонными работами
-- Если не уверен — честно скажи и предложи обратиться к агроному`;
-
+async function buildSystemPrompt(locationName: string | null, hasLocation: boolean): Promise<string> {
+  const base = (await getPromptByKey("chat_system")) ?? CHAT_SYSTEM_FALLBACK;
   if (hasLocation && locationName) {
-    prompt += `\n\nМестоположение дачи пользователя: ${locationName}. Все рекомендации по срокам, сортам и уходу давай С УЧЁТОМ этого региона.`;
-  } else {
-    prompt += `\n\nМестоположение дачи пользователя НЕ УКАЗАНО. Рекомендуй для средней полосы России и отмечай что рекомендации общие, так как дачник не указал местоположение.`;
+    return `${base}\n\nМестоположение дачи пользователя: ${locationName}. Все рекомендации по срокам, сортам и уходу давай С УЧЁТОМ этого региона.`;
   }
-
-  return prompt;
+  return `${base}\n\nМестоположение дачи пользователя НЕ УКАЗАНО. Рекомендуй для средней полосы России и отмечай что рекомендации общие, так как дачник не указал местоположение.`;
 }
 
 export async function POST(request: NextRequest) {
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     const lastUserMsg = messages[messages.length - 1]?.content || "";
     const needsWeather = isWeatherRelated(lastUserMsg);
 
-    let systemPrompt = buildSystemPrompt(userInfo?.locationName || null, hasLocation);
+    let systemPrompt = await buildSystemPrompt(userInfo?.locationName || null, hasLocation);
 
     if (needsWeather && hasLocation && userInfo?.latitude && userInfo?.longitude) {
       const weatherCtx = await fetchWeatherContext(userInfo.latitude, userInfo.longitude, userInfo.locationName);
@@ -148,11 +148,21 @@ export async function POST(request: NextRequest) {
       ...messages,
     ];
 
-    const aiMessage = await callAI(
+    const { content: aiMessage, responseData } = await callAI(
       fullMessages,
       session.user.email,
       networkName || "openai-gpt4o-mini"
     );
+
+    await logAiCall({
+      userId: userInfo?.id ?? null,
+      endpoint: "/api/chat",
+      requestType: "chat",
+      messages: fullMessages,
+      response: aiMessage,
+      responseData,
+      status: "success",
+    });
 
     if (looksLikeRefusal(aiMessage) && !networkName) {
       let retryPrompt = systemPrompt;
@@ -166,11 +176,21 @@ export async function POST(request: NextRequest) {
         { role: "system", content: retryPrompt + "\n\nВАЖНО: Ты ДОЛЖЕН ответить на вопрос пользователя используя предоставленные данные. НЕ говори что у тебя нет доступа к информации — данные о погоде предоставлены выше." },
         ...messages,
       ];
-      const retryMessage = await callAI(
+      const { content: retryMessage, responseData: retryData } = await callAI(
         retryMessages,
         session.user.email,
         "openai-gpt4o"
       );
+
+      await logAiCall({
+        userId: userInfo?.id ?? null,
+        endpoint: "/api/chat",
+        requestType: "chat",
+        messages: retryMessages,
+        response: retryMessage,
+        responseData: retryData,
+        status: "success",
+      });
 
       if (userInfo?.id) {
         await saveMessages(userInfo.id, lastUserMsg, retryMessage);
@@ -184,7 +204,22 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ message: aiMessage });
-  } catch {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Failed to process AI request";
+    try {
+      const session = await auth();
+      const userInfo = session?.user?.email ? await getUserLocation(session.user.email) : null;
+      await logAiCall({
+        userId: userInfo?.id ?? null,
+        endpoint: "/api/chat",
+        requestType: "chat",
+        messages: [],
+        status: "failed",
+        errorMessage,
+      });
+    } catch {
+      // ignore log failure
+    }
     return NextResponse.json(
       { error: "Failed to process AI request" },
       { status: 502 }
@@ -209,7 +244,7 @@ async function callAI(
   messages: { role: string; content: string }[],
   userId: string,
   networkName: string
-): Promise<string> {
+): Promise<{ content: string; responseData: Record<string, unknown> }> {
   const response = await fetch(`${AI_URL}/api/ai/process`, {
     method: "POST",
     headers: {
@@ -224,14 +259,14 @@ async function callAI(
     }),
   });
 
-  const data = await response.json();
+  const data = (await response.json()) as Record<string, unknown>;
 
   if (data.status === "failed") {
-    throw new Error(data.errorMessage || "AI request failed");
+    throw new Error((data.errorMessage as string) || "AI request failed");
   }
 
-  return (
-    data.response?.choices?.[0]?.message?.content ||
-    "Не удалось получить ответ от ИИ."
-  );
+  const content =
+    (data.response as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ||
+    "Не удалось получить ответ от ИИ.";
+  return { content, responseData: data };
 }
