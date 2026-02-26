@@ -63,8 +63,9 @@ async function createBed(data: { name: string; number?: string; type?: string })
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to create bed");
-  return res.json();
+  const body = await res.json();
+  if (!res.ok) throw new Error((body as { error?: string }).error || "Failed to create bed");
+  return body as Bed;
 }
 
 async function deleteBed(id: string): Promise<void> {
@@ -121,11 +122,26 @@ export function useBeds() {
   return useQuery({ queryKey: ["beds"], queryFn: fetchBeds });
 }
 
+function normalizeBed(bed: Bed): Bed {
+  return {
+    ...bed,
+    createdAt: typeof bed.createdAt === "string" ? bed.createdAt : new Date(bed.createdAt).toISOString(),
+    plants: (bed.plants ?? []).map((p) => ({
+      ...p,
+      plantedDate: typeof p.plantedDate === "string" ? p.plantedDate : new Date(p.plantedDate).toISOString(),
+    })),
+  };
+}
+
 export function useCreateBed() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createBed,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["beds"] }),
+    onSuccess: (newBed) => {
+      const bed = normalizeBed(newBed);
+      qc.setQueryData<Bed[]>(["beds"], (old) => (old ? [bed, ...old] : [bed]));
+      qc.invalidateQueries({ queryKey: ["beds"] });
+    },
   });
 }
 
