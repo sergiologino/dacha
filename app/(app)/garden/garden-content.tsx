@@ -19,6 +19,7 @@ import {
   Camera,
   X,
   Search,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -36,6 +37,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePlants, useCreatePlant, useUpdatePlant, useDeletePlant, type Plant } from "@/lib/hooks/use-plants";
 import { useBeds, useCreateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
 import { PlantTimelineLabels, PlantTimelineBar, type PhotoCheck } from "@/components/plant-timeline";
+import { GardenHelpContent } from "@/components/garden-help-content";
 import { useCrops } from "@/lib/hooks/use-crops";
 import { crops as staticCrops } from "@/lib/data/crops";
 import { searchCropsAndVarieties, type CropSearchHit } from "@/lib/crops-search";
@@ -99,6 +101,7 @@ export default function GardenContent() {
   const [newBedNumber, setNewBedNumber] = useState("");
   const [newBedType, setNewBedType] = useState("open");
   const [showBedForm, setShowBedForm] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const { data: plants = [], isLoading: plantsLoading } = usePlants();
   const createPlant = useCreatePlant();
@@ -164,22 +167,54 @@ export default function GardenContent() {
         />
       </div>
 
-      {/* Add bed button */}
+      {/* Add bed button + Help */}
       <MotionDiv variant="fadeUp" delay={0.05}>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <LayoutGrid className="w-5 h-5 text-emerald-600" />
             Мой участок
           </h2>
-          <Button
-            size="sm"
-            onClick={() => setShowBedForm(!showBedForm)}
-            className="bg-emerald-600 hover:bg-emerald-700 rounded-2xl"
-          >
-            <Plus className="w-4 h-4 mr-1" /> Новая грядка
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowHelp(true)}
+              className="rounded-2xl border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/50 hover:border-amber-400 dark:hover:border-amber-500"
+              aria-label="Как пользоваться страницей"
+            >
+              <HelpCircle className="w-4 h-4 mr-1.5" />
+              Помощь
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setShowBedForm(!showBedForm)}
+              className="bg-emerald-600 hover:bg-emerald-700 rounded-2xl"
+            >
+              <Plus className="w-4 h-4 mr-1" /> Новая грядка
+            </Button>
+          </div>
         </div>
       </MotionDiv>
+
+      {/* Модалка помощи — контент на фронте, без задержек */}
+      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+        <DialogContent
+          className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
+          showCloseButton={true}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-xl text-slate-900 dark:text-slate-100">
+              Как пользоваться страницей «Мой участок»
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Подробное описание: грядки, культуры, шкала роста, фото
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto pr-2 -mr-2 min-h-0">
+            <GardenHelpContent />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* New bed form */}
       {showBedForm && (
