@@ -20,6 +20,8 @@ import {
   X,
   Search,
   HelpCircle,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -35,7 +37,7 @@ import { useOnboardingCheck } from "@/lib/hooks/use-onboarding-check";
 import { useUserLocation } from "@/lib/hooks/use-user-location";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlants, useCreatePlant, useUpdatePlant, useDeletePlant, type Plant } from "@/lib/hooks/use-plants";
-import { useBeds, useCreateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
+import { useBeds, useCreateBed, useUpdateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
 import { PlantTimelineLabels, PlantTimelineBar, type PhotoCheck } from "@/components/plant-timeline";
 import { GardenHelpContent } from "@/components/garden-help-content";
 import { useCrops } from "@/lib/hooks/use-crops";
@@ -112,6 +114,7 @@ export default function GardenContent() {
   const { data: beds = [], isLoading: bedsLoading } = useBeds();
   const { data: cropsList } = useCrops();
   const createBed = useCreateBed();
+  const updateBed = useUpdateBed();
   const deleteBed = useDeleteBed();
   const uploadPhoto = useUploadPlantPhoto();
 
@@ -293,6 +296,8 @@ export default function GardenContent() {
                 <BedCard
                   bed={bed}
                   crops={crops}
+                  onUpdateBed={(id, data) => updateBed.mutate({ id, ...data })}
+                  updatingBed={updateBed.isPending}
                   onDelete={() => deleteBed.mutate(bed.id)}
                   onAddPlant={(name, plantedDate, cropSlug) =>
                     createPlant.mutate({ name, bedId: bed.id, plantedDate, cropSlug })
@@ -373,6 +378,8 @@ const categoriesFromCrops = (cropsList: { category: string }[]) =>
 function BedCard({
   bed,
   crops: cropsList,
+  onUpdateBed,
+  updatingBed,
   onDelete,
   onAddPlant,
   onUpdatePlant,
@@ -385,6 +392,8 @@ function BedCard({
 }: {
   bed: Bed;
   crops: { id: number; name: string; slug: string; category: string; varieties?: { name: string }[] }[];
+  onUpdateBed: (id: string, data: { name?: string; number?: string; type?: string }) => void;
+  updatingBed: boolean;
   onDelete: () => void;
   onAddPlant: (name: string, plantedDate?: string, cropSlug?: string) => void;
   onUpdatePlant: (id: string, plantedDate: string) => void;
@@ -396,6 +405,11 @@ function BedCard({
   uploadingPhoto: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [editingBedName, setEditingBedName] = useState(false);
+  const [editingBedNameValue, setEditingBedNameValue] = useState(bed.name);
+  useEffect(() => {
+    if (!editingBedName) setEditingBedNameValue(bed.name);
+  }, [bed.name, editingBedName]);
   const [showPlantInput, setShowPlantInput] = useState(false);
   const [addMode, setAddMode] = useState<"search" | "category">("search");
   const [searchQuery, setSearchQuery] = useState("");
@@ -509,9 +523,70 @@ function BedCard({
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">{bedTypeEmoji[bed.type] || "🌱"}</span>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold">{bed.name}</h3>
+          <div
+            className="min-w-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 flex-wrap">
+              {editingBedName ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={editingBedNameValue}
+                    onChange={(e) => setEditingBedNameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const v = editingBedNameValue.trim();
+                        if (v) onUpdateBed(bed.id, { name: v });
+                        setEditingBedName(false);
+                      }
+                      if (e.key === "Escape") {
+                        setEditingBedNameValue(bed.name);
+                        setEditingBedName(false);
+                      }
+                    }}
+                    onBlur={() => {
+                      const v = editingBedNameValue.trim();
+                      if (v && v !== bed.name) onUpdateBed(bed.id, { name: v });
+                      setEditingBedNameValue(bed.name);
+                      setEditingBedName(false);
+                    }}
+                    autoFocus
+                    className="px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 font-semibold text-base min-w-[120px] max-w-full"
+                    aria-label="Название грядки"
+                  />
+                  {updatingBed ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                  ) : (
+                    <Check
+                      className="w-4 h-4 text-emerald-600 cursor-pointer"
+                      onClick={() => {
+                        const v = editingBedNameValue.trim();
+                        if (v) onUpdateBed(bed.id, { name: v });
+                        setEditingBedName(false);
+                      }}
+                      aria-label="Сохранить"
+                    />
+                  )}
+                </div>
+              ) : (
+                <>
+                  <h3 className="font-semibold">{bed.name}</h3>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setEditingBedNameValue(bed.name);
+                      setEditingBedName(true);
+                    }}
+                    className="p-1 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                    aria-label="Изменить название грядки"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
               {bed.number && (
                 <Badge variant="secondary" className="text-xs">
                   #{bed.number}

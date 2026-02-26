@@ -68,6 +68,17 @@ async function createBed(data: { name: string; number?: string; type?: string })
   return body as Bed;
 }
 
+async function updateBed(data: { id: string; name?: string; number?: string; type?: string }): Promise<Bed> {
+  const res = await fetch("/api/beds", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error((body as { error?: string }).error || "Failed to update bed");
+  return body as Bed;
+}
+
 async function deleteBed(id: string): Promise<void> {
   const res = await fetch("/api/beds", {
     method: "DELETE",
@@ -140,6 +151,20 @@ export function useCreateBed() {
     onSuccess: (newBed) => {
       const bed = normalizeBed(newBed);
       qc.setQueryData<Bed[]>(["beds"], (old) => (old ? [bed, ...old] : [bed]));
+      qc.invalidateQueries({ queryKey: ["beds"] });
+    },
+  });
+}
+
+export function useUpdateBed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: updateBed,
+    onSuccess: (updatedBed) => {
+      const bed = normalizeBed(updatedBed);
+      qc.setQueryData<Bed[]>(["beds"], (old) =>
+        old ? old.map((b) => (b.id === bed.id ? bed : b)) : [bed]
+      );
       qc.invalidateQueries({ queryKey: ["beds"] });
     },
   });
