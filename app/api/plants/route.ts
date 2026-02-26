@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
+import { generateTimelineForPlant } from "@/lib/timeline-generate";
 
 export async function GET() {
   try {
@@ -44,6 +45,10 @@ export async function POST(request: NextRequest) {
         cropSlug: cropSlug || null,
       },
     });
+
+    generateTimelineForPlant(plant.id).catch((err) =>
+      console.error("Timeline generation failed:", err)
+    );
 
     return NextResponse.json(plant, { status: 201 });
   } catch (err) {

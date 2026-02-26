@@ -12,7 +12,10 @@ export async function GET() {
       include: {
         plants: {
           orderBy: { createdAt: "desc" },
-          include: { photos: { orderBy: { takenAt: "desc" } } },
+          include: {
+            photos: { orderBy: { takenAt: "desc" } },
+            timelineEvents: { orderBy: [{ scheduledDate: "asc" }, { sortOrder: "asc" }] },
+          },
         },
         photos: { orderBy: { createdAt: "desc" }, take: 4 },
       },

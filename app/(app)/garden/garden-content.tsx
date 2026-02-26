@@ -35,6 +35,7 @@ import { useUserLocation } from "@/lib/hooks/use-user-location";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlants, useCreatePlant, useUpdatePlant, useDeletePlant, type Plant } from "@/lib/hooks/use-plants";
 import { useBeds, useCreateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
+import { PlantTimelineLabels, PlantTimelineBar } from "@/components/plant-timeline";
 import { useCrops } from "@/lib/hooks/use-crops";
 import { crops as staticCrops } from "@/lib/data/crops";
 import { searchCropsAndVarieties, type CropSearchHit } from "@/lib/crops-search";
@@ -275,6 +276,10 @@ export default function GardenContent() {
                       }
                     )
                   }
+                  onRegenerateTimeline={(plantId) => {
+                    fetch(`/api/plants/${plantId}/timeline/generate`, { method: "POST" })
+                      .then(() => qc.invalidateQueries({ queryKey: ["beds"] }));
+                  }}
                   addingPlant={createPlant.isPending}
                   updatingPlant={updatePlant.isPending}
                   uploadingPhoto={uploadPhoto.isPending}
@@ -348,6 +353,7 @@ function BedCard({
   onUpdatePlant: (id: string, plantedDate: string) => void;
   onDeletePlant: (id: string) => void;
   onUploadPhoto: (file: File, plantId: string, bedId: string, takenAt?: string) => void;
+  onRegenerateTimeline?: (plantId: string) => void;
   addingPlant: boolean;
   updatingPlant: boolean;
   uploadingPhoto: boolean;
@@ -510,8 +516,9 @@ function BedCard({
             {bed.plants.map((plant) => (
                 <div
                   key={plant.id}
-                  className="flex justify-between items-center py-2 px-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10 gap-2"
+                  className="py-2 px-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10 gap-2"
                 >
+                  <div className="flex justify-between items-center gap-2">
                   <div className="flex flex-col gap-1 flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Sprout className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
@@ -612,6 +619,31 @@ function BedCard({
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
+                  </div>
+                  {((plant.timelineEvents?.length ?? 0) > 0 ? (
+                    <div className="mt-2 pl-8">
+                      <PlantTimelineLabels
+                        events={plant.timelineEvents}
+                        plantedDate={plant.plantedDate}
+                      />
+                      <div className="mt-1">
+                        <PlantTimelineBar
+                          events={plant.timelineEvents}
+                          plantedDate={plant.plantedDate}
+                        />
+                      </div>
+                    </div>
+                  ) : onRegenerateTimeline ? (
+                    <div className="mt-2 pl-8">
+                      <button
+                        type="button"
+                        onClick={() => onRegenerateTimeline(plant.id)}
+                        className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
+                      >
+                        Рассчитать таймлайн ухода
+                      </button>
+                    </div>
+                  ) : null)}
                 </div>
               ))}
             </div>
