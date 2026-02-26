@@ -276,9 +276,10 @@ export default function GardenContent() {
                       }
                     )
                   }
-                  onRegenerateTimeline={(plantId) => {
-                    fetch(`/api/plants/${plantId}/timeline/generate`, { method: "POST" })
-                      .then(() => qc.invalidateQueries({ queryKey: ["beds"] }));
+                  onRegenerateTimeline={async (plantId) => {
+                    const res = await fetch(`/api/plants/${plantId}/timeline/generate`, { method: "POST" });
+                    if (!res.ok) throw new Error("Generate failed");
+                    qc.invalidateQueries({ queryKey: ["beds"] });
                   }}
                   addingPlant={createPlant.isPending}
                   updatingPlant={updatePlant.isPending}
@@ -354,7 +355,7 @@ function BedCard({
   onUpdatePlant: (id: string, plantedDate: string) => void;
   onDeletePlant: (id: string) => void;
   onUploadPhoto: (file: File, plantId: string, bedId: string, takenAt?: string) => void;
-  onRegenerateTimeline?: (plantId: string) => void;
+  onRegenerateTimeline?: (plantId: string) => void | Promise<void>;
   addingPlant: boolean;
   updatingPlant: boolean;
   uploadingPhoto: boolean;
@@ -377,6 +378,7 @@ function BedCard({
     photos: { id: string; url: string; takenAt: string }[];
     index: number;
   } | null>(null);
+  const [regeneratingPlantId, setRegeneratingPlantId] = useState<string | null>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
 
   const searchHits = searchQuery.trim().length >= 3 ? searchCropsAndVarieties(cropsList as Parameters<typeof searchCropsAndVarieties>[0], searchQuery.trim()) : [];
@@ -638,10 +640,25 @@ function BedCard({
                     <div className="mt-2 pl-8">
                       <button
                         type="button"
-                        onClick={() => onRegenerateTimeline(plant.id)}
-                        className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
+                        disabled={regeneratingPlantId === plant.id}
+                        onClick={async () => {
+                          if (regeneratingPlantId === plant.id) return;
+                          setRegeneratingPlantId(plant.id);
+                          try {
+                            await onRegenerateTimeline(plant.id);
+                          } catch {
+                            // restore clickability and color on error
+                          } finally {
+                            setRegeneratingPlantId(null);
+                          }
+                        }}
+                        className={`text-xs hover:underline disabled:pointer-events-none disabled:cursor-default ${
+                          regeneratingPlantId === plant.id
+                            ? "text-slate-400 dark:text-slate-500 no-underline"
+                            : "text-emerald-600 dark:text-emerald-400"
+                        }`}
                       >
-                        Рассчитать таймлайн ухода
+                        {regeneratingPlantId === plant.id ? "Расчёт…" : "Рассчитать таймлайн ухода"}
                       </button>
                     </div>
                   ) : null)}
