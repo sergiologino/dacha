@@ -163,7 +163,7 @@ export function PlantTimelineBar({
       </div>
 
       {/* Scale: ~3x shorter (tick row), transparent; ticks every 10 days; labels on a subset */}
-      <div className="relative w-full rounded-b-lg bg-transparent overflow-visible pt-0.5">
+      <div className="relative w-full rounded-b-lg bg-transparent overflow-visible pt-0.5 min-h-[32px]">
         {/* Tick row: height ~1/3 of former (6–7px) */}
         <div className="relative w-full" style={{ height: "7px" }}>
           {allTicks.map(({ offset }, i) => {
@@ -217,9 +217,9 @@ export function PlantTimelineBar({
         })}
       </div>
 
-      {/* Selected point description */}
+      {/* Selected point description — строго под шкалой, с отступом */}
       {selectedEvent && (
-        <p className="text-xs text-slate-600 dark:text-slate-400 py-0.5 px-1">
+        <p className="text-xs text-slate-600 dark:text-slate-400 py-1.5 px-1 mt-1">
           <span className="font-medium text-slate-700 dark:text-slate-300">
             {formatDateShort(new Date(selectedEvent.scheduledDate))}
             {selectedEvent.dateTo && selectedEvent.dateTo !== selectedEvent.scheduledDate
