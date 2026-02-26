@@ -1,0 +1,178 @@
+import { prisma } from "@/lib/prisma";
+
+const AI_URL = process.env.AI_INTEGRATION_URL;
+const AI_KEY = process.env.AI_INTEGRATION_API_KEY;
+
+const VALID_TYPES = new Set([
+  "sprout",
+  "transplant",
+  "water",
+  "loosen",
+  "light_temp",
+  "feed",
+  "pinch",
+  "harvest",
+  "other",
+]);
+
+const BED_TYPE_LABELS: Record<string, string> = {
+  open: "открытый грунт",
+  greenhouse: "теплица",
+  raised: "высокая грядка",
+  seedling_home: "рассада дома",
+};
+
+type RawEvent = {
+  type?: string;
+  title?: string;
+  description?: string;
+  scheduledDate?: string;
+  dateTo?: string;
+  isAction?: boolean;
+};
+
+async function callAI(
+  messages: { role: string; content: string }[],
+  userId: string
+): Promise<string> {
+  if (!AI_URL || !AI_KEY) throw new Error("AI integration not configured");
+  const response = await fetch(`${AI_URL}/api/ai/process`, {
+    method: "POST",
+    headers: {
+      "X-API-Key": AI_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      userId,
+      networkName: "openai-gpt4o-mini",
+      requestType: "chat",
+      payload: { messages },
+    }),
+  });
+  const data = await response.json();
+  if (data.status === "failed") {
+    throw new Error(data.errorMessage || "AI request failed");
+  }
+  return (
+    data.response?.choices?.[0]?.message?.content ||
+    "Не удалось получить ответ от ИИ."
+  );
+}
+
+function extractJsonFromResponse(text: string): RawEvent[] {
+  const trimmed = text.trim();
+  const codeBlock = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const raw = codeBlock ? codeBlock[1].trim() : trimmed;
+  const parsed = JSON.parse(raw) as unknown;
+  if (!Array.isArray(parsed)) return [];
+  return parsed as RawEvent[];
+}
+
+function parseEvent(
+  raw: RawEvent,
+  index: number
+): {
+  type: string;
+  title: string;
+  description: string | null;
+  scheduledDate: Date;
+  dateTo: Date | null;
+  isAction: boolean;
+  sortOrder: number;
+} | null {
+  const type = (raw.type && VALID_TYPES.has(String(raw.type).toLowerCase())
+    ? String(raw.type).toLowerCase()
+    : "other") as string;
+  const title = typeof raw.title === "string" && raw.title.trim() ? raw.title.trim() : type;
+  const description =
+    typeof raw.description === "string" && raw.description.trim() ? raw.description.trim() : null;
+  let scheduledDate: Date;
+  try {
+    scheduledDate = new Date(raw.scheduledDate ?? 0);
+    if (Number.isNaN(scheduledDate.getTime())) return null;
+  } catch {
+    return null;
+  }
+  let dateTo: Date | null = null;
+  if (raw.dateTo != null) {
+    try {
+      dateTo = new Date(raw.dateTo);
+      if (Number.isNaN(dateTo.getTime())) dateTo = null;
+    } catch {
+      dateTo = null;
+    }
+  }
+  const isAction = typeof raw.isAction === "boolean" ? raw.isAction : true;
+  return { type, title, description, scheduledDate, dateTo, isAction, sortOrder: index };
+}
+
+/**
+ * Генерирует таймлайн событий для растения через нейросеть и сохраняет в БД.
+ * Вызывать после создания растения (асинхронно, не блокируя ответ).
+ */
+export async function generateTimelineForPlant(plantId: string): Promise<void> {
+  const plant = await prisma.plant.findUnique({
+    where: { id: plantId },
+    include: {
+      bed: true,
+      user: { select: { id: true, email: true, region: true, locationName: true } },
+    },
+  });
+  if (!plant?.user?.email) return;
+
+  const bedType = plant.bed?.type ?? "open";
+  const bedLabel = BED_TYPE_LABELS[bedType] ?? bedType;
+  const cultureName = plant.name;
+  const plantedDateIso = new Date(plant.plantedDate).toISOString().slice(0, 10);
+  const region =
+    bedType === "seedling_home"
+      ? "рассада в помещении (дома), учитывай освещение и температуру в доме, без привязки к региону"
+      : [plant.user.region, plant.user.locationName].filter(Boolean).join(", ") || "средняя полоса России";
+
+  const systemPrompt = `Ты — агроном-консультант для дачников в России. Ответь СТРОГО в формате JSON: один массив объектов без markdown и без пояснений вне JSON.
+
+Для каждого события укажи:
+- type: один из sprout, transplant, water, loosen, light_temp, feed, pinch, harvest, other
+- title: короткий заголовок (например "Всходы", "Полив", "Рыхление")
+- description: краткий текст для напоминания или подсказки (например "Не забудь взрыхлить рассаду")
+- scheduledDate: дата в формате YYYY-MM-DD
+- dateTo: опционально, конец диапазона (YYYY-MM-DD) для событий типа "ожидаются всходы 5–7 марта"
+- isAction: true если это действие (полить, взрыхлить), false если ожидаемое событие (всходы, цветение)
+
+Учитывай: культура "${cultureName}", тип грядки: ${bedLabel}, дата посадки: ${plantedDateIso}, местоположение: ${region}.`;
+
+  const userPrompt = `Построй календарь ключевых событий и действий по уходу от даты посадки до ориентировочного урожая/конца ухода. Верни массив объектов в JSON. Минимум 5–8 событий: всходы, поливы, рыхление, подкормки, пересадка (если рассада), пасынкование (если нужно), урожай. Для рассады дома добавь события по освещению и температуре.`;
+
+  try {
+    const content = await callAI(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      plant.user.email
+    );
+
+    const rawEvents = extractJsonFromResponse(content);
+    const events = rawEvents
+      .map((raw, i) => parseEvent(raw, i))
+      .filter((e): e is NonNullable<typeof e> => e !== null);
+
+    if (events.length === 0) return;
+
+    await prisma.plantTimelineEvent.deleteMany({ where: { plantId } });
+    await prisma.plantTimelineEvent.createMany({
+      data: events.map((e) => ({
+        plantId,
+        type: e.type,
+        title: e.title,
+        description: e.description,
+        scheduledDate: e.scheduledDate,
+        dateTo: e.dateTo,
+        isAction: e.isAction,
+        sortOrder: e.sortOrder,
+      })),
+    });
+  } catch (err) {
+    console.error("Timeline generation failed for plant", plantId, err);
+  }
+}

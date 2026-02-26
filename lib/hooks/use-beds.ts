@@ -16,6 +16,18 @@ export interface BedPlantPhoto {
   takenAt: string;
 }
 
+export interface BedPlantTimelineEvent {
+  id: string;
+  type: string;
+  title: string;
+  description: string | null;
+  scheduledDate: string;
+  dateTo: string | null;
+  isAction: boolean;
+  sortOrder: number;
+  doneAt: string | null;
+}
+
 export interface BedPlant {
   id: string;
   name: string;
@@ -23,6 +35,7 @@ export interface BedPlant {
   plantedDate: string;
   cropSlug?: string | null;
   photos?: BedPlantPhoto[];
+  timelineEvents?: BedPlantTimelineEvent[];
 }
 
 export interface Bed {

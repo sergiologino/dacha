@@ -134,13 +134,32 @@ model Plant {
   updatedAt   DateTime  @updatedAt
   syncedAt    DateTime?
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  crop     Crop?     @relation(fields: [cropId], references: [id])
-  bed      Bed?      @relation(fields: [bedId], references: [id])
-  photos   Photo[]
-  analyses Analysis[]
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  crop          Crop?                @relation(fields: [cropId], references: [id])
+  bed           Bed?                 @relation(fields: [bedId], references: [id])
+  photos        Photo[]
+  analyses      Analysis[]
+  timelineEvents PlantTimelineEvent[]
 
   @@map("plants")
+}
+
+model PlantTimelineEvent {
+  id            String    @id @default(cuid())
+  plantId       String
+  plant         Plant     @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  type         String    // sprout, transplant, water, loosen, light_temp, feed, pinch, harvest, other
+  title        String
+  description  String?
+  scheduledDate DateTime
+  dateTo       DateTime?
+  isAction     Boolean   @default(true)
+  sortOrder    Int       @default(0)
+  doneAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([plantId])
+  @@map("plant_timeline_events")
 }
 
 model Photo {
