@@ -667,7 +667,7 @@ function BedCard({
                         {regeneratingPlantId === plant.id ? "Расчёт…" : "Рассчитать таймлайн ухода"}
                       </button>
                     </div>
-                  ) : null)}
+                  ) : null}
                 </div>
               ))}
             </div>
