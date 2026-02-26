@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 type TimelineEvent = {
   id: string;
   type: string;
@@ -19,6 +21,10 @@ function formatDateRange(scheduledDate: string, dateTo: string | null): string {
   if (!to || to.getTime() === from.getTime()) return fromStr;
   const toStr = to.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
   return `${fromStr}–${toStr}`;
+}
+
+function formatDateShort(d: Date): string {
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 }
 
 export function PlantTimelineLabels({
@@ -66,6 +72,8 @@ export function PlantTimelineLabels({
   );
 }
 
+const TICK_STEP_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
+
 export function PlantTimelineBar({
   events,
   plantedDate,
@@ -73,6 +81,8 @@ export function PlantTimelineBar({
   events: TimelineEvent[];
   plantedDate: string;
 }) {
+  const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
+
   if (events.length === 0) return null;
 
   const start = new Date(plantedDate);
@@ -81,7 +91,7 @@ export function PlantTimelineBar({
     return d > acc ? d : acc;
   }, new Date(events[0].scheduledDate));
   const end = endDate;
-  const totalMs = end.getTime() - start.getTime();
+  const totalMs = Math.max(end.getTime() - start.getTime(), 1);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const startDay = new Date(start);
@@ -89,30 +99,100 @@ export function PlantTimelineBar({
   const todayOffset =
     totalMs <= 0 ? 0 : Math.min(1, Math.max(0, (today.getTime() - startDay.getTime()) / totalMs));
 
+  // Tick positions for scale (vertical lines)
+  const ticks: { date: Date; offset: number }[] = [];
+  let t = new Date(startDay.getTime());
+  while (t.getTime() <= end.getTime()) {
+    const offset = (t.getTime() - startDay.getTime()) / totalMs;
+    if (offset >= 0 && offset <= 1) ticks.push({ date: new Date(t), offset });
+    t.setTime(t.getTime() + TICK_STEP_MS);
+  }
+  if (ticks.length === 0 || ticks[ticks.length - 1]?.offset < 1) {
+    ticks.push({ date: new Date(end), offset: 1 });
+  }
+
+  const toPct = (offset: number) => `${offset * 100}%`;
+
   return (
-    <div className="relative h-8 w-full rounded-lg bg-slate-100 dark:bg-slate-800 overflow-hidden">
-      {/* Today line */}
-      {totalMs > 0 && todayOffset > 0 && todayOffset < 1 && (
-        <div
-          className="absolute top-0 bottom-0 w-0.5 bg-emerald-500 z-10"
-          style={{ left: `${todayOffset * 100}%` }}
-          title="Сегодня"
-        />
-      )}
-      {/* Event markers */}
-      {events.map((e) => {
-        const d = new Date(e.scheduledDate);
-        d.setHours(0, 0, 0, 0);
-        const pos = totalMs <= 0 ? 0 : Math.min(1, Math.max(0, (d.getTime() - startDay.getTime()) / totalMs));
-        return (
+    <div className="w-full space-y-1">
+      {/* Bar with dots */}
+      <div className="relative h-8 w-full rounded-t-lg bg-slate-100 dark:bg-slate-800 overflow-hidden">
+        {/* Today line — orange, full height */}
+        {totalMs > 0 && todayOffset > 0 && todayOffset < 1 && (
           <div
-            key={e.id}
-            className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-emerald-600 dark:bg-emerald-500 border border-white dark:border-slate-800 shadow"
-            style={{ left: `${pos * 100}%`, marginLeft: "-4px" }}
-            title={`${e.title}${e.description ? `: ${e.description}` : ""}`}
+            className="absolute top-0 bottom-0 w-0.5 bg-orange-500 z-10"
+            style={{ left: toPct(todayOffset) }}
+            title="Сегодня"
+            aria-hidden
           />
-        );
-      })}
+        )}
+        {/* Event markers — clickable */}
+        {events.map((e) => {
+          const d = new Date(e.scheduledDate);
+          d.setHours(0, 0, 0, 0);
+          const pos = totalMs <= 0 ? 0 : Math.min(1, Math.max(0, (d.getTime() - startDay.getTime()) / totalMs));
+          const label = e.description || e.title;
+          const isSelected = selectedEvent?.id === e.id;
+          return (
+            <button
+              type="button"
+              key={e.id}
+              className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 shadow-sm transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                isSelected
+                  ? "bg-emerald-500 border-emerald-700 dark:border-emerald-400 scale-110 ring-2 ring-orange-400"
+                  : "bg-emerald-600 dark:bg-emerald-500 border-white dark:border-slate-800"
+              }`}
+              style={{ left: toPct(pos), marginLeft: "-6px" }}
+              title={label}
+              onClick={() => setSelectedEvent(isSelected ? null : e)}
+            />
+          );
+        })}
+      </div>
+
+      {/* Scale: ticks + today triangle */}
+      <div className="relative h-5 w-full rounded-b-lg bg-slate-200/80 dark:bg-slate-700/80 overflow-hidden">
+        {/* Vertical tick marks */}
+        {ticks.map(({ offset }, i) => (
+          <div
+            key={i}
+            className="absolute bottom-0 top-0 w-px bg-slate-400 dark:bg-slate-500"
+            style={{ left: toPct(offset) }}
+          />
+        ))}
+        {/* Today: orange line + triangle pointer */}
+        {totalMs > 0 && todayOffset > 0 && todayOffset < 1 && (
+          <>
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-orange-500"
+              style={{ left: toPct(todayOffset), marginLeft: "-1px" }}
+            />
+            <div
+              className="absolute bottom-0 text-orange-500 -translate-x-1/2"
+              style={{ left: toPct(todayOffset), marginLeft: "-6px" }}
+              title="Сегодня"
+            >
+              <svg width="12" height="8" viewBox="0 0 12 8" fill="currentColor" className="drop-shadow-sm">
+                <path d="M6 0l6 8H0L6 0z" />
+              </svg>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Selected point description */}
+      {selectedEvent && (
+        <p className="text-xs text-slate-600 dark:text-slate-400 py-0.5 px-1">
+          <span className="font-medium text-slate-700 dark:text-slate-300">
+            {formatDateShort(new Date(selectedEvent.scheduledDate))}
+            {selectedEvent.dateTo && selectedEvent.dateTo !== selectedEvent.scheduledDate
+              ? ` – ${formatDateShort(new Date(selectedEvent.dateTo))}`
+              : ""}
+          </span>
+          {" — "}
+          {selectedEvent.description || selectedEvent.title}
+        </p>
+      )}
     </div>
   );
 }
