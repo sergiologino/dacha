@@ -246,7 +246,7 @@ export default function GardenContent() {
               <LayoutGrid className="w-12 h-12 mx-auto text-emerald-300 mb-4" />
               <p className="text-slate-500 mb-2">Участок пока пустой</p>
               <p className="text-sm text-slate-400">
-                ╨б╨╛╨╖╨┤╨░╨╣╤В╨╡ ╨│╤А╤П╨┤╨║╤Г ╨╕ ╨┤╨╛╨▒╨░╨▓╤М╤В╨╡ ╨▓ ╨╜╨╡╤С ╤А╨░╤Б╤В╨╡╨╜╨╕╤П
+                Создайте грядку и добавьте в неё растения
               </p>
             </Card>
           </StaggerItem>
@@ -758,8 +758,9 @@ function BedCard({
                     setNewPlantDate(toDateInputValue(new Date().toISOString()));
                   }}
                   className="rounded-xl"
+                  aria-label="Закрыть"
                 >
-                  тЬХ
+                  ×
                 </Button>
               </div>
             </div>
@@ -771,7 +772,7 @@ function BedCard({
                 onClick={() => setShowPlantInput(true)}
                 className="rounded-xl flex-1"
               >
-                <Plus className="w-4 h-4 mr-1" /> Добавить ╤А╨░╤Б╤В╨╡╨╜╨╕╨╡
+                <Plus className="w-4 h-4 mr-1" /> Добавить растение
               </Button>
               <Button
                 size="sm"
