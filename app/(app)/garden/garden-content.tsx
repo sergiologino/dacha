@@ -342,6 +342,7 @@ function BedCard({
   onUpdatePlant,
   onDeletePlant,
   onUploadPhoto,
+  onRegenerateTimeline,
   addingPlant,
   updatingPlant,
   uploadingPhoto,
