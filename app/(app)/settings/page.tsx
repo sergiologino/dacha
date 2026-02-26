@@ -2,12 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { MapPin, LogOut, Loader2, Save, Crown } from "lucide-react";
+import { MapPin, LogOut, Loader2, Save, Crown, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
+
+type PaymentRow = {
+  id: string;
+  userEmail: string | null;
+  userName: string | null;
+  amount: number;
+  currency: string;
+  status: string;
+  plan: string;
+  description: string | null;
+  createdAt: string;
+};
 
 const MapComponent = dynamic(
   () => import("../onboarding/map-component"),
@@ -23,6 +35,22 @@ export default function SettingsPage() {
   const [isPremium, setIsPremium] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [togglingPremium, setTogglingPremium] = useState(false);
+  const [tab, setTab] = useState<"profile" | "payments">("profile");
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentsTotals, setPaymentsTotals] = useState<{
+    totalSucceeded: number;
+    totalCanceled: number;
+    countSucceeded: number;
+    countCanceled: number;
+    countPending: number;
+  } | null>(null);
+  const [dateFrom, setDateFrom] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().slice(0, 10);
+  });
+  const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     Promise.all([
@@ -39,6 +67,27 @@ export default function SettingsPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const fetchPayments = () => {
+    if (!isAdmin) return;
+    setPaymentsLoading(true);
+    const params = new URLSearchParams({ dateFrom, dateTo });
+    fetch(`/api/admin/payments?${params}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setPayments(data.payments ?? []);
+        setPaymentsTotals(data.totals ?? null);
+      })
+      .catch(() => {
+        setPayments([]);
+        setPaymentsTotals(null);
+      })
+      .finally(() => setPaymentsLoading(false));
+  };
+
+  useEffect(() => {
+    if (tab === "payments" && isAdmin) fetchPayments();
+  }, [tab, isAdmin, dateFrom, dateTo]);
 
   const togglePremium = async () => {
     setTogglingPremium(true);
@@ -117,8 +166,160 @@ export default function SettingsPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-semibold mb-6">Настройки</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <h1 className="text-2xl font-semibold">Настройки</h1>
+        {isAdmin && (
+          <div className="flex rounded-2xl border border-slate-200 dark:border-slate-700 p-1 bg-slate-50 dark:bg-slate-900/50">
+            <button
+              type="button"
+              onClick={() => setTab("profile")}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                tab === "profile"
+                  ? "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 shadow"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+              }`}
+            >
+              Профиль
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("payments")}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                tab === "payments"
+                  ? "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 shadow"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+              }`}
+            >
+              <CreditCard className="w-4 h-4" /> Платежи
+            </button>
+          </div>
+        )}
+      </div>
 
+      {tab === "payments" && isAdmin ? (
+        <Card className="p-6">
+          <h2 className="font-semibold mb-4 flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-amber-600" />
+            Учёт платежей
+          </h2>
+          <div className="flex flex-wrap items-end gap-3 mb-4">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-slate-500">С</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-slate-500">По</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm"
+              />
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fetchPayments()}
+              disabled={paymentsLoading}
+              className="rounded-xl"
+            >
+              {paymentsLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Обновить"}
+            </Button>
+          </div>
+          {paymentsTotals && (
+            <div className="flex flex-wrap gap-4 mb-4 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 text-sm">
+              <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                Итого оплачено за период: {paymentsTotals.totalSucceeded} ₽
+              </span>
+              <span className="text-slate-500">
+                ({paymentsTotals.countSucceeded} платежей)
+              </span>
+              {(paymentsTotals.countCanceled > 0 || paymentsTotals.countPending > 0) && (
+                <span className="text-slate-500">
+                  Отменено: {paymentsTotals.countCanceled}, в ожидании: {paymentsTotals.countPending}
+                </span>
+              )}
+            </div>
+          )}
+          {paymentsLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+            </div>
+          ) : payments.length === 0 ? (
+            <p className="text-slate-500 text-center py-8">Платежей пока нет</p>
+          ) : (
+            <div className="overflow-x-auto -mx-2">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700">
+                    <th className="text-left py-2 px-2 font-medium">Дата</th>
+                    <th className="text-left py-2 px-2 font-medium">Пользователь</th>
+                    <th className="text-left py-2 px-2 font-medium">Сумма</th>
+                    <th className="text-left py-2 px-2 font-medium">Тариф</th>
+                    <th className="text-left py-2 px-2 font-medium">Статус</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((p) => (
+                    <tr key={p.id} className="border-b border-slate-100 dark:border-slate-800">
+                      <td className="py-2 px-2 text-slate-600 dark:text-slate-400">
+                        {new Date(p.createdAt).toLocaleString("ru-RU", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
+                      <td className="py-2 px-2">
+                        <span className="font-medium">{p.userName || p.userEmail || "—"}</span>
+                        {p.userEmail && (
+                          <span className="block text-xs text-slate-500">{p.userEmail}</span>
+                        )}
+                      </td>
+                      <td className="py-2 px-2">{p.amount} ₽</td>
+                      <td className="py-2 px-2">
+                        {p.plan === "yearly" ? "Год" : "Месяц"}
+                      </td>
+                      <td className="py-2 px-2">
+                        <Badge
+                          variant={
+                            p.status === "succeeded"
+                              ? "default"
+                              : p.status === "canceled"
+                                ? "secondary"
+                                : "outline"
+                          }
+                          className={
+                            p.status === "succeeded"
+                              ? "bg-emerald-600"
+                              : p.status === "canceled"
+                                ? "bg-slate-200 dark:bg-slate-700"
+                                : ""
+                          }
+                        >
+                          {p.status === "succeeded"
+                            ? "Оплачен"
+                            : p.status === "canceled"
+                              ? "Отменён"
+                              : "Ожидание"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      ) : (
+        <>
       {session?.user && (
         <Card className="p-6 mb-6">
           <h2 className="font-semibold mb-3">Профиль</h2>
@@ -203,6 +404,8 @@ export default function SettingsPage() {
       >
         <LogOut className="w-5 h-5 mr-2" /> Выйти
       </Button>
+        </>
+      )}
     </>
   );
 }
