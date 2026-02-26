@@ -72,7 +72,14 @@ export function PlantTimelineLabels({
   );
 }
 
-const TICK_STEP_MS = 7 * 24 * 60 * 60 * 1000; // 1 week
+const TICK_STEP_DAYS = 10;
+const TICK_STEP_MS = TICK_STEP_DAYS * 24 * 60 * 60 * 1000;
+const SCALE_INSET = 0.02; // scale content 2%..98% so first/last day not on edge
+
+function scaleLeft(offset: number): string {
+  const pct = SCALE_INSET + offset * (1 - 2 * SCALE_INSET);
+  return `${pct * 100}%`;
+}
 
 export function PlantTimelineBar({
   events,
@@ -99,29 +106,34 @@ export function PlantTimelineBar({
   const todayOffset =
     totalMs <= 0 ? 0 : Math.min(1, Math.max(0, (today.getTime() - startDay.getTime()) / totalMs));
 
-  // Tick positions for scale (vertical lines)
-  const ticks: { date: Date; offset: number }[] = [];
+  // Ticks every 10 days; which get a label (longer tick) — thin so labels don't overlap
+  const allTicks: { date: Date; offset: number }[] = [];
   let t = new Date(startDay.getTime());
   while (t.getTime() <= end.getTime()) {
     const offset = (t.getTime() - startDay.getTime()) / totalMs;
-    if (offset >= 0 && offset <= 1) ticks.push({ date: new Date(t), offset });
+    if (offset >= 0 && offset <= 1) allTicks.push({ date: new Date(t), offset });
     t.setTime(t.getTime() + TICK_STEP_MS);
   }
-  if (ticks.length === 0 || ticks[ticks.length - 1]?.offset < 1) {
-    ticks.push({ date: new Date(end), offset: 1 });
+  if (allTicks.length === 0 || allTicks[allTicks.length - 1]!.offset < 1) {
+    allTicks.push({ date: new Date(end), offset: 1 });
   }
 
-  const toPct = (offset: number) => `${offset * 100}%`;
+  // Which ticks get a label (longer tick): max ~6–8 labels so they don't overlap
+  const maxLabels = 8;
+  const step = Math.max(1, Math.ceil(allTicks.length / maxLabels));
+  const ticksWithLabel = new Set<number>(
+    allTicks.map((_, i) => i).filter((i) => i % step === 0 || i === 0 || i === allTicks.length - 1)
+  );
 
   return (
-    <div className="w-full space-y-1">
-      {/* Bar with dots */}
+    <div className="w-full space-y-0.5">
+      {/* Bar with dots — same inset so dots not on gray edge */}
       <div className="relative h-8 w-full rounded-t-lg bg-slate-100 dark:bg-slate-800 overflow-hidden">
-        {/* Today line — orange, full height */}
+        {/* Today line — orange */}
         {totalMs > 0 && todayOffset > 0 && todayOffset < 1 && (
           <div
             className="absolute top-0 bottom-0 w-0.5 bg-orange-500 z-10"
-            style={{ left: toPct(todayOffset) }}
+            style={{ left: scaleLeft(todayOffset) }}
             title="Сегодня"
             aria-hidden
           />
@@ -142,7 +154,7 @@ export function PlantTimelineBar({
                   ? "bg-emerald-500 border-emerald-700 dark:border-emerald-400 scale-110 ring-2 ring-orange-400"
                   : "bg-emerald-600 dark:bg-emerald-500 border-white dark:border-slate-800"
               }`}
-              style={{ left: toPct(pos), marginLeft: "-6px" }}
+              style={{ left: scaleLeft(pos), marginLeft: "-6px" }}
               title={label}
               onClick={() => setSelectedEvent(isSelected ? null : e)}
             />
@@ -150,39 +162,64 @@ export function PlantTimelineBar({
         })}
       </div>
 
-      {/* Scale: ticks + today triangle */}
-      <div className="relative h-5 w-full rounded-b-lg bg-slate-200/80 dark:bg-slate-700/80 overflow-hidden">
-        {/* Vertical tick marks */}
-        {ticks.map(({ offset }, i) => (
-          <div
-            key={i}
-            className="absolute bottom-0 top-0 w-px bg-slate-400 dark:bg-slate-500"
-            style={{ left: toPct(offset) }}
-          />
-        ))}
-        {/* Today: orange line + triangle pointer */}
-        {totalMs > 0 && todayOffset > 0 && todayOffset < 1 && (
-          <>
-            <div
-              className="absolute top-0 bottom-0 w-0.5 bg-orange-500"
-              style={{ left: toPct(todayOffset), marginLeft: "-1px" }}
-            />
-            <div
-              className="absolute bottom-0 text-orange-500 -translate-x-1/2"
-              style={{ left: toPct(todayOffset), marginLeft: "-6px" }}
-              title="Сегодня"
+      {/* Scale: ~3x shorter (tick row), transparent; ticks every 10 days; labels on a subset */}
+      <div className="relative w-full rounded-b-lg bg-transparent overflow-visible pt-0.5 min-h-[32px]">
+        {/* Tick row: height ~1/3 of former (6–7px) */}
+        <div className="relative w-full" style={{ height: "7px" }}>
+          {allTicks.map(({ offset }, i) => {
+            const hasLabel = ticksWithLabel.has(i);
+            return (
+              <div
+                key={i}
+                className="absolute bottom-0 w-px bg-slate-400 dark:bg-slate-500"
+                style={{
+                  left: scaleLeft(offset),
+                  marginLeft: "-1px",
+                  height: hasLabel ? "7px" : "4px",
+                }}
+              />
+            );
+          })}
+          {/* Today: orange line + triangle on scale */}
+          {totalMs > 0 && todayOffset > 0 && todayOffset < 1 && (
+            <>
+              <div
+                className="absolute bottom-0 w-0.5 bg-orange-500 -translate-x-1/2"
+                style={{ left: scaleLeft(todayOffset), height: "7px", marginLeft: "-1px" }}
+              />
+              <div
+                className="absolute bottom-0 text-orange-500 -translate-x-1/2"
+                style={{ left: scaleLeft(todayOffset), marginLeft: "-5px" }}
+                title="Сегодня"
+              >
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor" className="sm:w-3 sm:h-2" aria-hidden>
+                  <path d="M5 0l5 6H0L5 0z" />
+                </svg>
+              </div>
+            </>
+          )}
+        </div>
+        {/* Date labels below ticks — only where we have room */}
+        {allTicks.map(({ date, offset }, i) => {
+          if (!ticksWithLabel.has(i)) return null;
+          return (
+            <span
+              key={`label-${i}`}
+              className="absolute -translate-x-1/2 text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap"
+              style={{
+                left: scaleLeft(offset),
+                top: "18px",
+              }}
             >
-              <svg width="12" height="8" viewBox="0 0 12 8" fill="currentColor" className="drop-shadow-sm">
-                <path d="M6 0l6 8H0L6 0z" />
-              </svg>
-            </div>
-          </>
-        )}
+              {formatDateShort(date)}
+            </span>
+          );
+        })}
       </div>
 
-      {/* Selected point description */}
+      {/* Selected point description — строго под шкалой, с отступом */}
       {selectedEvent && (
-        <p className="text-xs text-slate-600 dark:text-slate-400 py-0.5 px-1">
+        <p className="text-xs text-slate-600 dark:text-slate-400 py-1.5 px-1 mt-1">
           <span className="font-medium text-slate-700 dark:text-slate-300">
             {formatDateShort(new Date(selectedEvent.scheduledDate))}
             {selectedEvent.dateTo && selectedEvent.dateTo !== selectedEvent.scheduledDate

@@ -276,9 +276,10 @@ export default function GardenContent() {
                       }
                     )
                   }
-                  onRegenerateTimeline={(plantId) => {
-                    fetch(`/api/plants/${plantId}/timeline/generate`, { method: "POST" })
-                      .then(() => qc.invalidateQueries({ queryKey: ["beds"] }));
+                  onRegenerateTimeline={async (plantId) => {
+                    const res = await fetch(`/api/plants/${plantId}/timeline/generate`, { method: "POST" });
+                    if (!res.ok) throw new Error("Generate failed");
+                    qc.invalidateQueries({ queryKey: ["beds"] });
                   }}
                   addingPlant={createPlant.isPending}
                   updatingPlant={updatePlant.isPending}
@@ -354,7 +355,7 @@ function BedCard({
   onUpdatePlant: (id: string, plantedDate: string) => void;
   onDeletePlant: (id: string) => void;
   onUploadPhoto: (file: File, plantId: string, bedId: string, takenAt?: string) => void;
-  onRegenerateTimeline?: (plantId: string) => void;
+  onRegenerateTimeline?: (plantId: string) => void | Promise<void>;
   addingPlant: boolean;
   updatingPlant: boolean;
   uploadingPhoto: boolean;
@@ -377,6 +378,7 @@ function BedCard({
     photos: { id: string; url: string; takenAt: string }[];
     index: number;
   } | null>(null);
+  const [regeneratingPlantId, setRegeneratingPlantId] = useState<string | null>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
 
   const searchHits = searchQuery.trim().length >= 3 ? searchCropsAndVarieties(cropsList as Parameters<typeof searchCropsAndVarieties>[0], searchQuery.trim()) : [];
@@ -520,20 +522,19 @@ function BedCard({
                   className="py-2 px-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-900/10 gap-2"
                 >
                   <div className="flex justify-between items-center gap-2">
-                  <div className="flex flex-col gap-1 flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Sprout className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                      {plant.cropSlug ? (
-                        <Link
-                          href={`/guide/${plant.cropSlug}`}
-                          className="text-sm font-medium truncate text-emerald-700 dark:text-emerald-400 hover:underline"
-                        >
-                          {plant.name}
-                        </Link>
-                      ) : (
-                        <span className="text-sm font-medium truncate">{plant.name}</span>
-                      )}
-                      {editingDatePlantId === plant.id ? (
+                  <div className="flex flex-1 items-center gap-2 flex-wrap min-w-0">
+                    <Sprout className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                    {plant.cropSlug ? (
+                      <Link
+                        href={`/guide/${plant.cropSlug}`}
+                        className="text-sm font-medium truncate text-emerald-700 dark:text-emerald-400 hover:underline"
+                      >
+                        {plant.name}
+                      </Link>
+                    ) : (
+                      <span className="text-sm font-medium truncate">{plant.name}</span>
+                    )}
+                    {editingDatePlantId === plant.id ? (
                       <span className="flex items-center gap-1 flex-shrink-0">
                         <input
                           type="date"
@@ -564,53 +565,23 @@ function BedCard({
                         {new Date(plant.plantedDate).toLocaleDateString("ru-RU")}
                       </button>
                     )}
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                        {(plant.photos?.length ?? 0) > 0 && (
-                          <div className="flex gap-0.5">
-                            {(plant.photos ?? []).slice(0, 3).map((ph, idx) => (
-                              <button
-                                key={ph.id}
-                                type="button"
-                                onClick={() => openGallery(plant, idx)}
-                                className="block w-8 h-8 rounded overflow-hidden border border-slate-200 dark:border-slate-600 flex-shrink-0 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                              >
-                                <img
-                                  src={ph.url}
-                                  alt=""
-                                  className="w-full h-full object-cover"
-                                />
-                              </button>
-                            ))}
-                            {(plant.photos?.length ?? 0) > 3 && (
-                              <button
-                                type="button"
-                                onClick={() => openGallery(plant, 0)}
-                                className="text-[10px] text-slate-400 self-center px-1 py-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                              >
-                                +{(plant.photos ?? []).length - 3}
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-slate-400 hover:text-emerald-600 flex-shrink-0"
-                          onClick={() => {
-                            setPhotoPlantId(plant.id);
-                            photoInputRef.current?.click();
-                          }}
-                          disabled={uploadingPhoto}
-                          title="Сделать фото растения"
-                        >
-                          {uploadingPhoto && photoPlantId === plant.id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Camera className="w-3.5 h-3.5" />
-                          )}
-                        </Button>
-                      </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-slate-400 hover:text-emerald-600 flex-shrink-0"
+                      onClick={() => {
+                        setPhotoPlantId(plant.id);
+                        photoInputRef.current?.click();
+                      }}
+                      disabled={uploadingPhoto}
+                      title="Сделать фото растения"
+                    >
+                      {uploadingPhoto && photoPlantId === plant.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Camera className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
                   </div>
                   <Button
                     variant="ghost"
@@ -621,30 +592,82 @@ function BedCard({
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                   </div>
-                  {((plant.timelineEvents?.length ?? 0) > 0 ? (
-                    <div className="mt-2 pl-8">
-                      <PlantTimelineLabels
-                        events={plant.timelineEvents ?? []}
-                        plantedDate={plant.plantedDate}
-                      />
-                      <div className="mt-1">
-                        <PlantTimelineBar
-                          events={plant.timelineEvents ?? []}
-                          plantedDate={plant.plantedDate}
-                        />
+                  {/* Полоса миниатюр над таймлайном по дате съёмки */}
+                  {((plant.photos?.length ?? 0) > 0 || (plant.timelineEvents?.length ?? 0) > 0) && (() => {
+                    const startMs = new Date(plant.plantedDate).setHours(0, 0, 0, 0);
+                    const endFromEvents = (plant.timelineEvents ?? []).length > 0
+                      ? Math.max(...(plant.timelineEvents ?? []).map((e) => (e.dateTo ? new Date(e.dateTo) : new Date(e.scheduledDate)).getTime()))
+                      : 0;
+                    const endFromPhotos = (plant.photos ?? []).length > 0
+                      ? Math.max(...(plant.photos ?? []).map((p) => new Date(p.takenAt).getTime()))
+                      : 0;
+                    const endMs = Math.max(endFromEvents, endFromPhotos, startMs + 30 * 24 * 60 * 60 * 1000);
+                    const totalMs = Math.max(endMs - startMs, 1);
+                    const scaleLeftPct = (offset: number) => `${2 + 96 * Math.min(1, Math.max(0, offset))}%`;
+                    return (
+                      <div className="mt-2 pl-8 space-y-1">
+                        {(plant.photos?.length ?? 0) > 0 && (
+                          <div className="relative w-full h-11">
+                            {(plant.photos ?? []).map((ph, idx) => {
+                              const offset = (new Date(ph.takenAt).getTime() - startMs) / totalMs;
+                              return (
+                                <button
+                                  key={ph.id}
+                                  type="button"
+                                  onClick={() => openGallery(plant, idx)}
+                                  className="absolute top-0 w-9 h-9 rounded-lg overflow-hidden border-2 border-white dark:border-slate-700 shadow -translate-x-1/2 focus:ring-2 focus:ring-emerald-500 focus:outline-none z-10"
+                                  style={{ left: scaleLeftPct(offset) }}
+                                  title={new Date(ph.takenAt).toLocaleDateString("ru-RU")}
+                                >
+                                  <img src={ph.url} alt="" className="w-full h-full object-cover" />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {(plant.timelineEvents?.length ?? 0) > 0 ? (
+                          <>
+                            <PlantTimelineLabels
+                              events={plant.timelineEvents ?? []}
+                              plantedDate={plant.plantedDate}
+                            />
+                            <div className="mt-1">
+                              <PlantTimelineBar
+                                events={plant.timelineEvents ?? []}
+                                plantedDate={plant.plantedDate}
+                              />
+                            </div>
+                          </>
+                        ) : null}
                       </div>
-                    </div>
-                  ) : onRegenerateTimeline ? (
+                    );
+                  })()}
+                  {(plant.timelineEvents?.length ?? 0) === 0 && onRegenerateTimeline ? (
                     <div className="mt-2 pl-8">
                       <button
                         type="button"
-                        onClick={() => onRegenerateTimeline(plant.id)}
-                        className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
+                        disabled={regeneratingPlantId === plant.id}
+                        onClick={async () => {
+                          if (regeneratingPlantId === plant.id) return;
+                          setRegeneratingPlantId(plant.id);
+                          try {
+                            await onRegenerateTimeline(plant.id);
+                          } catch {
+                            // restore clickability and color on error
+                          } finally {
+                            setRegeneratingPlantId(null);
+                          }
+                        }}
+                        className={`text-xs hover:underline disabled:pointer-events-none disabled:cursor-default ${
+                          regeneratingPlantId === plant.id
+                            ? "text-slate-400 dark:text-slate-500 no-underline"
+                            : "text-emerald-600 dark:text-emerald-400"
+                        }`}
                       >
-                        Рассчитать таймлайн ухода
+                        {regeneratingPlantId === plant.id ? "Расчёт…" : "Рассчитать таймлайн ухода"}
                       </button>
                     </div>
-                  ) : null)}
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -654,7 +677,8 @@ function BedCard({
             </p>
           )}
 
-          {/* Add plant from guide */}
+          {/* Add plant from guide — отступ от шкалы/таймлайна предыдущего растения */}
+          <div className="mt-6">
           {showPlantInput ? (
             <div className="space-y-3">
               <div className="flex gap-2 text-xs">
@@ -813,10 +837,11 @@ function BedCard({
                 onClick={onDelete}
                 className="rounded-xl text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
               >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
           )}
+          </div>
         </div>
       )}
     </Card>
@@ -831,7 +856,13 @@ function BedCard({
           <>
             <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/50 sm:rounded-t-2xl">
               <DialogTitle className="text-white font-semibold text-base">
-                {gallery.plantName}  — фото {gallery.index + 1} из {gallery.photos.length}
+                {gallery.plantName}
+                {gallery.photos[gallery.index]?.takenAt && (
+                  <span className="text-white/80 font-normal ml-1">
+                    — {new Date(gallery.photos[gallery.index].takenAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}
+                  </span>
+                )}
+                {" — фото "}{gallery.index + 1} из {gallery.photos.length}
               </DialogTitle>
               <Button
                 variant="ghost"
