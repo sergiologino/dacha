@@ -25,7 +25,9 @@
 - [x] **AI Integration Service** — мульти-нейросетевой интегратор, 10 нейросетей (4 chat, 3 image_gen, 1 transcription, 1 video, 1 free)
 - [x] **API routes**: plants CRUD + PATCH, beds CRUD, **photos POST** (upload в public/uploads), weather proxy, chat, ai/analyze, ai/networks, payments (YooKassa), user/location, region/analyze
 - [x] **React Query** — для plants, beds, weather, ai-networks и серверного состояния
-- [x] **Prisma + PostgreSQL** — 2 миграции, 10 таблиц
+- [x] **Prisma + PostgreSQL** — миграции, таблицы в т.ч. prompts, ai_call_logs
+- [x] **Промпты в БД** — тексты промптов вынесены в таблицу `prompts` (ключи chat_system, vision_system, guide_detail_*, crops_*, timeline_*); чтение через `getPromptByKey()`; seed — `npm run db:seed`
+- [x] **Логи вызовов нейросетей** — таблица `ai_call_logs`: пользователь, эндпоинт, тип запроса, превью сообщений/ответа, токены (если интегратор отдаёт usage), статус; запись через `logAiCall()` после каждого вызова AI
 - [x] **Framer Motion** — анимации лендинга, переходы страниц, BottomNav layoutId, stagger-списки
 - [x] **PNG-иконки PWA** — 13 иконок из SVG (sharp), manifest.json обновлён
 - [x] **Vitest** — 54 теста (10 файлов)

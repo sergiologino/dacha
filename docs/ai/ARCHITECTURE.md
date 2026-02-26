@@ -98,6 +98,8 @@ lib/
 ├── hooks/use-chat.ts              # Хук AI-чата (состояние, отправка, очистка)
 ├── hooks/use-ai-networks.ts       # React Query хук для списка нейросетей
 ├── weather-tips.ts                # Генерация рекомендаций по погоде
+├── get-prompt.ts                 # getPromptByKey() — чтение промптов из БД
+├── log-ai-call.ts                # logAiCall() — запись логов вызовов нейросетей
 └── generated/prisma/          # Prisma generated (gitignored)
 ```
 
@@ -110,14 +112,18 @@ lib/
 ## Database
 - PostgreSQL на 82.97.242.40:5432 (dacha_db)
 - Prisma ORM, миграция `init` применена
-- Таблицы: users, accounts, sessions, verification_tokens, crops, beds, plants, photos, analyses, task_queue, payments, crop_guides (кеш AI-руководств)
+- Таблицы: users, accounts, sessions, verification_tokens, crops, beds, plants, photos, analyses, task_queue, payments, crop_guides (кеш AI-руководств), **prompts**, **ai_call_logs**
+
+## Промпты и логи AI
+- **prompts** — тексты промптов в БД (ключи: chat_system, vision_system, guide_detail_system, guide_detail_user, crops_image, crops_extract_system, timeline_system, timeline_user). Чтение: `getPromptByKey(key)` в `lib/get-prompt.ts`. Подстановки (локация, культура и т.д.) — в коде. Seed: `npm run db:seed`.
+- **ai_call_logs** — логи вызовов нейросетей: userId, endpoint, requestType (chat/vision/image_gen), сводка сообщений, превью ответа, tokensInput/tokensOutput/tokensTotal (если интегратор отдаёт usage), status (success/failed). Запись: `logAiCall()` в `lib/log-ai-call.ts`. Анализ расходов: запросы по userId, endpoint, суммирование токенов.
 
 ## AI
 - **AI Integration Service** — внешний сервис-интегратор нейросетей (Spring Boot)
 - Доступ по `X-API-Key`, ключ хранится в `AI_INTEGRATION_API_KEY`
 - Доступные сети (10): GPT-4o, GPT-4o-mini, GPT-4, GPT-5-mini, GigaChat, DALL·E 3, gpt-image-1.5, Pollinations (free), Whisper, Runway Gen-3
-- `/api/chat` — AI-чат (GPT-4o-mini по умолчанию, system prompt «AI-агроном»)
-- `/api/ai/analyze` — анализ фото растений через GPT-4o Vision
+- `/api/chat` — AI-чат (GPT-4o-mini по умолчанию, system prompt из БД, ключ chat_system)
+- `/api/ai/analyze` — анализ фото растений через GPT-4o Vision (промпт vision_system из БД)
 - `/api/ai/networks` — список доступных chat-сетей для UI
 - YandexGPT Lite/Pro зарегистрированы (inactive, нужен API ключ Яндекса)
 

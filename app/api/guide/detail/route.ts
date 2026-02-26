@@ -2,57 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { crops as staticCrops } from "@/lib/data/crops";
+import { getPromptByKey } from "@/lib/get-prompt";
+import { logAiCall } from "@/lib/log-ai-call";
 
 const AI_URL = process.env.AI_INTEGRATION_URL;
 const AI_KEY = process.env.AI_INTEGRATION_API_KEY;
 
-function buildPrompt(
+const GUIDE_DETAIL_SYSTEM_FALLBACK =
+  "Ты — опытный агроном-практик с 30-летним стажем работы на дачных участках в России. Пишешь руководства для дачников.";
+
+async function buildUserPrompt(
   crop: { name: string; varieties?: { name: string }[] },
   locationName: string | null
-) {
-  const varietyList = crop.varieties?.map((v) => v.name).join(", ") || "";
+): Promise<string> {
+  const template =
+    (await getPromptByKey("guide_detail_user")) ??
+    `Напиши подробное руководство по выращиванию культуры "{{cropName}}" на даче в России.
+{{regionNote}}
+Структура ответа (используй Markdown): ## Подготовка к посадке, ## Посадка, ## Уход, ## Болезни и вредители, ## Сбор и хранение, ## Советы опытных дачников.
+{{varietyListSection}}
+Пиши на русском, конкретно и практично.`;
   const regionNote = locationName
     ? `Руководство для региона: ${locationName}. Учитывай климатические особенности этого региона при указании сроков.`
     : "Руководство для средней полосы России.";
-
-  return `Напиши подробное руководство по выращиванию культуры "${crop.name}" на даче в России.
-${regionNote}
-
-Структура ответа (используй Markdown):
-
-## Подготовка к посадке
-- Выбор места и подготовка почвы
-- Подготовка семян/рассады
-- Сроки (для указанного региона)
-
-## Посадка
-- Схема посадки (расстояния)
-- Глубина заделки
-- Особенности (рассада vs прямой посев)
-
-## Уход
-- Полив (частота, способ, температура воды)
-- Подкормки (какие, когда, сколько)
-- Формирование и пасынкование (если применимо)
-- Рыхление и мульчирование
-- Подвязка (если нужна)
-
-## Болезни и вредители
-- Основные болезни и признаки
-- Главные вредители
-- Профилактика и лечение (народные + препараты)
-
-## Сбор и хранение
-- Когда собирать (признаки спелости)
-- Как правильно собирать
-- Хранение (условия, сроки)
-
-## Советы опытных дачников
-- 3–5 практических лайфхаков
-
-${varietyList ? `\nУпоминаемые сорта: ${varietyList}. Укажи особенности ухода для разных сортов, если они существенно отличаются.` : ""}
-
-Пиши на русском, конкретно и практично. Без воды и общих фраз. Указывай точные цифры (температуры, расстояния, дозировки).`;
+  const varietyList = crop.varieties?.map((v) => v.name).join(", ") || "";
+  const varietyListSection = varietyList
+    ? `\nУпоминаемые сорта: ${varietyList}. Укажи особенности ухода для разных сортов, если они существенно отличаются.`
+    : "";
+  return template
+    .replace("{{cropName}}", crop.name)
+    .replace("{{regionNote}}", regionNote)
+    .replace("{{varietyListSection}}", varietyListSection);
 }
 
 export async function GET(request: NextRequest) {
@@ -107,6 +87,19 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  let userPrompt: string;
+  try {
+    userPrompt = await buildUserPrompt(crop, locationName);
+  } catch {
+    userPrompt = `Напиши подробное руководство по выращиванию культуры "${crop.name}" на даче в России.`;
+  }
+
+  const systemPrompt = (await getPromptByKey("guide_detail_system")) ?? GUIDE_DETAIL_SYSTEM_FALLBACK;
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ];
+
   try {
     const response = await fetch(`${AI_URL}/api/ai/process`, {
       method: "POST",
@@ -118,31 +111,43 @@ export async function GET(request: NextRequest) {
         userId: "guide-generator",
         networkName: "openai-gpt4o-mini",
         requestType: "chat",
-        payload: {
-          messages: [
-            {
-              role: "system",
-              content:
-                "Ты — опытный агроном-практик с 30-летним стажем работы на дачных участках в России. Пишешь руководства для дачников.",
-            },
-            { role: "user", content: buildPrompt(crop, locationName) },
-          ],
-        },
+        payload: { messages },
       }),
     });
 
-    const data = await response.json();
+    const data = (await response.json()) as Record<string, unknown>;
 
     if (data.status === "failed") {
+      const user = await getAuthUser().catch(() => null);
+      await logAiCall({
+        userId: user?.id ?? null,
+        endpoint: "/api/guide/detail",
+        requestType: "chat",
+        messages,
+        responseData: data,
+        status: "failed",
+        errorMessage: (data.errorMessage as string) ?? undefined,
+      });
       return NextResponse.json(
-        { error: data.errorMessage || "AI generation failed" },
+        { error: (data.errorMessage as string) || "AI generation failed" },
         { status: 502 }
       );
     }
 
     const content =
-      data.response?.choices?.[0]?.message?.content ||
+      (data.response as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ||
       "Не удалось сгенерировать руководство.";
+
+    const user = await getAuthUser().catch(() => null);
+    await logAiCall({
+      userId: user?.id ?? null,
+      endpoint: "/api/guide/detail",
+      requestType: "chat",
+      messages,
+      response: content,
+      responseData: data,
+      status: "success",
+    });
 
     try {
       await prisma.cropGuide.upsert({

@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-02-26 — Промпты в БД и логи вызовов нейросетей
+
+### Промпты в таблице prompts
+- Модель Prisma `Prompt` (key, prompt, description, endpoint). Миграция `20260226190000_add_prompts_and_ai_call_logs`.
+- Хелпер `getPromptByKey(key)` в `lib/get-prompt.ts`: читает текст из БД; при отсутствии записи используется fallback из кода.
+- Seed `prisma/seed.ts`: 8 промптов (chat_system, vision_system, guide_detail_system, guide_detail_user, crops_image, crops_extract_system, timeline_system, timeline_user). Запуск: `npm run db:seed`.
+- Во всех точках вызова AI промпты берутся из БД с подстановками в коде: chat (buildSystemPrompt), ai/analyze (vision_system + locationNote), guide/detail (guide_detail_system, guide_detail_user с {{cropName}}, {{regionNote}}, {{varietyListSection}}), crops (crops_image {{cropName}}/{{category}}, crops_extract_system {{categories}}), timeline-generate (timeline_system с {{cultureName}}, {{bedLabel}}, {{plantedDateIso}}, {{region}}, timeline_user).
+
+### Логи вызовов в таблице ai_call_logs
+- Модель Prisma `AiCallLog`: userId, endpoint, requestType (chat/vision/image_gen), messages (сводка), responsePreview, tokensInput/tokensOutput/tokensTotal, status, errorMessage.
+- Хелпер `logAiCall(params)` в `lib/log-ai-call.ts`: парсит usage из ответа интегратора (data.usage или data.response?.usage), пишет запись. Вызовы добавлены после каждого обращения к AI: POST /api/chat (в т.ч. retry и catch), POST /api/ai/analyze, GET /api/guide/detail, POST /api/crops (image_gen и chat для extract), lib/timeline-generate.ts.
+
+### Документация
+- ARCHITECTURE: раздел «Промпты и логи AI», таблицы prompts и ai_call_logs в Database.
+- CURRENT_STATE: пункты «Промпты в БД» и «Логи вызовов нейросетей».
+
+---
+
 ## 2026-02-24 — Кодировка, деплой, таймлайн UI и ссылка «Рассчитать таймлайн»
 
 ### Исправление кодировки и деплоя (garden-content.tsx)
