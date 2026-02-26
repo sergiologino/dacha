@@ -821,7 +821,6 @@ function BedCard({
     </Card>
 
     {/* Галерея фото растения — полноэкранная на мобильном */}
-    */}
     <Dialog open={!!gallery} onOpenChange={(open) => !open && closeGallery()}>
       <DialogContent
         showCloseButton={false}
