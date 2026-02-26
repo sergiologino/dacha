@@ -88,7 +88,7 @@ async function uploadPlantPhoto({
   plantId,
   bedId,
   takenAt,
-}: UploadPlantPhotoParams): Promise<BedPhoto> {
+}: UploadPlantPhotoParams): Promise<BedPlantPhoto> {
   const formData = new FormData();
   formData.set("file", file);
   formData.set("plantId", plantId);
@@ -98,11 +98,23 @@ async function uploadPlantPhoto({
     method: "POST",
     body: formData,
   });
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Failed to upload photo");
+    throw new Error((data as { error?: string }).error || "Failed to upload photo");
   }
-  return res.json();
+  return {
+    id: String(data.id),
+    url: String(data.url),
+    takenAt:
+      typeof data.takenAt === "string"
+        ? data.takenAt
+        : data.takenAt != null
+          ? new Date(data.takenAt).toISOString()
+          : new Date().toISOString(),
+    analysisResult: data.analysisResult ?? undefined,
+    analysisStatus: data.analysisStatus ?? undefined,
+    analyzedAt: data.analyzedAt != null ? new Date(data.analyzedAt).toISOString() : undefined,
+  } as BedPlantPhoto;
 }
 
 export function useBeds() {
@@ -131,20 +143,7 @@ export function useUploadPlantPhoto() {
     mutationFn: uploadPlantPhoto,
     onSuccess: async (data, variables) => {
       const { plantId, bedId } = variables;
-      const takenAtStr =
-        typeof data.takenAt === "string"
-          ? data.takenAt
-          : data.takenAt != null
-            ? new Date(data.takenAt).toISOString()
-            : new Date().toISOString();
-      const newPhoto: BedPlantPhoto = {
-        id: String(data.id),
-        url: String(data.url),
-        takenAt: takenAtStr,
-        analysisResult: data.analysisResult ?? undefined,
-        analysisStatus: data.analysisStatus ?? undefined,
-        analyzedAt: data.analyzedAt != null ? new Date(data.analyzedAt).toISOString() : undefined,
-      };
+      const newPhoto: BedPlantPhoto = data;
       qc.setQueryData<Bed[]>(["beds"], (old) => {
         if (!old) return old;
         return old.map((bed) => {
