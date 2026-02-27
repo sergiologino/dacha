@@ -13,7 +13,7 @@ import { useUserLocation } from "@/lib/hooks/use-user-location";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBeds } from "@/lib/hooks/use-beds";
 import { getPlannedEventsForMonth, type PlannedWorkItem } from "@/lib/planned-events";
-import { ChevronLeft, ChevronRight, Moon, CalendarDays, Crown, Loader2, Sprout } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Moon, CalendarDays, Crown, Loader2, Sprout } from "lucide-react";
 import {
   calendarTasks,
   monthNames,
@@ -47,6 +47,7 @@ export default function CalendarPage() {
   const [mode, setMode] = useState<CalendarMode>("tasks");
   const [isPremium, setIsPremium] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [plannedWorkExpanded, setPlannedWorkExpanded] = useState(false);
   const [plannedWorkModal, setPlannedWorkModal] = useState<{
     open: boolean;
     mode: "add" | "edit";
@@ -216,50 +217,104 @@ export default function CalendarPage() {
             </div>
           </MotionDiv>
 
-          {/* Запланированные работы с грядок */}
+          {/* Запланированные работы с грядок — сворачиваемый блок */}
           {(plannedItems.length > 0 || bedsForPick.length > 0) && (
             <MotionDiv variant="fadeUp" delay={0.12}>
-              <div className="flex items-center gap-2 mb-3 flex-wrap">
-                <Sprout className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                <h3 className="font-semibold text-slate-800 dark:text-slate-200">Запланированные работы</h3>
-                <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 text-xs">
-                  С грядок
-                </Badge>
-                {bedsForPick.length > 0 && (
-                  <>
-                    {isPremium === false && (
-                      <span className="text-xs text-slate-500 ml-auto mr-2">
-                        Добавлено работ: {userCreatedPlannedCount}/{FREE_PLANNED_WORKS_LIMIT} бесплатно
-                      </span>
+              <div className="mb-3">
+                <button
+                  type="button"
+                  onClick={() => setPlannedWorkExpanded((v) => !v)}
+                  className="w-full flex items-center gap-2 flex-wrap rounded-xl p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
+                >
+                  {plannedWorkExpanded ? (
+                    <ChevronDown className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                  ) : (
+                    <ChevronRight className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                  )}
+                  <Sprout className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                  <h3 className="font-semibold text-slate-800 dark:text-slate-200">Запланированные работы</h3>
+                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 text-xs">
+                    С грядок
+                  </Badge>
+                  <span className="text-xs text-slate-500">
+                    {plannedItems.length} {plannedItems.length === 1 ? "работа" : plannedItems.length >= 2 && plannedItems.length <= 4 ? "работы" : "работ"}
+                  </span>
+                  {bedsForPick.length > 0 && !plannedWorkExpanded && (
+                    <>
+                      {isPremium === false && (
+                        <span className="text-xs text-slate-500 ml-auto mr-2">
+                          {userCreatedPlannedCount}/{FREE_PLANNED_WORKS_LIMIT} бесплатно
+                        </span>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-auto text-emerald-700 border-emerald-300 dark:border-emerald-700 dark:text-emerald-300"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (
+                            isPremium === false &&
+                            userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT
+                          ) {
+                            setShowPaywall(true);
+                            return;
+                          }
+                          setPlannedWorkModal({
+                            open: true,
+                            mode: "add",
+                            event: null,
+                            plantId: "",
+                            bedId: "",
+                            bedName: "",
+                            plantName: "",
+                          });
+                        }}
+                      >
+                        + Добавить
+                      </Button>
+                    </>
+                  )}
+                </button>
+                {plannedWorkExpanded && (
+                  <div className="flex items-center gap-2 flex-wrap pl-7 pr-2 pb-2">
+                    {bedsForPick.length > 0 && (
+                      <>
+                        {isPremium === false && (
+                          <span className="text-xs text-slate-500">
+                            Добавлено работ: {userCreatedPlannedCount}/{FREE_PLANNED_WORKS_LIMIT} бесплатно
+                          </span>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-emerald-700 border-emerald-300 dark:border-emerald-700 dark:text-emerald-300"
+                          onClick={() => {
+                            if (
+                              isPremium === false &&
+                              userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT
+                            ) {
+                              setShowPaywall(true);
+                              return;
+                            }
+                            setPlannedWorkModal({
+                              open: true,
+                              mode: "add",
+                              event: null,
+                              plantId: "",
+                              bedId: "",
+                              bedName: "",
+                              plantName: "",
+                            });
+                          }}
+                        >
+                          + Добавить работу
+                        </Button>
+                      </>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-emerald-700 border-emerald-300 dark:border-emerald-700 dark:text-emerald-300"
-                      onClick={() => {
-                        if (
-                          isPremium === false &&
-                          userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT
-                        ) {
-                          setShowPaywall(true);
-                          return;
-                        }
-                        setPlannedWorkModal({
-                          open: true,
-                          mode: "add",
-                          event: null,
-                          plantId: "",
-                          bedId: "",
-                          bedName: "",
-                          plantName: "",
-                        });
-                      }}
-                    >
-                      + Добавить работу
-                    </Button>
-                  </>
+                  </div>
                 )}
               </div>
+              {plannedWorkExpanded && (
               <div className="space-y-3 mb-6">
                 {plannedItems.map((item) => (
                   <Card
@@ -311,6 +366,7 @@ export default function CalendarPage() {
                   </Card>
                 ))}
               </div>
+              )}
             </MotionDiv>
           )}
 
