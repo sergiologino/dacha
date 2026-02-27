@@ -40,6 +40,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
+    // Free plan: limit to 2 beds per user
+    if (!user.isPremium) {
+      const bedCount = await prisma.bed.count({
+        where: { userId: user.id },
+      });
+      if (bedCount >= 2) {
+        return NextResponse.json(
+          {
+            error: "Лимит бесплатной версии: не более 2 грядок. Оформите Премиум, чтобы добавить больше.",
+            code: "LIMIT_BEDS_FREE",
+          },
+          { status: 402 }
+        );
+      }
+    }
+
     const bed = await prisma.bed.create({
       data: {
         userId: user.id,

@@ -31,6 +31,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
+    // Free plan: limit to 3 plants per user (total, across all beds)
+    if (!user.isPremium) {
+      const plantCount = await prisma.plant.count({
+        where: { userId: user.id },
+      });
+      if (plantCount >= 3) {
+        return NextResponse.json(
+          {
+            error:
+              "Лимит бесплатной версии: не более 3 растений. Оформите Премиум, чтобы добавить больше.",
+            code: "LIMIT_PLANTS_FREE",
+          },
+          { status: 402 }
+        );
+      }
+    }
+
     if (bedId) {
       const bed = await prisma.bed.findFirst({ where: { id: bedId, userId: user.id } });
       if (!bed) return NextResponse.json({ error: "Bed not found" }, { status: 404 });
@@ -46,9 +63,29 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    generateTimelineForPlant(plant.id).catch((err) =>
-      console.error("Timeline generation failed:", err)
-    );
+    // Auto-generate timeline only if:
+    // - user is Premium, or
+    // - free user and this будет его первое растение с таймлайном
+    if (user.isPremium) {
+      generateTimelineForPlant(plant.id).catch((err) =>
+        console.error("Timeline generation failed:", err)
+      );
+    } else {
+      const existingTimelinePlant = await prisma.plantTimelineEvent.findFirst({
+        where: {
+          plant: {
+            userId: user.id,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (!existingTimelinePlant) {
+        generateTimelineForPlant(plant.id).catch((err) =>
+          console.error("Timeline generation failed:", err)
+        );
+      }
+    }
 
     return NextResponse.json(plant, { status: 201 });
   } catch (err) {

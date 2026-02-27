@@ -133,7 +133,7 @@ export async function generateTimelineForPlant(plantId: string): Promise<void> {
 
   const systemTemplate =
     (await getPromptByKey("timeline_system")) ??
-    `Ты — агроном-консультант для дачников в России. Ответь СТРОГО в формате JSON: один массив объектов без markdown и без пояснений вне JSON. Для каждого события укажи: type, title, description, scheduledDate, dateTo?, isAction. Учитывай: культура "{{cultureName}}", тип грядки: {{bedLabel}}, дата посадки: {{plantedDateIso}}, местоположение: {{region}}.`;
+    `Ты — агроном-консультант для дачников в России. Ответь СТРОГО в формате JSON: один массив объектов без markdown и без пояснений вне JSON. Растение уже растёт в указанной грядке (тип: {{bedLabel}}). Не включай пересадку в теплицу/в грунт, если грядка уже теплица, открытый грунт или высокая грядка. Пересадку — только если тип грядки «рассада дома». Для каждого события укажи: type, title, description, scheduledDate, dateTo?, isAction. Учитывай: культура "{{cultureName}}", дата посадки: {{plantedDateIso}}, местоположение: {{region}}.`;
   const systemPrompt = systemTemplate
     .replace("{{cultureName}}", cultureName)
     .replace("{{bedLabel}}", bedLabel)
@@ -142,7 +142,7 @@ export async function generateTimelineForPlant(plantId: string): Promise<void> {
 
   const userPrompt =
     (await getPromptByKey("timeline_user")) ??
-    "Построй календарь ключевых событий и действий по уходу от даты посадки до ориентировочного урожая/конца ухода. Верни массив объектов в JSON. Минимум 5–8 событий: всходы, поливы, рыхление, подкормки, пересадка (если рассада), пасынкование (если нужно), урожай. Для рассады дома добавь события по освещению и температуре.";
+    "Построй календарь ключевых событий и действий по уходу от даты посадки до ориентировочного урожая/конца ухода. Верни массив объектов в JSON. Минимум 5–8 событий: всходы, поливы, рыхление, подкормки, пасынкование (если нужно), урожай. Пересадку включай только для рассады дома; для теплицы/открытого грунта/высокой грядки событий пересадки не добавляй. Для рассады дома добавь события по освещению и температуре.";
 
   const messages = [
     { role: "system", content: systemPrompt },
