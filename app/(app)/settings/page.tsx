@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { MapPin, LogOut, Loader2, Save, Crown, CreditCard } from "lucide-react";
+import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
+import { usePushSubscription } from "@/lib/hooks/use-push-subscription";
 
 type PaymentRow = {
   id: string;
@@ -51,6 +52,7 @@ export default function SettingsPage() {
     return d.toISOString().slice(0, 10);
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const push = usePushSubscription();
 
   useEffect(() => {
     Promise.all([
@@ -395,6 +397,48 @@ export default function SettingsPage() {
           )}
           Сохранить местоположение
         </Button>
+      </Card>
+
+      <Card className="p-6 mb-6">
+        <h2 className="font-semibold mb-3 flex items-center gap-2">
+          <Bell className="w-5 h-5 text-emerald-600" />
+          Уведомления
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+          Напоминания о плановых работах на грядках (сегодня и завтра). Работают на телефоне и компьютере.
+        </p>
+        {!push.isSupported ? (
+          <p className="text-sm text-slate-500">Ваш браузер не поддерживает push-уведомления.</p>
+        ) : push.state === "subscribed" ? (
+          <div>
+            <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium mb-2">Уведомления включены</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={push.unsubscribe}
+              disabled={push.state === "loading"}
+              className="rounded-xl"
+            >
+              {push.state === "loading" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <BellOff className="w-4 h-4 mr-2" />}
+              Отключить
+            </Button>
+          </div>
+        ) : push.state === "denied" ? (
+          <p className="text-sm text-slate-500">Уведомления запрещены в настройках браузера. Разрешите их для этого сайта и нажмите «Включить» снова.</p>
+        ) : null}
+        {push.isSupported && push.state !== "subscribed" && push.state !== "denied" && (
+          <Button
+            onClick={push.subscribe}
+            disabled={push.state === "loading"}
+            className="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700"
+          >
+            {push.state === "loading" ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Bell className="w-5 h-5 mr-2" />}
+            Включить уведомления
+          </Button>
+        )}
+        {push.message && (
+          <p className="text-sm text-slate-500 mt-3">{push.message}</p>
+        )}
       </Card>
 
       <Button

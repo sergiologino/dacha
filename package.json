@@ -38,9 +38,10 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-leaflet": "^5.0.0",
-    "sonner": "^2.0.7",
     "sharp": "^0.34.5",
-    "tailwind-merge": "^3.5.0"
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.5.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.52.0",
