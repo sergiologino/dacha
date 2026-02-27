@@ -12,6 +12,7 @@ export type PlannedWorkItem = {
   description: string | null;
   isAction: boolean;
   type?: string;
+  isUserCreated?: boolean;
 };
 
 export function getPlannedEventsForMonth(
@@ -45,6 +46,7 @@ export function getPlannedEventsForMonth(
           description: event.description,
           isAction: event.isAction,
           type: event.type,
+          isUserCreated: event.isUserCreated,
         });
       }
     }

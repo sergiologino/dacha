@@ -71,6 +71,28 @@ export default function CalendarPage() {
     () => getPlannedEventsForMonth(beds, selectedMonth, currentYear),
     [beds, selectedMonth]
   );
+
+  const todayStart = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    return t.getTime();
+  }, []);
+
+  const { userCreatedItems, autoCreatedItems } = useMemo(() => {
+    const user: PlannedWorkItem[] = [];
+    const auto: PlannedWorkItem[] = [];
+    for (const item of plannedItems) {
+      const end = item.dateTo ? new Date(item.dateTo) : new Date(item.scheduledDate);
+      end.setHours(23, 59, 59, 999);
+      if (item.isUserCreated) {
+        if (end.getTime() >= todayStart) user.push(item);
+      } else {
+        auto.push(item);
+      }
+    }
+    user.sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+    return { userCreatedItems: user, autoCreatedItems: auto };
+  }, [plannedItems, todayStart]);
   const bedsForPick = useMemo(() => {
     if (!beds?.length) return [];
     return beds.flatMap((b) =>
@@ -217,8 +239,106 @@ export default function CalendarPage() {
             </div>
           </MotionDiv>
 
-          {/* Запланированные работы с грядок — сворачиваемый блок */}
-          {(plannedItems.length > 0 || bedsForPick.length > 0) && (
+          {/* 1) Добавленные вами — всегда видны, только с неистёкшим сроком, по возрастанию даты */}
+          {(userCreatedItems.length > 0 || bedsForPick.length > 0) && (
+            <MotionDiv variant="fadeUp" delay={0.12}>
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
+                <Sprout className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <h3 className="font-semibold text-slate-800 dark:text-slate-200">Добавленные вами</h3>
+                <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 text-xs">
+                  С грядок
+                </Badge>
+                {isPremium === false && (
+                  <span className="text-xs text-slate-500 ml-auto mr-2">
+                    Добавлено работ: {userCreatedPlannedCount}/{FREE_PLANNED_WORKS_LIMIT} бесплатно
+                  </span>
+                )}
+                {bedsForPick.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-emerald-700 border-emerald-300 dark:border-emerald-700 dark:text-emerald-300"
+                    onClick={() => {
+                      if (
+                        isPremium === false &&
+                        userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT
+                      ) {
+                        setShowPaywall(true);
+                        return;
+                      }
+                      setPlannedWorkModal({
+                        open: true,
+                        mode: "add",
+                        event: null,
+                        plantId: "",
+                        bedId: "",
+                        bedName: "",
+                        plantName: "",
+                      });
+                    }}
+                  >
+                    + Добавить работу
+                  </Button>
+                )}
+              </div>
+              {userCreatedItems.length > 0 && (
+                <div className="space-y-3 mb-6">
+                  {userCreatedItems.map((item) => (
+                    <Card
+                      key={item.id}
+                      className="p-5 mb-0 border-l-4 border-emerald-500 dark:border-emerald-600 border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20 cursor-pointer hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 transition-colors"
+                      onClick={() =>
+                        setPlannedWorkModal({
+                          open: true,
+                          mode: "edit",
+                          event: {
+                            id: item.id,
+                            title: item.title,
+                            description: item.description,
+                            scheduledDate: item.scheduledDate,
+                            dateTo: item.dateTo,
+                            isAction: item.isAction,
+                            type: item.type ?? "other",
+                          },
+                          plantId: item.plantId,
+                          bedId: item.bedId,
+                          bedName: item.bedName,
+                          plantName: item.plantName,
+                        })
+                      }
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl flex-shrink-0">📅</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                              {formatEventDate(item.scheduledDate, item.dateTo)}
+                            </span>
+                            <Badge variant="outline" className="text-xs border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200">
+                              {item.bedName}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300">
+                              {item.plantName}
+                            </Badge>
+                          </div>
+                          <h3 className="font-semibold text-slate-900 dark:text-slate-100">{item.title}</h3>
+                          {item.description && (
+                            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mt-1">
+                              {item.description}
+                            </p>
+                          )}
+                          <p className="text-xs text-slate-400 mt-1.5">Нажмите, чтобы изменить</p>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </MotionDiv>
+          )}
+
+          {/* 2) Созданные автоматически — сворачиваемый блок */}
+          {autoCreatedItems.length > 0 && (
             <MotionDiv variant="fadeUp" delay={0.12}>
               <div className="mb-3">
                 <button
@@ -227,145 +347,72 @@ export default function CalendarPage() {
                   className="w-full flex items-center gap-2 flex-wrap rounded-xl p-3 text-left hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700"
                 >
                   {plannedWorkExpanded ? (
-                    <ChevronDown className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                    <ChevronDown className="w-5 h-5 text-slate-500 flex-shrink-0" />
                   ) : (
-                    <ChevronRight className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                    <ChevronRight className="w-5 h-5 text-slate-500 flex-shrink-0" />
                   )}
-                  <Sprout className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                  <h3 className="font-semibold text-slate-800 dark:text-slate-200">Запланированные работы</h3>
-                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 text-xs">
-                    С грядок
+                  <Sprout className="w-5 h-5 text-slate-500 flex-shrink-0" />
+                  <h3 className="font-semibold text-slate-700 dark:text-slate-300">Рекомендованные по растениям</h3>
+                  <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Автоматически
                   </Badge>
                   <span className="text-xs text-slate-500">
-                    {plannedItems.length} {plannedItems.length === 1 ? "работа" : plannedItems.length >= 2 && plannedItems.length <= 4 ? "работы" : "работ"}
+                    {autoCreatedItems.length} {autoCreatedItems.length === 1 ? "работа" : autoCreatedItems.length >= 2 && autoCreatedItems.length <= 4 ? "работы" : "работ"}
                   </span>
-                  {bedsForPick.length > 0 && !plannedWorkExpanded && (
-                    <>
-                      {isPremium === false && (
-                        <span className="text-xs text-slate-500 ml-auto mr-2">
-                          {userCreatedPlannedCount}/{FREE_PLANNED_WORKS_LIMIT} бесплатно
-                        </span>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="ml-auto text-emerald-700 border-emerald-300 dark:border-emerald-700 dark:text-emerald-300"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (
-                            isPremium === false &&
-                            userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT
-                          ) {
-                            setShowPaywall(true);
-                            return;
-                          }
-                          setPlannedWorkModal({
-                            open: true,
-                            mode: "add",
-                            event: null,
-                            plantId: "",
-                            bedId: "",
-                            bedName: "",
-                            plantName: "",
-                          });
-                        }}
-                      >
-                        + Добавить
-                      </Button>
-                    </>
-                  )}
                 </button>
-                {plannedWorkExpanded && (
-                  <div className="flex items-center gap-2 flex-wrap pl-7 pr-2 pb-2">
-                    {bedsForPick.length > 0 && (
-                      <>
-                        {isPremium === false && (
-                          <span className="text-xs text-slate-500">
-                            Добавлено работ: {userCreatedPlannedCount}/{FREE_PLANNED_WORKS_LIMIT} бесплатно
-                          </span>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-emerald-700 border-emerald-300 dark:border-emerald-700 dark:text-emerald-300"
-                          onClick={() => {
-                            if (
-                              isPremium === false &&
-                              userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT
-                            ) {
-                              setShowPaywall(true);
-                              return;
-                            }
-                            setPlannedWorkModal({
-                              open: true,
-                              mode: "add",
-                              event: null,
-                              plantId: "",
-                              bedId: "",
-                              bedName: "",
-                              plantName: "",
-                            });
-                          }}
-                        >
-                          + Добавить работу
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
               {plannedWorkExpanded && (
-              <div className="space-y-3 mb-6">
-                {plannedItems.map((item) => (
-                  <Card
-                    key={item.id}
-                    className="p-5 mb-0 border-l-4 border-emerald-500 dark:border-emerald-600 border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20 cursor-pointer hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 transition-colors"
-                    onClick={() =>
-                      setPlannedWorkModal({
-                        open: true,
-                        mode: "edit",
-                        event: {
-                          id: item.id,
-                          title: item.title,
-                          description: item.description,
-                          scheduledDate: item.scheduledDate,
-                          dateTo: item.dateTo,
-                          isAction: item.isAction,
-                          type: item.type ?? "other",
-                        },
-                        plantId: item.plantId,
-                        bedId: item.bedId,
-                        bedName: item.bedName,
-                        plantName: item.plantName,
-                      })
-                    }
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="text-2xl flex-shrink-0">📅</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                            {formatEventDate(item.scheduledDate, item.dateTo)}
-                          </span>
-                          <Badge variant="outline" className="text-xs border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200">
-                            {item.bedName}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300">
-                            {item.plantName}
-                          </Badge>
+                <div className="space-y-3 mb-6">
+                  {autoCreatedItems.map((item) => (
+                    <Card
+                      key={item.id}
+                      className="p-5 mb-0 border-l-4 border-slate-400 dark:border-slate-500 border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/30 transition-colors"
+                      onClick={() =>
+                        setPlannedWorkModal({
+                          open: true,
+                          mode: "edit",
+                          event: {
+                            id: item.id,
+                            title: item.title,
+                            description: item.description,
+                            scheduledDate: item.scheduledDate,
+                            dateTo: item.dateTo,
+                            isAction: item.isAction,
+                            type: item.type ?? "other",
+                          },
+                          plantId: item.plantId,
+                          bedId: item.bedId,
+                          bedName: item.bedName,
+                          plantName: item.plantName,
+                        })
+                      }
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl flex-shrink-0">📅</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                              {formatEventDate(item.scheduledDate, item.dateTo)}
+                            </span>
+                            <Badge variant="outline" className="text-xs border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
+                              {item.bedName}
+                            </Badge>
+                            <Badge variant="outline" className="text-xs border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400">
+                              {item.plantName}
+                            </Badge>
+                          </div>
+                          <h3 className="font-semibold text-slate-800 dark:text-slate-200">{item.title}</h3>
+                          {item.description && (
+                            <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mt-1">
+                              {item.description}
+                            </p>
+                          )}
+                          <p className="text-xs text-slate-400 mt-1.5">Нажмите, чтобы изменить</p>
                         </div>
-                        <h3 className="font-semibold text-slate-900 dark:text-slate-100">{item.title}</h3>
-                        {item.description && (
-                          <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed mt-1">
-                            {item.description}
-                          </p>
-                        )}
-                        <p className="text-xs text-slate-400 mt-1.5">Нажмите, чтобы изменить</p>
                       </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
+                    </Card>
+                  ))}
+                </div>
               )}
             </MotionDiv>
           )}
