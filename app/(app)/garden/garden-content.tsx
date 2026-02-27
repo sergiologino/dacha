@@ -45,6 +45,7 @@ import { crops as staticCrops } from "@/lib/data/crops";
 import { searchCropsAndVarieties, type CropSearchHit } from "@/lib/crops-search";
 import type { CropWithSource } from "@/lib/crops-merge";
 import { SubscribeModal } from "@/components/subscribe-modal";
+import { PlannedWorkModal, type PlannedWorkEvent } from "@/components/planned-work-modal";
 
 const bedTypeLabels: Record<string, string> = {
   open: "Открытый грунт",
@@ -63,6 +64,7 @@ const bedTypeEmoji: Record<string, string> = {
 const FREE_BED_LIMIT = 2;
 const FREE_PLANT_LIMIT = 3;
 const FREE_TIMELINE_LIMIT = 1;
+const FREE_PLANNED_WORKS_LIMIT = 5;
 
 export default function GardenContent() {
   const router = useRouter();
@@ -111,6 +113,13 @@ export default function GardenContent() {
   const [showHelp, setShowHelp] = useState(false);
   const [isPremium, setIsPremium] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [plannedWorkModal, setPlannedWorkModal] = useState<{
+    open: boolean;
+    mode: "add" | "edit";
+    event: PlannedWorkEvent | null;
+    plant: { id: string; name: string };
+    bed: { id: string; name: string };
+  } | null>(null);
 
   const { data: plants = [], isLoading: plantsLoading } = usePlants();
   const createPlant = useCreatePlant();
@@ -142,6 +151,18 @@ export default function GardenContent() {
     });
   });
   const timelinePlantsCount = timelinePlantIds.size;
+
+  const userCreatedPlannedCount = (() => {
+    let n = 0;
+    beds.forEach((bed) => {
+      (bed.plants ?? []).forEach((p) => {
+        (p.timelineEvents ?? []).forEach((e) => {
+          if ((e as { isUserCreated?: boolean }).isUserCreated) n++;
+        });
+      });
+    });
+    return n;
+  })();
 
   useEffect(() => {
     fetch("/api/user/premium")
@@ -233,9 +254,14 @@ export default function GardenContent() {
             </Button>
           </div>
           {isPremium === false && (
-            <p className="text-[11px] text-slate-400">
-              Грядки: {totalBeds}/{FREE_BED_LIMIT} бесплатно
-            </p>
+            <>
+              <p className="text-[11px] text-slate-400">
+                Грядки: {totalBeds}/{FREE_BED_LIMIT} бесплатно
+              </p>
+              <p className="text-[11px] text-slate-400">
+                Добавлено работ: {userCreatedPlannedCount}/{FREE_PLANNED_WORKS_LIMIT} бесплатно
+              </p>
+            </>
           )}
         </div>
       </div>
@@ -374,6 +400,39 @@ export default function GardenContent() {
                     if (!res.ok) throw new Error("Generate failed");
                     qc.invalidateQueries({ queryKey: ["beds"] });
                   }}
+                  onEditPlannedWork={(event, plant, bed) =>
+                    setPlannedWorkModal({
+                      open: true,
+                      mode: "edit",
+                      event: {
+                        id: event.id,
+                        title: event.title,
+                        description: event.description,
+                        scheduledDate: event.scheduledDate,
+                        dateTo: event.dateTo,
+                        isAction: event.isAction,
+                        type: event.type ?? "other",
+                      },
+                      plant: { id: plant.id, name: plant.name },
+                      bed: { id: bed.id, name: bed.name },
+                    })
+                  }
+                  onAddPlannedWork={(plant, bed) => {
+                    if (
+                      isPremium === false &&
+                      userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT
+                    ) {
+                      setShowPaywall(true);
+                      return;
+                    }
+                    setPlannedWorkModal({
+                      open: true,
+                      mode: "add",
+                      event: null,
+                      plant: { id: plant.id, name: plant.name },
+                      bed: { id: bed.id, name: bed.name },
+                    });
+                  }}
                   addingPlant={createPlant.isPending}
                   updatingPlant={updatePlant.isPending}
                   uploadingPhoto={uploadPhoto.isPending}
@@ -418,6 +477,23 @@ export default function GardenContent() {
         )}
       </StaggerContainer>
       <SubscribeModal open={showPaywall} onOpenChange={setShowPaywall} />
+      {plannedWorkModal && (
+        <PlannedWorkModal
+          open={plannedWorkModal.open}
+          onOpenChange={(open) => setPlannedWorkModal((prev) => (prev ? { ...prev, open } : null))}
+          mode={plannedWorkModal.mode}
+          plantId={plannedWorkModal.plant.id}
+          bedId={plannedWorkModal.bed.id}
+          bedName={plannedWorkModal.bed.name}
+          plantName={plannedWorkModal.plant.name}
+          event={plannedWorkModal.event}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ["beds"] });
+            setPlannedWorkModal(null);
+          }}
+          onShowPaywall={() => setShowPaywall(true)}
+        />
+      )}
     </>
   );
 }
@@ -446,6 +522,8 @@ function BedCard({
   onDeletePlant,
   onUploadPhoto,
   onRegenerateTimeline,
+  onEditPlannedWork,
+  onAddPlannedWork,
   addingPlant,
   updatingPlant,
   uploadingPhoto,
@@ -466,6 +544,12 @@ function BedCard({
   onDeletePlant: (id: string) => void;
   onUploadPhoto: (file: File, plantId: string, bedId: string, takenAt?: string) => void;
   onRegenerateTimeline?: (plantId: string) => void | Promise<void>;
+  onEditPlannedWork?: (
+    event: { id: string; title: string; description: string | null; scheduledDate: string; dateTo: string | null; isAction: boolean; type?: string },
+    plant: { id: string; name: string },
+    bed: { id: string; name: string }
+  ) => void;
+  onAddPlannedWork?: (plant: { id: string; name: string }, bed: { id: string; name: string }) => void;
   addingPlant: boolean;
   updatingPlant: boolean;
   uploadingPhoto: boolean;
@@ -820,6 +904,21 @@ function BedCard({
                                 events={plant.timelineEvents ?? []}
                                 plantedDate={plant.plantedDate}
                                 photoChecks={photoChecks}
+                                onEventClick={(ev) =>
+                                  onEditPlannedWork?.(
+                                    {
+                                      id: ev.id,
+                                      title: ev.title,
+                                      description: ev.description,
+                                      scheduledDate: ev.scheduledDate,
+                                      dateTo: ev.dateTo,
+                                      isAction: ev.isAction,
+                                      type: ev.type,
+                                    },
+                                    { id: plant.id, name: plant.name },
+                                    { id: bed.id, name: bed.name }
+                                  )
+                                }
                               />
                             </div>
                           </>
@@ -827,8 +926,19 @@ function BedCard({
                       </div>
                     );
                   })()}
-                  {(plant.timelineEvents?.length ?? 0) === 0 && onRegenerateTimeline ? (
+                  {((plant.timelineEvents?.length ?? 0) > 0 && onAddPlannedWork) ? (
                     <div className="mt-2 pl-8">
+                      <button
+                        type="button"
+                        onClick={() => onAddPlannedWork({ id: plant.id, name: plant.name }, { id: bed.id, name: bed.name })}
+                        className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline"
+                      >
+                        + Добавить плановую работу
+                      </button>
+                    </div>
+                  ) : null}
+                  {(plant.timelineEvents?.length ?? 0) === 0 && onRegenerateTimeline ? (
+                    <div className="mt-2 pl-8 space-y-1">
                       <button
                         type="button"
                         disabled={regeneratingPlantId === plant.id}
@@ -858,8 +968,19 @@ function BedCard({
                       >
                         {regeneratingPlantId === plant.id ? "Расчёт…" : "Рассчитать таймлайн ухода"}
                       </button>
+                      {onAddPlannedWork && (
+                        <p className="text-xs">
+                          <button
+                            type="button"
+                            onClick={() => onAddPlannedWork({ id: plant.id, name: plant.name }, { id: bed.id, name: bed.name })}
+                            className="text-emerald-600 dark:text-emerald-400 hover:underline"
+                          >
+                            + Добавить плановую работу
+                          </button>
+                        </p>
+                      )}
                       {isPremium === false && (
-                        <p className="mt-1 text-[11px] text-slate-400">
+                        <p className="text-[11px] text-slate-400">
                           Таймлайн: {timelinePlantsCount}/{freeTimelineLimit} растений бесплатно
                         </p>
                       )}

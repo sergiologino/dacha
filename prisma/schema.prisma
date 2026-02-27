@@ -157,6 +157,7 @@ model PlantTimelineEvent {
   sortOrder    Int       @default(0)
   doneAt       DateTime?
   createdAt    DateTime  @default(now())
+  isUserCreated Boolean  @default(false) // true — добавлено пользователем вручную; false — сгенерировано ИИ
 
   @@index([plantId])
   @@map("plant_timeline_events")

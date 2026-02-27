@@ -92,10 +92,13 @@ export function PlantTimelineBar({
   events,
   plantedDate,
   photoChecks = [],
+  onEventClick,
 }: {
   events: TimelineEvent[];
   plantedDate: string;
   photoChecks?: PhotoCheck[];
+  /** При клике по событию (точка или блок описания) — открыть редактирование */
+  onEventClick?: (event: TimelineEvent) => void;
 }) {
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [selectedPhotoCheck, setSelectedPhotoCheck] = useState<PhotoCheck | null>(null);
@@ -268,18 +271,29 @@ export function PlantTimelineBar({
         })}
       </div>
 
-      {/* Selected point description — строго под шкалой, с отступом */}
+      {/* Selected point description — строго под шкалой, с отступом; клик открывает редактирование */}
       {selectedEvent && (
-        <p className="text-xs text-slate-600 dark:text-slate-400 py-1.5 px-1 mt-1">
-          <span className="font-medium text-slate-700 dark:text-slate-300">
-            {formatDateShort(new Date(selectedEvent.scheduledDate))}
-            {selectedEvent.dateTo && selectedEvent.dateTo !== selectedEvent.scheduledDate
-              ? ` – ${formatDateShort(new Date(selectedEvent.dateTo))}`
-              : ""}
-          </span>
-          {" — "}
-          {selectedEvent.description || selectedEvent.title}
-        </p>
+        <div className="text-xs text-slate-600 dark:text-slate-400 py-1.5 px-1 mt-1 flex items-start justify-between gap-2">
+          <p className="min-w-0">
+            <span className="font-medium text-slate-700 dark:text-slate-300">
+              {formatDateShort(new Date(selectedEvent.scheduledDate))}
+              {selectedEvent.dateTo && selectedEvent.dateTo !== selectedEvent.scheduledDate
+                ? ` – ${formatDateShort(new Date(selectedEvent.dateTo))}`
+                : ""}
+            </span>
+            {" — "}
+            {selectedEvent.description || selectedEvent.title}
+          </p>
+          {onEventClick && (
+            <button
+              type="button"
+              onClick={() => onEventClick(selectedEvent)}
+              className="flex-shrink-0 text-emerald-600 dark:text-emerald-400 hover:underline"
+            >
+              Изменить
+            </button>
+          )}
+        </div>
       )}
       {selectedPhotoCheck && (
         <p className="text-xs text-slate-600 dark:text-slate-400 py-1.5 px-1 mt-1">

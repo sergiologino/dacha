@@ -22,16 +22,46 @@ if (process.env.AUTH_YANDEX_ID && process.env.AUTH_YANDEX_SECRET) {
   );
 }
 
+// Сессия: не требовать авторизацию при каждом входе. Истекает через 7 дней без активности или при выходе.
+const SESSION_MAX_AGE_DAYS = 7;
+const SESSION_MAX_AGE_SEC = SESSION_MAX_AGE_DAYS * 24 * 60 * 60;
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,
   trustHost: true,
+  session: {
+    strategy: "jwt",
+    maxAge: SESSION_MAX_AGE_SEC,
+  },
   pages: {
     signIn: "/auth/signin",
     error: "/auth/signin",
   },
   callbacks: {
+    async jwt({ token, user }) {
+      // При первом входе сохраняем пользователя в токен (как по умолчанию в NextAuth).
+      if (user) {
+        token.id = user.id;
+        token.name = user.name;
+        token.email = user.email;
+        token.picture = user.image;
+      }
+      // Продлеваем срок действия при каждом обращении (сессия истекает через 7 дней без активности).
+      if (token) {
+        token.exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SEC;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = (token.sub ?? token.id) as string;
+        session.user.name = token.name ?? "";
+        session.user.email = token.email ?? "";
+        session.user.image = token.picture ?? "";
+      }
+      return session;
+    },
     // Не используем Prisma здесь: middleware работает в Edge Runtime, где Prisma (node:*) недоступен.
-    // Пользователь создаётся/обновляется при первом вызове getAuthUser() в API/Server Components.
     async signIn() {
       return true;
     },
