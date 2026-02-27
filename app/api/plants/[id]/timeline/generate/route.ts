@@ -19,6 +19,33 @@ export async function POST(
   });
   if (!plant) return NextResponse.json({ error: "Plant not found" }, { status: 404 });
 
+   // Free plan: timeline is available only for one plant per user.
+   // Allow generating for this plant if:
+   // - user is Premium, or
+   // - free user and нет другого растения с событиями таймлайна.
+   if (!user.isPremium) {
+     const otherTimelinePlant = await prisma.plantTimelineEvent.findFirst({
+       where: {
+         plant: {
+           userId: user.id,
+           id: { not: plantId },
+         },
+       },
+       select: { id: true },
+     });
+
+     if (otherTimelinePlant) {
+       return NextResponse.json(
+         {
+           error:
+             "Лимит бесплатной версии: таймлайн ухода доступен только для одного растения. Оформите Премиум, чтобы разблокировать таймлайн для всех растений.",
+           code: "LIMIT_TIMELINE_FREE",
+         },
+         { status: 402 }
+       );
+     }
+   }
+
   await generateTimelineForPlant(plantId);
 
   const events = await prisma.plantTimelineEvent.findMany({
