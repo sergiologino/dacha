@@ -203,14 +203,14 @@ export default function GardenContent() {
           className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
           showCloseButton={true}
         >
-          <DialogHeader>
+          <div>
             <DialogTitle className="text-xl text-slate-900 dark:text-slate-100">
               Как пользоваться страницей «Мой участок»
             </DialogTitle>
-            <DialogDescription className="sr-only">
+            <span className="sr-only">
               Подробное описание: грядки, культуры, шкала роста, фото
-            </DialogDescription>
-          </DialogHeader>
+            </span>
+          </div>
           <div className="overflow-y-auto pr-2 -mr-2 min-h-0">
             <GardenHelpContent />
           </div>
@@ -1053,3 +1053,4 @@ function BedCard({
     </>
   );
 }
+
