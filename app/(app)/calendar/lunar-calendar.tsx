@@ -4,13 +4,19 @@ import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Sprout } from "lucide-react";
 import {
   getMonthLunarDays,
   weekDays,
   monthNamesGen,
   type LunarDay,
 } from "@/lib/data/lunar-calendar";
+import {
+  getPlannedEventsForMonth,
+  getPlannedEventsForDay,
+  type PlannedWorkItem,
+} from "@/lib/planned-events";
+import type { Bed } from "@/lib/hooks/use-beds";
 
 const FERTILITY_COLORS: Record<string, string> = {
   high: "bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700",
@@ -26,13 +32,22 @@ const FERTILITY_DOT: Record<string, string> = {
   barren: "bg-red-400",
 };
 
-export function LunarCalendar() {
+type LunarCalendarProps = {
+  beds?: Bed[] | null;
+  onEditPlannedWork?: (item: PlannedWorkItem) => void;
+};
+
+export function LunarCalendar({ beds, onEditPlannedWork }: LunarCalendarProps = {}) {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [selectedDay, setSelectedDay] = useState<LunarDay | null>(null);
 
   const lunarDays = useMemo(() => getMonthLunarDays(year, month), [year, month]);
+  const plannedItems = useMemo(
+    () => getPlannedEventsForMonth(beds ?? undefined, month, year),
+    [beds, month, year]
+  );
 
   const monthNames = [
     "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -116,6 +131,7 @@ export function LunarCalendar() {
           {lunarDays.map((day) => {
             const isToday = isCurrentMonth && day.dayOfMonth === today;
             const isSelected = selectedDay?.dayOfMonth === day.dayOfMonth;
+            const dayPlanned = getPlannedEventsForDay(plannedItems, day.dayOfMonth, month, year);
 
             return (
               <button
@@ -138,6 +154,12 @@ export function LunarCalendar() {
                 </span>
                 {day.folkNote && (
                   <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-violet-500" />
+                )}
+                {dayPlanned.length > 0 && (
+                  <span
+                    className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500"
+                    title={`Плановых работ: ${dayPlanned.length}`}
+                  />
                 )}
               </button>
             );
@@ -173,6 +195,45 @@ export function LunarCalendar() {
               <X className="w-4 h-4" />
             </Button>
           </div>
+
+          {(() => {
+          const dayPlanned = selectedDay
+            ? getPlannedEventsForDay(plannedItems, selectedDay.dayOfMonth, month, year)
+            : [];
+          return dayPlanned.length > 0 ? (
+            <div className="mb-3">
+              <h4 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-1.5 flex items-center gap-1.5">
+                <Sprout className="w-4 h-4" />
+                Плановые работы с грядок
+              </h4>
+              <ul className="space-y-2">
+                {dayPlanned.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onClick={() => onEditPlannedWork?.(item)}
+                      className="w-full text-left p-3 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100/70 dark:hover:bg-emerald-900/40 transition-colors"
+                    >
+                      <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                        <Badge variant="outline" className="text-[10px] border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200">
+                          {item.bedName}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300">
+                          {item.plantName}
+                        </Badge>
+                      </div>
+                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.title}</p>
+                      {item.description && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{item.description}</p>
+                      )}
+                      <p className="text-xs text-slate-400 mt-1">Нажмите, чтобы изменить</p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null;
+        })()}
 
           {selectedDay.recommended.length > 0 && (
             <div className="mb-3">

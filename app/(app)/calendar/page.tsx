@@ -8,8 +8,11 @@ import { Button } from "@/components/ui/button";
 import { MotionDiv, StaggerContainer, StaggerItem } from "@/components/motion";
 import { WeatherWidget } from "@/components/weather-widget";
 import { SubscribeModal } from "@/components/subscribe-modal";
+import { PlannedWorkModal, type PlannedWorkEvent } from "@/components/planned-work-modal";
 import { useUserLocation } from "@/lib/hooks/use-user-location";
-import { useBeds, type Bed } from "@/lib/hooks/use-beds";
+import { useQueryClient } from "@tanstack/react-query";
+import { useBeds } from "@/lib/hooks/use-beds";
+import { getPlannedEventsForMonth, type PlannedWorkItem } from "@/lib/planned-events";
 import { ChevronLeft, ChevronRight, Moon, CalendarDays, Crown, Loader2, Sprout } from "lucide-react";
 import {
   calendarTasks,
@@ -21,49 +24,7 @@ import { LunarCalendar } from "./lunar-calendar";
 
 type CalendarMode = "tasks" | "lunar";
 
-export type PlannedWorkItem = {
-  id: string;
-  scheduledDate: string;
-  dateTo: string | null;
-  bedName: string;
-  plantName: string;
-  title: string;
-  description: string | null;
-  isAction: boolean;
-};
-
-function getPlannedEventsForMonth(beds: Bed[] | undefined, selectedMonth: number): PlannedWorkItem[] {
-  if (!beds?.length) return [];
-  const items: PlannedWorkItem[] = [];
-  const currentYear = new Date().getFullYear();
-  const monthStart = new Date(currentYear, selectedMonth - 1, 1);
-  const monthEnd = new Date(currentYear, selectedMonth, 0, 23, 59, 59);
-
-  for (const bed of beds) {
-    for (const plant of bed.plants ?? []) {
-      const events = plant.timelineEvents ?? [];
-      for (const event of events) {
-        const start = new Date(event.scheduledDate);
-        const end = event.dateTo ? new Date(event.dateTo) : start;
-        if (end < monthStart || start > monthEnd) continue;
-
-        items.push({
-          id: event.id,
-          scheduledDate: event.scheduledDate,
-          dateTo: event.dateTo,
-          bedName: bed.name,
-          plantName: plant.name,
-          title: event.title,
-          description: event.description,
-          isAction: event.isAction,
-        });
-      }
-    }
-  }
-
-  items.sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
-  return items;
-}
+export type { PlannedWorkItem } from "@/lib/planned-events";
 
 function formatEventDate(scheduledDate: string, dateTo: string | null): string {
   const d = new Date(scheduledDate);
@@ -82,9 +43,19 @@ export default function CalendarPage() {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const { data: location } = useUserLocation();
   const { data: beds } = useBeds();
+  const qc = useQueryClient();
   const [mode, setMode] = useState<CalendarMode>("tasks");
   const [isPremium, setIsPremium] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [plannedWorkModal, setPlannedWorkModal] = useState<{
+    open: boolean;
+    mode: "add" | "edit";
+    event: PlannedWorkEvent | null;
+    plantId: string;
+    bedId: string;
+    bedName: string;
+    plantName: string;
+  } | null>(null);
 
   useEffect(() => {
     fetch("/api/user/premium")
@@ -94,7 +65,22 @@ export default function CalendarPage() {
   }, []);
 
   const tasks = calendarTasks.filter((t) => t.month === selectedMonth);
-  const plannedItems = useMemo(() => getPlannedEventsForMonth(beds, selectedMonth), [beds, selectedMonth]);
+  const currentYear = new Date().getFullYear();
+  const plannedItems = useMemo(
+    () => getPlannedEventsForMonth(beds, selectedMonth, currentYear),
+    [beds, selectedMonth]
+  );
+  const bedsForPick = useMemo(() => {
+    if (!beds?.length) return [];
+    return beds.flatMap((b) =>
+      (b.plants ?? []).map((p) => ({
+        bedId: b.id,
+        bedName: b.name,
+        plantId: p.id,
+        plantName: p.name,
+      }))
+    );
+  }, [beds]);
 
   const prevMonth = () =>
     setSelectedMonth((m) => (m === 1 ? 12 : m - 1));
@@ -160,7 +146,28 @@ export default function CalendarPage() {
 
       {mode === "lunar" && isPremium ? (
         <MotionDiv variant="fadeUp" delay={0.1}>
-          <LunarCalendar />
+          <LunarCalendar
+            beds={beds}
+            onEditPlannedWork={(item) =>
+              setPlannedWorkModal({
+                open: true,
+                mode: "edit",
+                event: {
+                  id: item.id,
+                  title: item.title,
+                  description: item.description,
+                  scheduledDate: item.scheduledDate,
+                  dateTo: item.dateTo,
+                  isAction: item.isAction,
+                  type: item.type ?? "other",
+                },
+                plantId: item.plantId,
+                bedId: item.bedId,
+                bedName: item.bedName,
+                plantName: item.plantName,
+              })
+            }
+          />
         </MotionDiv>
       ) : (
         <>
@@ -197,20 +204,59 @@ export default function CalendarPage() {
           </MotionDiv>
 
           {/* Запланированные работы с грядок */}
-          {plannedItems.length > 0 && (
+          {(plannedItems.length > 0 || bedsForPick.length > 0) && (
             <MotionDiv variant="fadeUp" delay={0.12}>
-              <div className="flex items-center gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <Sprout className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 <h3 className="font-semibold text-slate-800 dark:text-slate-200">Запланированные работы</h3>
                 <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 text-xs">
                   С грядок
                 </Badge>
+                {bedsForPick.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto text-emerald-700 border-emerald-300 dark:border-emerald-700 dark:text-emerald-300"
+                    onClick={() =>
+                      setPlannedWorkModal({
+                        open: true,
+                        mode: "add",
+                        event: null,
+                        plantId: "",
+                        bedId: "",
+                        bedName: "",
+                        plantName: "",
+                      })
+                    }
+                  >
+                    + Добавить работу
+                  </Button>
+                )}
               </div>
               <div className="space-y-3 mb-6">
                 {plannedItems.map((item) => (
                   <Card
                     key={item.id}
-                    className="p-5 mb-0 border-l-4 border-emerald-500 dark:border-emerald-600 border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20"
+                    className="p-5 mb-0 border-l-4 border-emerald-500 dark:border-emerald-600 border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/50 dark:bg-emerald-950/20 cursor-pointer hover:bg-emerald-100/50 dark:hover:bg-emerald-900/30 transition-colors"
+                    onClick={() =>
+                      setPlannedWorkModal({
+                        open: true,
+                        mode: "edit",
+                        event: {
+                          id: item.id,
+                          title: item.title,
+                          description: item.description,
+                          scheduledDate: item.scheduledDate,
+                          dateTo: item.dateTo,
+                          isAction: item.isAction,
+                          type: item.type ?? "other",
+                        },
+                        plantId: item.plantId,
+                        bedId: item.bedId,
+                        bedName: item.bedName,
+                        plantName: item.plantName,
+                      })
+                    }
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-2xl flex-shrink-0">📅</span>
@@ -232,6 +278,7 @@ export default function CalendarPage() {
                             {item.description}
                           </p>
                         )}
+                        <p className="text-xs text-slate-400 mt-1.5">Нажмите, чтобы изменить</p>
                       </div>
                     </div>
                   </Card>
@@ -315,6 +362,23 @@ export default function CalendarPage() {
       )}
 
       <SubscribeModal open={showPaywall} onOpenChange={setShowPaywall} />
+      {plannedWorkModal && (
+        <PlannedWorkModal
+          open={plannedWorkModal.open}
+          onOpenChange={(open) => setPlannedWorkModal((prev) => (prev ? { ...prev, open } : null))}
+          mode={plannedWorkModal.mode}
+          plantId={plannedWorkModal.plantId}
+          bedId={plannedWorkModal.bedId}
+          bedName={plannedWorkModal.bedName}
+          plantName={plannedWorkModal.plantName}
+          event={plannedWorkModal.event}
+          onSuccess={() => {
+            qc.invalidateQueries({ queryKey: ["beds"] });
+            setPlannedWorkModal(null);
+          }}
+          bedsForPick={plannedWorkModal.mode === "add" && !plannedWorkModal.plantId ? bedsForPick : undefined}
+        />
+      )}
     </>
   );
 }
