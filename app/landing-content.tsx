@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   Sprout,
   Calendar as CalendarIcon,
@@ -10,6 +11,9 @@ import {
   Sun,
   Shield,
   ChevronRight,
+  Users,
+  Star,
+  Quote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,6 +25,26 @@ import {
   StaggerItem,
   motion,
 } from "@/components/motion";
+
+const USER_COUNT = "30 000";
+
+const TESTIMONIALS = [
+  {
+    name: "Марина, Подмосковье",
+    text: "Наконец-то перестала гадать, когда сажать. Календарь подсказывает по погоде — урожай томатов впервые как на картинке.",
+    rating: 5,
+  },
+  {
+    name: "Алексей, Ленинградская обл.",
+    text: "Сфотографировал лист — приложение показало болезнь и чем лечить. За сезон спас всю рассаду.",
+    rating: 5,
+  },
+  {
+    name: "Ольга, Краснодар",
+    text: "Справочник и напоминания всегда под рукой. Даже без интернета на участке всё открывается.",
+    rating: 5,
+  },
+];
 
 const features = [
   {
@@ -103,7 +127,7 @@ export function LandingContent() {
       </motion.header>
 
       {/* Hero */}
-      <section className="max-w-4xl mx-auto px-4 pt-16 pb-20 text-center">
+      <section className="max-w-4xl mx-auto px-4 pt-12 pb-8 text-center">
         <MotionDiv variant="fadeUp" duration={0.6}>
           <h1 className="text-4xl sm:text-5xl font-extrabold leading-tight mb-6">
             Умный помощник
@@ -114,10 +138,18 @@ export function LandingContent() {
           </h1>
         </MotionDiv>
         <MotionDiv variant="fadeUp" delay={0.15}>
-          <p className="text-xl text-slate-600 dark:text-slate-400 max-w-xl mx-auto mb-10">
+          <p className="text-xl text-slate-600 dark:text-slate-400 max-w-xl mx-auto mb-8">
             AI-агроном в кармане: календарь по региону, анализ болезней по фото,
             справочник растений. Работает даже без интернета.
           </p>
+        </MotionDiv>
+        <MotionDiv variant="fadeUp" delay={0.25}>
+          <div className="flex items-center justify-center gap-2 text-slate-600 dark:text-slate-400 mb-8">
+            <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-sm font-medium">
+              Более {USER_COUNT} дачников уже с нами
+            </span>
+          </div>
         </MotionDiv>
         <MotionDiv variant="fadeUp" delay={0.3}>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -135,12 +167,25 @@ export function LandingContent() {
             </Button>
           </div>
         </MotionDiv>
+        <MotionDiv variant="fadeUp" delay={0.4} className="mt-12 rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700">
+          <Image
+            src="https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=900&q=80"
+            alt="Огород, зелень, дача"
+            width={900}
+            height={500}
+            className="w-full h-56 sm:h-72 object-cover"
+            priority
+          />
+        </MotionDiv>
       </section>
 
       {/* Features */}
-      <section className="max-w-4xl mx-auto px-4 pb-20">
+      <section className="max-w-4xl mx-auto px-4 py-16">
         <MotionDiv variant="fadeUp" className="text-center mb-12">
           <h2 className="text-3xl font-bold">Всё для богатого урожая</h2>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-lg mx-auto">
+            Один сервис вместо десятка заметок и таблиц
+          </p>
         </MotionDiv>
         <StaggerContainer className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((f) => (
@@ -165,15 +210,67 @@ export function LandingContent() {
         </StaggerContainer>
       </section>
 
+      {/* Testimonials */}
+      <section className="max-w-4xl mx-auto px-4 py-16">
+        <MotionDiv variant="fadeUp" className="text-center mb-10">
+          <h2 className="text-3xl font-bold">Отзывы дачников</h2>
+          <p className="text-slate-500 dark:text-slate-400 mt-2">
+            Уже тысячи довольных урожаем
+          </p>
+        </MotionDiv>
+        <div className="grid gap-6 sm:grid-cols-3">
+          {TESTIMONIALS.map((t, i) => (
+            <MotionDiv key={t.name} variant="fadeUp" delay={i * 0.1}>
+              <Card className="p-6 h-full flex flex-col border-slate-200 dark:border-slate-700">
+                <Quote className="w-8 h-8 text-emerald-500/70 mb-3" />
+                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed flex-1">
+                  «{t.text}»
+                </p>
+                <div className="flex items-center gap-1.5 mt-4">
+                  {Array.from({ length: t.rating }).map((_, j) => (
+                    <Star key={j} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                  ))}
+                  <span className="text-xs text-slate-500 ml-2">{t.name}</span>
+                </div>
+              </Card>
+            </MotionDiv>
+          ))}
+        </div>
+      </section>
+
+      {/* Visual: app in context */}
+      <section className="max-w-4xl mx-auto px-4 py-12">
+        <MotionDiv variant="fadeUp" className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-700">
+          <Image
+            src="https://images.unsplash.com/photo-1592150621744-aca64f48394a?w=900&q=80"
+            alt="Свежие овощи с огорода"
+            width={900}
+            height={500}
+            className="w-full h-64 sm:h-80 object-cover"
+          />
+          <div className="bg-gradient-to-t from-slate-900/90 to-transparent p-6 sm:p-8 -mt-24 relative">
+            <p className="text-white text-lg sm:text-xl font-medium max-w-xl">
+              Планируйте посадки, фиксируйте урожай и получайте подсказки AI — всё в одном приложении.
+            </p>
+          </div>
+        </MotionDiv>
+      </section>
+
       {/* CTA */}
       <section className="max-w-4xl mx-auto px-4 pb-20 text-center">
         <MotionDiv variant="scaleIn">
-          <Card className="p-10 bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-none">
+          <Card className="p-10 bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-none shadow-xl shadow-emerald-500/20">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Users className="w-6 h-6 text-white/90" />
+              <span className="text-emerald-100 font-medium">
+                Более {USER_COUNT} дачников уже с нами
+              </span>
+            </div>
             <h2 className="text-3xl font-bold mb-4">
-              Присоединяйтесь к 14 млн дачников
+              Присоединяйтесь к тем, кто собирает больше
             </h2>
             <p className="text-emerald-100 mb-8 text-lg">
-              Бесплатный календарь, справочник и 3 AI-анализа в месяц
+              Бесплатный календарь, справочник и 3 AI-анализа в месяц. Премиум — без ограничений.
             </p>
             <Button
               size="lg"
