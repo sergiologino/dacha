@@ -14,6 +14,13 @@ type TimelineEvent = {
   doneAt: string | null;
 };
 
+export type PhotoCheck = {
+  id: string;
+  date: string;
+  status: "ok" | "problem";
+  verdict: string;
+};
+
 function formatDateRange(scheduledDate: string, dateTo: string | null): string {
   const from = new Date(scheduledDate);
   const to = dateTo ? new Date(dateTo) : null;
@@ -84,20 +91,32 @@ function scaleLeft(offset: number): string {
 export function PlantTimelineBar({
   events,
   plantedDate,
+  photoChecks = [],
 }: {
   events: TimelineEvent[];
   plantedDate: string;
+  photoChecks?: PhotoCheck[];
 }) {
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
+  const [selectedPhotoCheck, setSelectedPhotoCheck] = useState<PhotoCheck | null>(null);
 
-  if (events.length === 0) return null;
+  if (events.length === 0 && photoChecks.length === 0) return null;
 
   const start = new Date(plantedDate);
-  const endDate = events.reduce<Date>((acc, e) => {
-    const d = e.dateTo ? new Date(e.dateTo) : new Date(e.scheduledDate);
-    return d > acc ? d : acc;
-  }, new Date(events[0].scheduledDate));
-  const end = endDate;
+  const eventEnd = events.length > 0
+    ? events.reduce<Date>((acc, e) => {
+        const d = e.dateTo ? new Date(e.dateTo) : new Date(e.scheduledDate);
+        return d > acc ? d : acc;
+      }, new Date(events[0].scheduledDate))
+    : null;
+  const photoEnd =
+    photoChecks.length > 0
+      ? new Date(Math.max(...photoChecks.map((p) => new Date(p.date).getTime())))
+      : null;
+  const end = [eventEnd, photoEnd].filter(Boolean).reduce<Date>(
+    (acc, d) => (d && d > acc ? d : acc),
+    start
+  );
   const totalMs = Math.max(end.getTime() - start.getTime(), 1);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -138,7 +157,7 @@ export function PlantTimelineBar({
             aria-hidden
           />
         )}
-        {/* Event markers — clickable */}
+        {/* Event markers — green, clickable */}
         {events.map((e) => {
           const d = new Date(e.scheduledDate);
           d.setHours(0, 0, 0, 0);
@@ -156,7 +175,39 @@ export function PlantTimelineBar({
               }`}
               style={{ left: scaleLeft(pos), marginLeft: "-6px" }}
               title={label}
-              onClick={() => setSelectedEvent(isSelected ? null : e)}
+              onClick={() => {
+                setSelectedPhotoCheck(null);
+                setSelectedEvent(isSelected ? null : e);
+              }}
+            />
+          );
+        })}
+        {/* Photo check markers — blue (ok) / red (problem), clickable */}
+        {photoChecks.map((p) => {
+          const d = new Date(p.date);
+          d.setHours(0, 0, 0, 0);
+          const pos = totalMs <= 0 ? 0 : Math.min(1, Math.max(0, (d.getTime() - startDay.getTime()) / totalMs));
+          const isSelected = selectedPhotoCheck?.id === p.id;
+          const isOk = p.status === "ok";
+          return (
+            <button
+              type="button"
+              key={p.id}
+              className={`absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 shadow-sm transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:ring-offset-1 dark:focus:ring-offset-slate-800 ${
+                isOk
+                  ? isSelected
+                    ? "bg-blue-500 border-blue-700 dark:border-blue-400 scale-110 ring-2 ring-orange-400"
+                    : "bg-blue-600 dark:bg-blue-500 border-white dark:border-slate-800"
+                  : isSelected
+                    ? "bg-red-500 border-red-700 dark:border-red-400 scale-110 ring-2 ring-orange-400"
+                    : "bg-red-600 dark:bg-red-500 border-white dark:border-slate-800"
+              }`}
+              style={{ left: scaleLeft(pos), marginLeft: "-6px" }}
+              title={p.verdict}
+              onClick={() => {
+                setSelectedEvent(null);
+                setSelectedPhotoCheck(isSelected ? null : p);
+              }}
             />
           );
         })}
@@ -228,6 +279,15 @@ export function PlantTimelineBar({
           </span>
           {" — "}
           {selectedEvent.description || selectedEvent.title}
+        </p>
+      )}
+      {selectedPhotoCheck && (
+        <p className="text-xs text-slate-600 dark:text-slate-400 py-1.5 px-1 mt-1">
+          <span className="font-medium text-slate-700 dark:text-slate-300">
+            {formatDateShort(new Date(selectedPhotoCheck.date))}
+          </span>
+          {" — "}
+          {selectedPhotoCheck.verdict}
         </p>
       )}
     </div>

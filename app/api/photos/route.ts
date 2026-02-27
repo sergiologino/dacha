@@ -4,6 +4,7 @@ import path from "path";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { randomUUID } from "crypto";
+import { analyzePhotoForTimeline } from "@/lib/analyze-photo-timeline";
 
 const UPLOAD_DIR = "public/uploads";
 
@@ -61,7 +62,26 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(photo, { status: 201 });
+    // Анализ фото нейросетью для таймлайна (вердикт: норма / отклонения)
+    try {
+      await analyzePhotoForTimeline(
+        photo.id,
+        buffer.toString("base64"),
+        mimeType,
+        { name: plant.name, plantedDate: plant.plantedDate },
+        { type: bed.type },
+        takenAt,
+        user.id
+      );
+    } catch {
+      // не ломаем ответ: фото уже сохранено, анализ можно повторить позже
+    }
+
+    const updated = await prisma.photo.findUnique({
+      where: { id: photo.id },
+    });
+
+    return NextResponse.json(updated ?? photo, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Photos POST error:", err);

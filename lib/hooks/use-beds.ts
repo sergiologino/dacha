@@ -14,6 +14,9 @@ export interface BedPlantPhoto {
   id: string;
   url: string;
   takenAt: string;
+  analysisResult?: string | null;
+  analysisStatus?: string | null;
+  analyzedAt?: string | null;
 }
 
 export interface BedPlantTimelineEvent {
@@ -60,8 +63,20 @@ async function createBed(data: { name: string; number?: string; type?: string })
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Failed to create bed");
-  return res.json();
+  const body = await res.json();
+  if (!res.ok) throw new Error((body as { error?: string }).error || "Failed to create bed");
+  return body as Bed;
+}
+
+async function updateBed(data: { id: string; name?: string; number?: string; type?: string }): Promise<Bed> {
+  const res = await fetch("/api/beds", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error((body as { error?: string }).error || "Failed to update bed");
+  return body as Bed;
 }
 
 async function deleteBed(id: string): Promise<void> {
@@ -85,7 +100,7 @@ async function uploadPlantPhoto({
   plantId,
   bedId,
   takenAt,
-}: UploadPlantPhotoParams): Promise<BedPhoto> {
+}: UploadPlantPhotoParams): Promise<BedPlantPhoto> {
   const formData = new FormData();
   formData.set("file", file);
   formData.set("plantId", plantId);
@@ -95,22 +110,63 @@ async function uploadPlantPhoto({
     method: "POST",
     body: formData,
   });
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Failed to upload photo");
+    throw new Error((data as { error?: string }).error || "Failed to upload photo");
   }
-  return res.json();
+  return {
+    id: String(data.id),
+    url: String(data.url),
+    takenAt:
+      typeof data.takenAt === "string"
+        ? data.takenAt
+        : data.takenAt != null
+          ? new Date(data.takenAt).toISOString()
+          : new Date().toISOString(),
+    analysisResult: data.analysisResult ?? undefined,
+    analysisStatus: data.analysisStatus ?? undefined,
+    analyzedAt: data.analyzedAt != null ? new Date(data.analyzedAt).toISOString() : undefined,
+  } as BedPlantPhoto;
 }
 
 export function useBeds() {
   return useQuery({ queryKey: ["beds"], queryFn: fetchBeds });
 }
 
+function normalizeBed(bed: Bed): Bed {
+  return {
+    ...bed,
+    createdAt: typeof bed.createdAt === "string" ? bed.createdAt : new Date(bed.createdAt).toISOString(),
+    plants: (bed.plants ?? []).map((p) => ({
+      ...p,
+      plantedDate: typeof p.plantedDate === "string" ? p.plantedDate : new Date(p.plantedDate).toISOString(),
+    })),
+  };
+}
+
 export function useCreateBed() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createBed,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["beds"] }),
+    onSuccess: (newBed) => {
+      const bed = normalizeBed(newBed);
+      qc.setQueryData<Bed[]>(["beds"], (old) => (old ? [bed, ...old] : [bed]));
+      qc.invalidateQueries({ queryKey: ["beds"] });
+    },
+  });
+}
+
+export function useUpdateBed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: updateBed,
+    onSuccess: (updatedBed) => {
+      const bed = normalizeBed(updatedBed);
+      qc.setQueryData<Bed[]>(["beds"], (old) =>
+        old ? old.map((b) => (b.id === bed.id ? bed : b)) : [bed]
+      );
+      qc.invalidateQueries({ queryKey: ["beds"] });
+    },
   });
 }
 
@@ -128,17 +184,7 @@ export function useUploadPlantPhoto() {
     mutationFn: uploadPlantPhoto,
     onSuccess: async (data, variables) => {
       const { plantId, bedId } = variables;
-      const takenAtStr =
-        typeof data.takenAt === "string"
-          ? data.takenAt
-          : data.takenAt != null
-            ? new Date(data.takenAt).toISOString()
-            : new Date().toISOString();
-      const newPhoto: BedPlantPhoto = {
-        id: String(data.id),
-        url: String(data.url),
-        takenAt: takenAtStr,
-      };
+      const newPhoto: BedPlantPhoto = data;
       qc.setQueryData<Bed[]>(["beds"], (old) => {
         if (!old) return old;
         return old.map((bed) => {

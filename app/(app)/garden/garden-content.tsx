@@ -19,6 +19,9 @@ import {
   Camera,
   X,
   Search,
+  HelpCircle,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,8 +37,9 @@ import { useOnboardingCheck } from "@/lib/hooks/use-onboarding-check";
 import { useUserLocation } from "@/lib/hooks/use-user-location";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlants, useCreatePlant, useUpdatePlant, useDeletePlant, type Plant } from "@/lib/hooks/use-plants";
-import { useBeds, useCreateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
-import { PlantTimelineLabels, PlantTimelineBar } from "@/components/plant-timeline";
+import { useBeds, useCreateBed, useUpdateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
+import { PlantTimelineLabels, PlantTimelineBar, type PhotoCheck } from "@/components/plant-timeline";
+import { GardenHelpContent } from "@/components/garden-help-content";
 import { useCrops } from "@/lib/hooks/use-crops";
 import { crops as staticCrops } from "@/lib/data/crops";
 import { searchCropsAndVarieties, type CropSearchHit } from "@/lib/crops-search";
@@ -99,6 +103,7 @@ export default function GardenContent() {
   const [newBedNumber, setNewBedNumber] = useState("");
   const [newBedType, setNewBedType] = useState("open");
   const [showBedForm, setShowBedForm] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const { data: plants = [], isLoading: plantsLoading } = usePlants();
   const createPlant = useCreatePlant();
@@ -109,6 +114,7 @@ export default function GardenContent() {
   const { data: beds = [], isLoading: bedsLoading } = useBeds();
   const { data: cropsList } = useCrops();
   const createBed = useCreateBed();
+  const updateBed = useUpdateBed();
   const deleteBed = useDeleteBed();
   const uploadPhoto = useUploadPlantPhoto();
 
@@ -164,13 +170,23 @@ export default function GardenContent() {
         />
       </div>
 
-      {/* Add bed button */}
-      <MotionDiv variant="fadeUp" delay={0.05}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold flex items-center gap-2">
-            <LayoutGrid className="w-5 h-5 text-emerald-600" />
-            Мой участок
-          </h2>
+      {/* Заголовок и кнопки — без MotionDiv (whileInView может не сработать), чтобы кнопка «Помощь» всегда была видна */}
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <LayoutGrid className="w-5 h-5 text-emerald-600" />
+          Мой участок
+        </h2>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowHelp(true)}
+            className="rounded-2xl border-amber-300 dark:border-amber-600 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/50 hover:border-amber-400 dark:hover:border-amber-500"
+            aria-label="Как пользоваться страницей"
+          >
+            <HelpCircle className="w-4 h-4 mr-1.5" />
+            Помощь
+          </Button>
           <Button
             size="sm"
             onClick={() => setShowBedForm(!showBedForm)}
@@ -179,7 +195,27 @@ export default function GardenContent() {
             <Plus className="w-4 h-4 mr-1" /> Новая грядка
           </Button>
         </div>
-      </MotionDiv>
+      </div>
+
+      {/* Модалка помощи — контент на фронте, без задержек */}
+      <Dialog open={showHelp} onOpenChange={setShowHelp}>
+        <DialogContent
+          className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
+          showCloseButton={true}
+        >
+          <div>
+            <DialogTitle className="text-xl text-slate-900 dark:text-slate-100">
+              Как пользоваться страницей «Мой участок»
+            </DialogTitle>
+            <span className="sr-only">
+              Подробное описание: грядки, культуры, шкала роста, фото
+            </span>
+          </div>
+          <div className="overflow-y-auto pr-2 -mr-2 min-h-0">
+            <GardenHelpContent />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* New bed form */}
       {showBedForm && (
@@ -258,6 +294,8 @@ export default function GardenContent() {
                 <BedCard
                   bed={bed}
                   crops={crops}
+                  onUpdateBed={(id, data) => updateBed.mutate({ id, ...data })}
+                  updatingBed={updateBed.isPending}
                   onDelete={() => deleteBed.mutate(bed.id)}
                   onAddPlant={(name, plantedDate, cropSlug) =>
                     createPlant.mutate({ name, bedId: bed.id, plantedDate, cropSlug })
@@ -338,6 +376,8 @@ const categoriesFromCrops = (cropsList: { category: string }[]) =>
 function BedCard({
   bed,
   crops: cropsList,
+  onUpdateBed,
+  updatingBed,
   onDelete,
   onAddPlant,
   onUpdatePlant,
@@ -350,6 +390,8 @@ function BedCard({
 }: {
   bed: Bed;
   crops: { id: number; name: string; slug: string; category: string; varieties?: { name: string }[] }[];
+  onUpdateBed: (id: string, data: { name?: string; number?: string; type?: string }) => void;
+  updatingBed: boolean;
   onDelete: () => void;
   onAddPlant: (name: string, plantedDate?: string, cropSlug?: string) => void;
   onUpdatePlant: (id: string, plantedDate: string) => void;
@@ -361,6 +403,11 @@ function BedCard({
   uploadingPhoto: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [editingBedName, setEditingBedName] = useState(false);
+  const [editingBedNameValue, setEditingBedNameValue] = useState(bed.name);
+  useEffect(() => {
+    if (!editingBedName) setEditingBedNameValue(bed.name);
+  }, [bed.name, editingBedName]);
   const [showPlantInput, setShowPlantInput] = useState(false);
   const [addMode, setAddMode] = useState<"search" | "category">("search");
   const [searchQuery, setSearchQuery] = useState("");
@@ -375,7 +422,7 @@ function BedCard({
   const [photoPlantId, setPhotoPlantId] = useState<string | null>(null);
   const [gallery, setGallery] = useState<{
     plantName: string;
-    photos: { id: string; url: string; takenAt: string }[];
+    photos: { id: string; url: string; takenAt: string; analysisResult?: string | null; analysisStatus?: string | null }[];
     index: number;
   } | null>(null);
   const [regeneratingPlantId, setRegeneratingPlantId] = useState<string | null>(null);
@@ -474,9 +521,70 @@ function BedCard({
       >
         <div className="flex items-center gap-3">
           <span className="text-2xl">{bedTypeEmoji[bed.type] || "🌱"}</span>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold">{bed.name}</h3>
+          <div
+            className="min-w-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2 flex-wrap">
+              {editingBedName ? (
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="text"
+                    value={editingBedNameValue}
+                    onChange={(e) => setEditingBedNameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const v = editingBedNameValue.trim();
+                        if (v) onUpdateBed(bed.id, { name: v });
+                        setEditingBedName(false);
+                      }
+                      if (e.key === "Escape") {
+                        setEditingBedNameValue(bed.name);
+                        setEditingBedName(false);
+                      }
+                    }}
+                    onBlur={() => {
+                      const v = editingBedNameValue.trim();
+                      if (v && v !== bed.name) onUpdateBed(bed.id, { name: v });
+                      setEditingBedNameValue(bed.name);
+                      setEditingBedName(false);
+                    }}
+                    autoFocus
+                    className="px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 font-semibold text-base min-w-[120px] max-w-full"
+                    aria-label="Название грядки"
+                  />
+                  {updatingBed ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                  ) : (
+                    <Check
+                      className="w-4 h-4 text-emerald-600 cursor-pointer"
+                      onClick={() => {
+                        const v = editingBedNameValue.trim();
+                        if (v) onUpdateBed(bed.id, { name: v });
+                        setEditingBedName(false);
+                      }}
+                      aria-label="Сохранить"
+                    />
+                  )}
+                </div>
+              ) : (
+                <>
+                  <h3 className="font-semibold">{bed.name}</h3>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setEditingBedNameValue(bed.name);
+                      setEditingBedName(true);
+                    }}
+                    className="p-1 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                    aria-label="Изменить название грядки"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
               {bed.number && (
                 <Badge variant="secondary" className="text-xs">
                   #{bed.number}
@@ -594,6 +702,14 @@ function BedCard({
                   </div>
                   {/* Полоса миниатюр над таймлайном по дате съёмки */}
                   {((plant.photos?.length ?? 0) > 0 || (plant.timelineEvents?.length ?? 0) > 0) && (() => {
+                    const photoChecks: PhotoCheck[] = (plant.photos ?? [])
+                      .filter((p) => p.analysisStatus && p.analysisResult)
+                      .map((p) => ({
+                        id: p.id,
+                        date: p.takenAt,
+                        status: p.analysisStatus as "ok" | "problem",
+                        verdict: p.analysisResult!,
+                      }));
                     const startMs = new Date(plant.plantedDate).setHours(0, 0, 0, 0);
                     const endFromEvents = (plant.timelineEvents ?? []).length > 0
                       ? Math.max(...(plant.timelineEvents ?? []).map((e) => (e.dateTo ? new Date(e.dateTo) : new Date(e.scheduledDate)).getTime()))
@@ -625,7 +741,7 @@ function BedCard({
                             })}
                           </div>
                         )}
-                        {(plant.timelineEvents?.length ?? 0) > 0 ? (
+                        {((plant.timelineEvents?.length ?? 0) > 0 || photoChecks.length > 0) ? (
                           <>
                             <PlantTimelineLabels
                               events={plant.timelineEvents ?? []}
@@ -635,6 +751,7 @@ function BedCard({
                               <PlantTimelineBar
                                 events={plant.timelineEvents ?? []}
                                 plantedDate={plant.plantedDate}
+                                photoChecks={photoChecks}
                               />
                             </div>
                           </>
@@ -874,12 +991,20 @@ function BedCard({
                 <X className="w-5 h-5" />
               </Button>
             </div>
-            <div className="flex-1 flex items-center justify-center min-h-0 relative">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative">
               <img
                 src={gallery.photos[gallery.index].url}
                 alt=""
                 className="max-w-full max-h-full object-contain"
               />
+              {gallery.photos[gallery.index]?.analysisResult && (
+                <div className="w-full flex-shrink-0 px-4 py-2 bg-black/60 text-white text-sm sm:rounded-b-2xl">
+                  <p className="font-medium">
+                    {gallery.photos[gallery.index].analysisStatus === "problem" ? "Отклонения: " : "Вердикт: "}
+                  </p>
+                  <p className="mt-0.5">{gallery.photos[gallery.index].analysisResult}</p>
+                </div>
+              )}
               {gallery.photos.length > 1 && (
                 <>
                   <Button
@@ -928,3 +1053,4 @@ function BedCard({
     </>
   );
 }
+
