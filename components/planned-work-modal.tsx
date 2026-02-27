@@ -47,6 +47,8 @@ type PlannedWorkModalProps = {
   onSuccess: () => void;
   /** Для добавления из календаря: список грядок/растений для выбора; если передан и plantId пустой — показываем выбор растения */
   bedsForPick?: BedPlantOption[];
+  /** При лимите бесплатного тарифа (402 LIMIT_PLANNED_WORKS_FREE) — показать paywall */
+  onShowPaywall?: () => void;
 };
 
 function toDateInputValue(iso: string): string {
@@ -68,6 +70,7 @@ export function PlannedWorkModal({
   event,
   onSuccess,
   bedsForPick,
+  onShowPaywall,
 }: PlannedWorkModalProps) {
   const [pickedPlant, setPickedPlant] = useState<BedPlantOption | null>(null);
   const [title, setTitle] = useState("");
@@ -138,7 +141,14 @@ export function PlannedWorkModal({
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "Ошибка сохранения");
+          if (res.status === 402 && (data as { code?: string }).code === "LIMIT_PLANNED_WORKS_FREE") {
+            onShowPaywall?.();
+            onOpenChange(false);
+            toast.error("Лимит: не более 5 добавленных работ на бесплатном тарифе");
+            setSaving(false);
+            return;
+          }
+          throw new Error((data as { error?: string }).error || "Ошибка сохранения");
         }
         toast.success("Работа добавлена");
       } else if (event) {

@@ -64,6 +64,7 @@ const bedTypeEmoji: Record<string, string> = {
 const FREE_BED_LIMIT = 2;
 const FREE_PLANT_LIMIT = 3;
 const FREE_TIMELINE_LIMIT = 1;
+const FREE_PLANNED_WORKS_LIMIT = 5;
 
 export default function GardenContent() {
   const router = useRouter();
@@ -150,6 +151,18 @@ export default function GardenContent() {
     });
   });
   const timelinePlantsCount = timelinePlantIds.size;
+
+  const userCreatedPlannedCount = (() => {
+    let n = 0;
+    beds.forEach((bed) => {
+      (bed.plants ?? []).forEach((p) => {
+        (p.timelineEvents ?? []).forEach((e) => {
+          if ((e as { isUserCreated?: boolean }).isUserCreated) n++;
+        });
+      });
+    });
+    return n;
+  })();
 
   useEffect(() => {
     fetch("/api/user/premium")
@@ -241,9 +254,14 @@ export default function GardenContent() {
             </Button>
           </div>
           {isPremium === false && (
-            <p className="text-[11px] text-slate-400">
-              Грядки: {totalBeds}/{FREE_BED_LIMIT} бесплатно
-            </p>
+            <>
+              <p className="text-[11px] text-slate-400">
+                Грядки: {totalBeds}/{FREE_BED_LIMIT} бесплатно
+              </p>
+              <p className="text-[11px] text-slate-400">
+                Добавлено работ: {userCreatedPlannedCount}/{FREE_PLANNED_WORKS_LIMIT} бесплатно
+              </p>
+            </>
           )}
         </div>
       </div>
@@ -399,15 +417,22 @@ export default function GardenContent() {
                       bed: { id: bed.id, name: bed.name },
                     })
                   }
-                  onAddPlannedWork={(plant, bed) =>
+                  onAddPlannedWork={(plant, bed) => {
+                    if (
+                      isPremium === false &&
+                      userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT
+                    ) {
+                      setShowPaywall(true);
+                      return;
+                    }
                     setPlannedWorkModal({
                       open: true,
                       mode: "add",
                       event: null,
                       plant: { id: plant.id, name: plant.name },
                       bed: { id: bed.id, name: bed.name },
-                    })
-                  }
+                    });
+                  }}
                   addingPlant={createPlant.isPending}
                   updatingPlant={updatePlant.isPending}
                   uploadingPhoto={uploadPhoto.isPending}
@@ -466,6 +491,7 @@ export default function GardenContent() {
             qc.invalidateQueries({ queryKey: ["beds"] });
             setPlannedWorkModal(null);
           }}
+          onShowPaywall={() => setShowPaywall(true)}
         />
       )}
     </>

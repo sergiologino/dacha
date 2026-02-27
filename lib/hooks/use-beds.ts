@@ -29,6 +29,7 @@ export interface BedPlantTimelineEvent {
   isAction: boolean;
   sortOrder: number;
   doneAt: string | null;
+  isUserCreated?: boolean;
 }
 
 export interface BedPlant {

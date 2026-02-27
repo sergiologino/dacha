@@ -82,6 +82,19 @@ export default function CalendarPage() {
     );
   }, [beds]);
 
+  const FREE_PLANNED_WORKS_LIMIT = 5;
+  const userCreatedPlannedCount = useMemo(() => {
+    let n = 0;
+    (beds ?? []).forEach((bed) => {
+      (bed.plants ?? []).forEach((p) => {
+        (p.timelineEvents ?? []).forEach((e: { isUserCreated?: boolean }) => {
+          if (e.isUserCreated) n++;
+        });
+      });
+    });
+    return n;
+  }, [beds]);
+
   const prevMonth = () =>
     setSelectedMonth((m) => (m === 1 ? 12 : m - 1));
   const nextMonth = () =>
@@ -213,24 +226,38 @@ export default function CalendarPage() {
                   С грядок
                 </Badge>
                 {bedsForPick.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="ml-auto text-emerald-700 border-emerald-300 dark:border-emerald-700 dark:text-emerald-300"
-                    onClick={() =>
-                      setPlannedWorkModal({
-                        open: true,
-                        mode: "add",
-                        event: null,
-                        plantId: "",
-                        bedId: "",
-                        bedName: "",
-                        plantName: "",
-                      })
-                    }
-                  >
-                    + Добавить работу
-                  </Button>
+                  <>
+                    {isPremium === false && (
+                      <span className="text-xs text-slate-500 ml-auto mr-2">
+                        Добавлено работ: {userCreatedPlannedCount}/{FREE_PLANNED_WORKS_LIMIT} бесплатно
+                      </span>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-emerald-700 border-emerald-300 dark:border-emerald-700 dark:text-emerald-300"
+                      onClick={() => {
+                        if (
+                          isPremium === false &&
+                          userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT
+                        ) {
+                          setShowPaywall(true);
+                          return;
+                        }
+                        setPlannedWorkModal({
+                          open: true,
+                          mode: "add",
+                          event: null,
+                          plantId: "",
+                          bedId: "",
+                          bedName: "",
+                          plantName: "",
+                        });
+                      }}
+                    >
+                      + Добавить работу
+                    </Button>
+                  </>
                 )}
               </div>
               <div className="space-y-3 mb-6">
@@ -377,6 +404,7 @@ export default function CalendarPage() {
             setPlannedWorkModal(null);
           }}
           bedsForPick={plannedWorkModal.mode === "add" && !plannedWorkModal.plantId ? bedsForPick : undefined}
+          onShowPaywall={() => setShowPaywall(true)}
         />
       )}
     </>
