@@ -545,38 +545,45 @@ export default function SettingsPage() {
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
           Напоминания о плановых работах на грядках (сегодня и завтра). Работают на телефоне и компьютере.
         </p>
-        {!push.isSupported ? (
-          <p className="text-sm text-slate-500">Ваш браузер не поддерживает push-уведомления.</p>
-        ) : push.state === "subscribed" ? (
-          <div>
-            <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium mb-2">Уведомления включены</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={push.unsubscribe}
-              disabled={push.state === "loading"}
-              className="rounded-xl"
-            >
-              {push.state === "loading" ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <BellOff className="w-4 h-4 mr-2" />}
-              Отключить
-            </Button>
-          </div>
-        ) : push.state === "denied" ? (
-          <p className="text-sm text-slate-500">Уведомления запрещены в настройках браузера. Разрешите их для этого сайта и нажмите «Включить» снова.</p>
-        ) : null}
-        {push.isSupported && push.state !== "subscribed" && push.state !== "denied" && (
-          <Button
-            onClick={push.subscribe}
-            disabled={push.state === "loading"}
-            className="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700"
-          >
-            {push.state === "loading" ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Bell className="w-5 h-5 mr-2" />}
-            Включить уведомления
-          </Button>
-        )}
-        {push.message && (
-          <p className="text-sm text-slate-500 mt-3">{push.message}</p>
-        )}
+        {(() => {
+          const pushLoading = push.state === "loading";
+          return (
+            <>
+              {!push.isSupported ? (
+                <p className="text-sm text-slate-500">Ваш браузер не поддерживает push-уведомления.</p>
+              ) : push.state === "subscribed" ? (
+                <div>
+                  <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium mb-2">Уведомления включены</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={push.unsubscribe}
+                    disabled={pushLoading}
+                    className="rounded-xl"
+                  >
+                    {pushLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <BellOff className="w-4 h-4 mr-2" />}
+                    Отключить
+                  </Button>
+                </div>
+              ) : push.state === "denied" ? (
+                <p className="text-sm text-slate-500">Уведомления запрещены в настройках браузера. Разрешите их для этого сайта и нажмите «Включить» снова.</p>
+              ) : null}
+              {push.isSupported && push.state !== "subscribed" && push.state !== "denied" && (
+                <Button
+                  onClick={push.subscribe}
+                  disabled={pushLoading}
+                  className="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700"
+                >
+                  {pushLoading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Bell className="w-5 h-5 mr-2" />}
+                  Включить уведомления
+                </Button>
+              )}
+              {push.message && (
+                <p className="text-sm text-slate-500 mt-3">{push.message}</p>
+              )}
+            </>
+          );
+        })()}
       </Card>
 
       <Button
