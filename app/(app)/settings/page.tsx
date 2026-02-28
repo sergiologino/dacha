@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff } from "lucide-react";
+import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,25 @@ type PaymentRow = {
   plan: string;
   description: string | null;
   createdAt: string;
+};
+
+type UserRow = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  createdAt: string;
+  firstPaymentAt: string | null;
+  isPremium: boolean;
+  bedsCount: number;
+  plantsCount: number;
+  aiRequestsCount: number;
+};
+
+type PageVisitSummaryItem = {
+  path: string;
+  totalVisits: number;
+  uniqueUsers: number;
+  topVisitors: { userEmail: string | null; userName: string | null; visitCount: number; lastVisitedAt: string }[];
 };
 
 const MapComponent = dynamic(
@@ -52,7 +71,31 @@ export default function SettingsPage() {
     return d.toISOString().slice(0, 10);
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [pageVisitsSummary, setPageVisitsSummary] = useState<PageVisitSummaryItem[]>([]);
+  const [pageVisitsLoading, setPageVisitsLoading] = useState(false);
   const push = usePushSubscription();
+
+  const fetchUsers = () => {
+    if (!isAdmin) return;
+    setUsersLoading(true);
+    fetch("/api/admin/users")
+      .then((r) => r.json())
+      .then((data) => setUsers(data.users ?? []))
+      .catch(() => setUsers([]))
+      .finally(() => setUsersLoading(false));
+  };
+
+  const fetchPageVisits = () => {
+    if (!isAdmin) return;
+    setPageVisitsLoading(true);
+    fetch("/api/admin/page-visits")
+      .then((r) => r.json())
+      .then((data) => setPageVisitsSummary(data.summary ?? []))
+      .catch(() => setPageVisitsSummary([]))
+      .finally(() => setPageVisitsLoading(false));
+  };
 
   useEffect(() => {
     Promise.all([
@@ -88,7 +131,11 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    if (tab === "payments" && isAdmin) fetchPayments();
+    if (tab === "payments" && isAdmin) {
+      fetchPayments();
+      fetchUsers();
+      fetchPageVisits();
+    }
   }, [tab, isAdmin, dateFrom, dateTo]);
 
   const togglePremium = async () => {
@@ -313,6 +360,97 @@ export default function SettingsPage() {
                               : "Ожидание"}
                         </Badge>
                       </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <h2 className="font-semibold mt-8 mb-4 flex items-center gap-2">
+            <Users className="w-5 h-5 text-emerald-600" />
+            Пользователи
+          </h2>
+          {usersLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+            </div>
+          ) : users.length === 0 ? (
+            <p className="text-slate-500 text-center py-6">Нет пользователей</p>
+          ) : (
+            <div className="overflow-x-auto -mx-2 mb-2">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700">
+                    <th className="text-left py-2 px-2 font-medium">E-mail</th>
+                    <th className="text-left py-2 px-2 font-medium">Регистрация</th>
+                    <th className="text-left py-2 px-2 font-medium">Оплата</th>
+                    <th className="text-left py-2 px-2 font-medium">Грядки</th>
+                    <th className="text-left py-2 px-2 font-medium">Растения</th>
+                    <th className="text-left py-2 px-2 font-medium">Запросы в нейросеть</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => (
+                    <tr key={u.id} className="border-b border-slate-100 dark:border-slate-800">
+                      <td className="py-2 px-2">
+                        <span className="font-medium">{u.email || "—"}</span>
+                        {u.isPremium && (
+                          <Badge className="ml-1 bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs">Премиум</Badge>
+                        )}
+                      </td>
+                      <td className="py-2 px-2 text-slate-600 dark:text-slate-400">
+                        {new Date(u.createdAt).toLocaleDateString("ru-RU", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="py-2 px-2 text-slate-600 dark:text-slate-400">
+                        {u.firstPaymentAt
+                          ? new Date(u.firstPaymentAt).toLocaleDateString("ru-RU", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            })
+                          : "—"}
+                      </td>
+                      <td className="py-2 px-2">{u.bedsCount}</td>
+                      <td className="py-2 px-2">{u.plantsCount}</td>
+                      <td className="py-2 px-2">{u.aiRequestsCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <h2 className="font-semibold mt-8 mb-4 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-emerald-600" />
+            Посещаемость страниц
+          </h2>
+          {pageVisitsLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+            </div>
+          ) : pageVisitsSummary.length === 0 ? (
+            <p className="text-slate-500 text-center py-6">Данных пока нет. Переходы по страницам учитываются автоматически.</p>
+          ) : (
+            <div className="overflow-x-auto -mx-2">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700">
+                    <th className="text-left py-2 px-2 font-medium">Страница</th>
+                    <th className="text-right py-2 px-2 font-medium">Визитов</th>
+                    <th className="text-right py-2 px-2 font-medium">Уник. пользователей</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageVisitsSummary.map((s) => (
+                    <tr key={s.path} className="border-b border-slate-100 dark:border-slate-800">
+                      <td className="py-2 px-2 font-medium">{s.path}</td>
+                      <td className="py-2 px-2 text-right">{s.totalVisits}</td>
+                      <td className="py-2 px-2 text-right">{s.uniqueUsers}</td>
                     </tr>
                   ))}
                 </tbody>
