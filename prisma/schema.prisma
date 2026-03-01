@@ -37,6 +37,7 @@ model User {
   chatMessages ChatMessage[]
   payments     Payment[]
   pushSubscriptions PushSubscription[]
+  pageVisits   PageVisit[]
 
   @@map("users")
 }
@@ -307,6 +308,23 @@ model AiCallLog {
   @@index([userId, createdAt])
   @@index([endpoint, createdAt])
   @@map("ai_call_logs")
+}
+
+// ─── Посещаемость страниц (аналитика) ───────────────────────
+
+model PageVisit {
+  id           String   @id @default(cuid())
+  userId       String
+  path         String   // путь страницы: /garden, /settings, /calendar, ...
+  visitCount   Int      @default(1)
+  lastVisitedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, path])
+  @@index([path])
+  @@index([userId])
+  @@map("page_visits")
 }
 
 // ─── Payments ───────────────────────────────────────────────
