@@ -3,6 +3,7 @@ import { isPushConfigured, sendPushToUser } from "@/lib/push-server";
 import {
   getReminderEventsByUserForDate,
   formatReminderPayload,
+  getDayBoundsInTimezone,
 } from "@/lib/push-reminders";
 
 export const dynamic = "force-dynamic";
@@ -21,13 +22,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const tz = process.env.TZ ?? "Europe/Moscow";
-  const now = new Date(new Date().toLocaleString("en-US", { timeZone: tz }));
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tz = process.env.PUSH_REMINDERS_TZ ?? process.env.TZ ?? "Europe/Moscow";
+  const { dayStart: todayStart, dayEnd: todayEnd } = getDayBoundsInTimezone(new Date(), tz);
+  const nextDayInTz = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+  const { dayStart: tomorrowStart, dayEnd: tomorrowEnd } = getDayBoundsInTimezone(nextDayInTz, tz);
 
-  const todayByUser = await getReminderEventsByUserForDate(now);
-  const tomorrowByUser = await getReminderEventsByUserForDate(tomorrow);
+  const todayByUser = await getReminderEventsByUserForDate(todayStart, todayEnd);
+  const tomorrowByUser = await getReminderEventsByUserForDate(tomorrowStart, tomorrowEnd);
 
   const allUserIds = new Set([...todayByUser.keys(), ...tomorrowByUser.keys()]);
   let totalSent = 0;

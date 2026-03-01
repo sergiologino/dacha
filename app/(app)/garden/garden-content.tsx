@@ -47,6 +47,7 @@ import { searchCropsAndVarieties, type CropSearchHit } from "@/lib/crops-search"
 import type { CropWithSource } from "@/lib/crops-merge";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { PlannedWorkModal, type PlannedWorkEvent } from "@/components/planned-work-modal";
+import { NotificationPromptModal, getNotificationPromptSeen } from "@/components/notification-prompt-modal";
 
 const bedTypeLabels: Record<string, string> = {
   open: "Открытый грунт",
@@ -122,6 +123,7 @@ export default function GardenContent() {
     bed: { id: string; name: string };
   } | null>(null);
   const [showFeatureOnboarding, setShowFeatureOnboarding] = useState(false);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
   const hasSeededRef = useRef(false);
   const hasSuggestedOnboardingRef = useRef(false);
   const [loadingFallback, setLoadingFallback] = useState(false);
@@ -525,7 +527,22 @@ export default function GardenContent() {
       <SubscribeModal open={showPaywall} onOpenChange={setShowPaywall} />
       <FeatureOnboarding
         open={showFeatureOnboarding}
-        onClose={() => setShowFeatureOnboarding(false)}
+        onClose={() => {
+          setShowFeatureOnboarding(false);
+          setTimeout(() => {
+            if (
+              typeof Notification !== "undefined" &&
+              Notification.permission !== "granted" &&
+              !getNotificationPromptSeen()
+            ) {
+              setShowNotificationPrompt(true);
+            }
+          }, 400);
+        }}
+      />
+      <NotificationPromptModal
+        open={showNotificationPrompt}
+        onClose={() => setShowNotificationPrompt(false)}
       />
       {plannedWorkModal && (
         <PlannedWorkModal
