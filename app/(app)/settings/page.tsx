@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3 } from "lucide-react";
+import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3, BookOpen } from "lucide-react";
+import { clearFeatureOnboardingSeen } from "@/components/feature-onboarding";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +49,7 @@ const MapComponent = dynamic(
 );
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { data: session } = useSession();
   const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState("");
@@ -534,6 +537,28 @@ export default function SettingsPage() {
             <Save className="w-5 h-5 mr-2" />
           )}
           Сохранить местоположение
+        </Button>
+      </Card>
+
+      <Card className="p-6 mb-6">
+        <h2 className="font-semibold mb-3 flex items-center gap-2">
+          <BookOpen className="w-5 h-5 text-emerald-600" />
+          Онбординг по приложению
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+          Краткий обзор основных разделов: участок, грядки, таймлайн, календарь, справочник и чат.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full h-11 rounded-2xl"
+          onClick={() => {
+            clearFeatureOnboardingSeen();
+            router.push("/garden?showOnboarding=1");
+          }}
+        >
+          <BookOpen className="w-4 h-4 mr-2" />
+          Показать онбординг
         </Button>
       </Card>
 

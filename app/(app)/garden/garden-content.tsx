@@ -23,6 +23,7 @@ import {
   Pencil,
   Check,
 } from "lucide-react";
+import { FeatureOnboarding, getFeatureOnboardingSeen } from "@/components/feature-onboarding";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -120,6 +121,9 @@ export default function GardenContent() {
     plant: { id: string; name: string };
     bed: { id: string; name: string };
   } | null>(null);
+  const [showFeatureOnboarding, setShowFeatureOnboarding] = useState(false);
+  const hasSeededRef = useRef(false);
+  const hasSuggestedOnboardingRef = useRef(false);
 
   const { data: plants = [], isLoading: plantsLoading } = usePlants();
   const createPlant = useCreatePlant();
@@ -170,6 +174,32 @@ export default function GardenContent() {
       .then((data) => setIsPremium(!!data.isPremium))
       .catch(() => setIsPremium(false));
   }, []);
+
+  const showOnboardingParam = searchParams.get("showOnboarding") === "1";
+
+  useEffect(() => {
+    if (bedsLoading) return;
+    if (beds.length === 0 && !hasSeededRef.current) {
+      hasSeededRef.current = true;
+      fetch("/api/user/seed-demo-garden", { method: "POST" })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.seeded) {
+            qc.invalidateQueries({ queryKey: ["beds"] });
+          }
+        })
+        .catch(() => {});
+      return;
+    }
+    if (showOnboardingParam) {
+      setShowFeatureOnboarding(true);
+      return;
+    }
+    if (!getFeatureOnboardingSeen() && !hasSuggestedOnboardingRef.current) {
+      hasSuggestedOnboardingRef.current = true;
+      setShowFeatureOnboarding(true);
+    }
+  }, [bedsLoading, beds.length, showOnboardingParam, qc]);
 
   const addBed = () => {
     if (!newBedName) return;
@@ -477,6 +507,10 @@ export default function GardenContent() {
         )}
       </StaggerContainer>
       <SubscribeModal open={showPaywall} onOpenChange={setShowPaywall} />
+      <FeatureOnboarding
+        open={showFeatureOnboarding}
+        onClose={() => setShowFeatureOnboarding(false)}
+      />
       {plannedWorkModal && (
         <PlannedWorkModal
           open={plannedWorkModal.open}
