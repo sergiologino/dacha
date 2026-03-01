@@ -78,7 +78,7 @@ export default function GardenContent() {
   useEffect(() => {
     const hasSuccess =
       typeof window !== "undefined" &&
-      (window.location.search.includes("payment=success") || searchParams.get("payment") === "success");
+      (window.location.search.includes("payment=success") || searchParams?.get?.("payment") === "success");
     if (!hasSuccess) return;
     let mounted = true;
     toast.info("Проверяем оплату...");
@@ -176,7 +176,7 @@ export default function GardenContent() {
       .catch(() => setIsPremium(false));
   }, []);
 
-  const showOnboardingParam = searchParams.get("showOnboarding") === "1";
+  const showOnboardingParam = searchParams?.get?.("showOnboarding") === "1";
 
   useEffect(() => {
     if (showOnboardingParam) setShowFeatureOnboarding(true);

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Image from "next/image";
 import { X, ChevronLeft, ChevronRight, Sprout, LayoutGrid, Calendar, BookOpen, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -216,14 +215,13 @@ export function FeatureOnboarding({ open, onClose }: FeatureOnboardingProps) {
             </button>
 
             <div className="flex flex-col items-center text-center">
-              <div className="relative w-full aspect-[16/10] max-h-[180px] sm:max-h-[220px] rounded-2xl overflow-hidden shadow-lg border border-white/50 dark:border-slate-600/50 mb-4">
-                <Image
+              <div className="relative w-full aspect-[16/10] max-h-[180px] sm:max-h-[220px] rounded-2xl overflow-hidden shadow-lg border border-white/50 dark:border-slate-600/50 mb-4 bg-slate-100 dark:bg-slate-800">
+                <img
                   src={slide?.image ?? SLIDE_IMAGES[0]}
                   alt=""
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 640px) 100vw, 560px"
-                  priority
+                  className="absolute inset-0 w-full h-full object-cover"
+                  loading="eager"
+                  decoding="async"
                 />
               </div>
 
