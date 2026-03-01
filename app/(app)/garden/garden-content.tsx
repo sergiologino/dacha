@@ -124,6 +124,7 @@ export default function GardenContent() {
   const [showFeatureOnboarding, setShowFeatureOnboarding] = useState(false);
   const hasSeededRef = useRef(false);
   const hasSuggestedOnboardingRef = useRef(false);
+  const [loadingFallback, setLoadingFallback] = useState(false);
 
   const { data: plants = [], isLoading: plantsLoading } = usePlants();
   const createPlant = useCreatePlant();
@@ -178,6 +179,15 @@ export default function GardenContent() {
   const showOnboardingParam = searchParams.get("showOnboarding") === "1";
 
   useEffect(() => {
+    if (showOnboardingParam) setShowFeatureOnboarding(true);
+  }, [showOnboardingParam]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoadingFallback(true), 10000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
     if (bedsLoading) return;
     if (beds.length === 0 && !hasSeededRef.current) {
       hasSeededRef.current = true;
@@ -220,7 +230,13 @@ export default function GardenContent() {
     );
   };
 
-  if (status === "loading" || plantsLoading || bedsLoading) {
+  const showSpinner =
+    (status === "loading" || plantsLoading || bedsLoading) &&
+    !showOnboardingParam &&
+    !(beds.length === 0 && hasSeededRef.current) &&
+    !loadingFallback;
+
+  if (showSpinner) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
