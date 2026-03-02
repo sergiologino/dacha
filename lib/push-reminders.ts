@@ -1,5 +1,37 @@
 import { prisma } from "@/lib/prisma";
 
+/** Смещение Москвы от UTC в миллисекундах (UTC+3). */
+const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * Возвращает границы дня (00:00:00.000 и 23:59:59.999) в указанной таймзоне как UTC Date.
+ * Поддерживается Europe/Moscow (жёстко UTC+3). Для других TZ используется Intl и приближение.
+ */
+export function getDayBoundsInTimezone(
+  date: Date,
+  timeZone: string
+): { dayStart: Date; dayEnd: Date } {
+  const str = date.toLocaleDateString("en-CA", { timeZone });
+  const [y, m, d] = str.split("-").map(Number);
+  if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) {
+    const fallback = new Date(date);
+    fallback.setUTCHours(0, 0, 0, 0);
+    const start = new Date(fallback);
+    const end = new Date(fallback);
+    end.setUTCDate(end.getUTCDate() + 1);
+    end.setUTCMilliseconds(end.getUTCMilliseconds() - 1);
+    return { dayStart: start, dayEnd: end };
+  }
+  if (timeZone === "Europe/Moscow") {
+    const dayStart = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0) - MOSCOW_OFFSET_MS);
+    const dayEnd = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999) - MOSCOW_OFFSET_MS);
+    return { dayStart, dayEnd };
+  }
+  const fallback = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+  const end = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
+  return { dayStart: fallback, dayEnd: end };
+}
+
 export type ReminderEvent = {
   title: string;
   bedName: string;
@@ -8,24 +40,20 @@ export type ReminderEvent = {
 };
 
 /**
- * События-напоминания на указанную дату (день целиком): isAction, не выполнено (doneAt null),
- * дата события пересекается с targetDate.
+ * События-напоминания на указанный день (dayStart..dayEnd в UTC): isAction, не выполнено (doneAt null),
+ * дата события пересекается с диапазоном.
  */
 export async function getReminderEventsByUserForDate(
-  targetDate: Date
+  dayStart: Date,
+  dayEnd: Date
 ): Promise<Map<string, ReminderEvent[]>> {
-  const dayStart = new Date(targetDate);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(targetDate);
-  dayEnd.setHours(23, 59, 59, 999);
-
   const events = await prisma.plantTimelineEvent.findMany({
     where: {
       isAction: true,
       doneAt: null,
       scheduledDate: { lte: dayEnd },
       OR: [
-        { dateTo: null },
+        { dateTo: null, scheduledDate: { gte: dayStart } },
         { dateTo: { gte: dayStart } },
       ],
     },

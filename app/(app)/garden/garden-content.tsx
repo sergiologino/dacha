@@ -23,6 +23,7 @@ import {
   Pencil,
   Check,
 } from "lucide-react";
+import { FeatureOnboarding, getFeatureOnboardingSeen } from "@/components/feature-onboarding";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ import { searchCropsAndVarieties, type CropSearchHit } from "@/lib/crops-search"
 import type { CropWithSource } from "@/lib/crops-merge";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { PlannedWorkModal, type PlannedWorkEvent } from "@/components/planned-work-modal";
+import { NotificationPromptModal, getNotificationPromptSeen } from "@/components/notification-prompt-modal";
 
 const bedTypeLabels: Record<string, string> = {
   open: "Открытый грунт",
@@ -77,7 +79,7 @@ export default function GardenContent() {
   useEffect(() => {
     const hasSuccess =
       typeof window !== "undefined" &&
-      (window.location.search.includes("payment=success") || searchParams.get("payment") === "success");
+      (window.location.search.includes("payment=success") || searchParams?.get?.("payment") === "success");
     if (!hasSuccess) return;
     let mounted = true;
     toast.info("Проверяем оплату...");
@@ -120,6 +122,11 @@ export default function GardenContent() {
     plant: { id: string; name: string };
     bed: { id: string; name: string };
   } | null>(null);
+  const [showFeatureOnboarding, setShowFeatureOnboarding] = useState(false);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  const hasSeededRef = useRef(false);
+  const hasSuggestedOnboardingRef = useRef(false);
+  const [loadingFallback, setLoadingFallback] = useState(false);
 
   const { data: plants = [], isLoading: plantsLoading } = usePlants();
   const createPlant = useCreatePlant();
@@ -171,6 +178,41 @@ export default function GardenContent() {
       .catch(() => setIsPremium(false));
   }, []);
 
+  const showOnboardingParam = searchParams?.get?.("showOnboarding") === "1";
+
+  useEffect(() => {
+    if (showOnboardingParam) setShowFeatureOnboarding(true);
+  }, [showOnboardingParam]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoadingFallback(true), 10000);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    if (bedsLoading) return;
+    if (beds.length === 0 && !hasSeededRef.current) {
+      hasSeededRef.current = true;
+      fetch("/api/user/seed-demo-garden", { method: "POST" })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.seeded) {
+            qc.invalidateQueries({ queryKey: ["beds"] });
+          }
+        })
+        .catch(() => {});
+      return;
+    }
+    if (showOnboardingParam) {
+      setShowFeatureOnboarding(true);
+      return;
+    }
+    if (!getFeatureOnboardingSeen() && !hasSuggestedOnboardingRef.current) {
+      hasSuggestedOnboardingRef.current = true;
+      setShowFeatureOnboarding(true);
+    }
+  }, [bedsLoading, beds.length, showOnboardingParam, qc]);
+
   const addBed = () => {
     if (!newBedName) return;
     if (isPremium === false && totalBeds >= FREE_BED_LIMIT) {
@@ -190,7 +232,13 @@ export default function GardenContent() {
     );
   };
 
-  if (status === "loading" || plantsLoading || bedsLoading) {
+  const showSpinner =
+    (status === "loading" || plantsLoading || bedsLoading) &&
+    !showOnboardingParam &&
+    !(beds.length === 0 && hasSeededRef.current) &&
+    !loadingFallback;
+
+  if (showSpinner) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
@@ -477,6 +525,25 @@ export default function GardenContent() {
         )}
       </StaggerContainer>
       <SubscribeModal open={showPaywall} onOpenChange={setShowPaywall} />
+      <FeatureOnboarding
+        open={showFeatureOnboarding}
+        onClose={() => {
+          setShowFeatureOnboarding(false);
+          setTimeout(() => {
+            if (
+              typeof Notification !== "undefined" &&
+              Notification.permission !== "granted" &&
+              !getNotificationPromptSeen()
+            ) {
+              setShowNotificationPrompt(true);
+            }
+          }, 400);
+        }}
+      />
+      <NotificationPromptModal
+        open={showNotificationPrompt}
+        onClose={() => setShowNotificationPrompt(false)}
+      />
       {plannedWorkModal && (
         <PlannedWorkModal
           open={plannedWorkModal.open}
