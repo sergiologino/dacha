@@ -47,6 +47,9 @@ export async function POST(request: NextRequest) {
   try {
     const idempotenceKey = crypto.randomUUID();
 
+    const returnUrl = `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/garden?payment=success`;
+    const receiptDescription = description ?? (plan === "yearly" ? "Премиум на год" : "Премиум на месяц");
+
     const response = await fetch("https://api.yookassa.ru/v3/payments", {
       method: "POST",
       headers: {
@@ -59,10 +62,23 @@ export async function POST(request: NextRequest) {
         capture: true,
         confirmation: {
           type: "redirect",
-          return_url: `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/garden?payment=success`,
+          return_url: returnUrl,
         },
         description,
         metadata: { plan, userId: user.email },
+        receipt: {
+          customer: { email: user.email ?? undefined },
+          items: [
+            {
+              description: receiptDescription,
+              quantity: 1,
+              amount: { value: amountNum.toFixed(2), currency: "RUB" },
+              vat_code: 1,
+              payment_mode: "full_payment",
+              payment_subject: "service",
+            },
+          ],
+        },
       }),
     });
 
