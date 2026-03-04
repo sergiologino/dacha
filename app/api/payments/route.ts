@@ -66,7 +66,14 @@ export async function POST(request: NextRequest) {
       }),
     });
 
-    const data = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    const data = (await response.json().catch(() => null)) as
+      | {
+          confirmation?: { confirmation_url?: string };
+          id?: string;
+          code?: string;
+          description?: string;
+        }
+      | null;
 
     if (!response.ok) {
       const yookassaCode = data && typeof data.code === "string" ? data.code : "";
@@ -81,7 +88,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (data.confirmation?.confirmation_url && data.id) {
+    if (data?.confirmation?.confirmation_url && data.id) {
       await prisma.payment.create({
         data: {
           userId: user.id,
