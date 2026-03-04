@@ -38,13 +38,20 @@ interface SubscribeModalProps {
 
 export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const createPayment = async () => {
+    if (isSubmitting) return;
+
     const amount = selectedPlan === "yearly" ? 1990 : 199;
     const description =
       selectedPlan === "yearly"
         ? "Любимая Дача Премиум на год"
         : "Любимая Дача Премиум на месяц";
+
+    setError(null);
+    setIsSubmitting(true);
 
     try {
       const response = await fetch("/api/payments", {
@@ -53,14 +60,30 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
         body: JSON.stringify({ amount, description, plan: selectedPlan }),
       });
 
-      const data = await response.json();
-      if (data.paymentUrl) {
-        window.location.href = data.paymentUrl;
+      let data: any = null;
+      try {
+        data = await response.json();
+      } catch {
+        // тело не JSON — обработаем общим сообщением ниже
+      }
+
+      if (!response.ok) {
+        const message =
+          data?.error ||
+          "Не удалось создать платёж. Попробуйте позже или напишите нам в поддержку.";
+        setError(message);
+        return;
+      }
+
+      if (data?.paymentUrl) {
+        window.location.href = data.paymentUrl as string;
       } else {
-        alert("Ошибка создания платежа");
+        setError("Платёж создан некорректно: не пришёл URL оплаты.");
       }
     } catch {
-      alert("Ошибка YooKassa. Попробуйте позже.");
+      setError("Ошибка связи с YooKassa. Проверьте интернет или попробуйте позже.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -166,13 +189,21 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
 
           <Button
             onClick={createPayment}
-            className="w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-lg font-semibold shadow-lg shadow-emerald-500/25"
+            disabled={isSubmitting}
+            className="w-full h-14 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-lg font-semibold shadow-lg shadow-emerald-500/25 disabled:opacity-70"
           >
-            Оформить Премиум —{" "}
-            {selectedPlan === "yearly"
-              ? "1990 ₽ в год"
-              : "199 ₽ в месяц"}
+            {isSubmitting
+              ? "Создаём платёж..."
+              : `Оформить Премиум — ${
+                  selectedPlan === "yearly" ? "1990 ₽ в год" : "199 ₽ в месяц"
+                }`}
           </Button>
+
+          {error && (
+            <p className="text-xs text-red-600 dark:text-red-400 text-center">
+              {error}
+            </p>
+          )}
 
           <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
             <ShieldCheck className="w-4 h-4 text-slate-400" />
