@@ -1,7 +1,8 @@
 // app/api/auth/[...nextauth]/route.ts
+import { NextRequest } from "next/server";
 import { handlers } from "@/auth";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const isYandexCallback = url.pathname.endsWith("/callback/yandex");
 
@@ -30,6 +31,6 @@ export async function GET(request: Request) {
   return response;
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   return handlers.POST(request);
 }

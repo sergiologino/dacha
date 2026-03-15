@@ -30,8 +30,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,
   trustHost: true,
   logger: {
-    error(code, metadata) {
-      console.error("[auth][logger][error]", code, metadata);
+    error(error) {
+      console.error("[auth][logger][error]", error);
     },
     warn(code) {
       console.warn("[auth][logger][warn]", code);
