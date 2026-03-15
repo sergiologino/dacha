@@ -1,7 +1,7 @@
 // app/api/auth/[...nextauth]/route.ts
 import { handlers } from "@/auth";
 
-export async function GET(request: Request, context: unknown) {
+export async function GET(request: Request) {
   const url = new URL(request.url);
   const isYandexCallback = url.pathname.endsWith("/callback/yandex");
 
@@ -18,7 +18,7 @@ export async function GET(request: Request, context: unknown) {
     });
   }
 
-  const response = await handlers.GET(request, context as never);
+  const response = await handlers.GET(request);
 
   if (isYandexCallback) {
     console.info("[auth][yandex][callback][finish]", {
@@ -30,6 +30,6 @@ export async function GET(request: Request, context: unknown) {
   return response;
 }
 
-export async function POST(request: Request, context: unknown) {
-  return handlers.POST(request, context as never);
+export async function POST(request: Request) {
+  return handlers.POST(request);
 }
