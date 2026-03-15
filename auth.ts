@@ -29,6 +29,14 @@ const SESSION_MAX_AGE_SEC = SESSION_MAX_AGE_DAYS * 24 * 60 * 60;
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,
   trustHost: true,
+  logger: {
+    error(code, metadata) {
+      console.error("[auth][logger][error]", code, metadata);
+    },
+    warn(code) {
+      console.warn("[auth][logger][warn]", code);
+    },
+  },
   session: {
     strategy: "jwt",
     maxAge: SESSION_MAX_AGE_SEC,
