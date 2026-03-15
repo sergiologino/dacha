@@ -4,6 +4,24 @@ import { handlers } from "@/auth";
 
 const YANDEX_CALLBACK_COOKIE = "dacha_yandex_callback_ok";
 const YANDEX_CALLBACK_COOKIE_MAX_AGE_SEC = 5 * 60;
+const YANDEX_CALLBACK_MEMORY_TTL_MS = 5 * 60 * 1000;
+
+type YandexCallbackState = {
+  status: "processing" | "success";
+  expiresAt: number;
+};
+
+const yandexCallbackStore = (
+  globalThis as typeof globalThis & {
+    __dachaYandexCallbackStore?: Map<string, YandexCallbackState>;
+  }
+).__dachaYandexCallbackStore ?? new Map<string, YandexCallbackState>();
+
+(
+  globalThis as typeof globalThis & {
+    __dachaYandexCallbackStore?: Map<string, YandexCallbackState>;
+  }
+).__dachaYandexCallbackStore = yandexCallbackStore;
 
 async function hashYandexCallbackSignature(value: string): Promise<string> {
   const data = new TextEncoder().encode(value);
@@ -36,6 +54,30 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const now = Date.now();
+  for (const [key, value] of yandexCallbackStore.entries()) {
+    if (value.expiresAt <= now) {
+      yandexCallbackStore.delete(key);
+    }
+  }
+
+  const existingState =
+    isYandexCallback && callbackSignature
+      ? yandexCallbackStore.get(callbackSignature)
+      : undefined;
+
+  if (isYandexCallback && callbackSignature && existingState) {
+    console.info("[auth][yandex][callback][duplicate-memory]", {
+      state: existingState.status,
+      signaturePrefix: callbackSignature.slice(0, 8),
+      host: request.headers.get("host"),
+      forwardedHost: request.headers.get("x-forwarded-host"),
+      forwardedProto: request.headers.get("x-forwarded-proto"),
+    });
+
+    return NextResponse.redirect(new URL("/garden", request.url), { status: 302 });
+  }
+
   if (
     isYandexCallback &&
     callbackSignature &&
@@ -48,6 +90,13 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.redirect(new URL("/garden", request.url), { status: 302 });
+  }
+
+  if (isYandexCallback && callbackSignature) {
+    yandexCallbackStore.set(callbackSignature, {
+      status: "processing",
+      expiresAt: now + YANDEX_CALLBACK_MEMORY_TTL_MS,
+    });
   }
 
   const response = await handlers.GET(request);
@@ -65,14 +114,22 @@ export async function GET(request: NextRequest) {
       try {
         const redirectUrl = new URL(location, request.url);
         if (redirectUrl.pathname === "/garden") {
+          yandexCallbackStore.set(callbackSignature, {
+            status: "success",
+            expiresAt: Date.now() + YANDEX_CALLBACK_MEMORY_TTL_MS,
+          });
           response.headers.append(
             "set-cookie",
             `${YANDEX_CALLBACK_COOKIE}=${callbackSignature}; Max-Age=${YANDEX_CALLBACK_COOKIE_MAX_AGE_SEC}; Path=/; HttpOnly; SameSite=Lax; Secure`
           );
+        } else {
+          yandexCallbackStore.delete(callbackSignature);
         }
       } catch {
-        // ignore malformed redirect target
+        yandexCallbackStore.delete(callbackSignature);
       }
+    } else {
+      yandexCallbackStore.delete(callbackSignature);
     }
   }
 
