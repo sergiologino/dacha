@@ -10,6 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  YearlyPlanBadge,
+  YearlyPlanDetails,
+  YearlyPromoBanner,
+  useYearlyPromoOffer,
+} from "@/components/yearly-promo";
 
 const TESTIMONIALS = [
   {
@@ -40,6 +46,7 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
   const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { offer } = useYearlyPromoOffer({ enabled: open });
 
   const createPayment = async () => {
     if (isSubmitting) return;
@@ -47,7 +54,9 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
     const amount = selectedPlan === "yearly" ? 1990 : 199;
     const description =
       selectedPlan === "yearly"
-        ? "Любимая Дача Премиум на год"
+        ? offer.isEligible
+          ? "Любимая Дача Премиум на год + 2 месяца по ранней скидке"
+          : "Любимая Дача Премиум на год"
         : "Любимая Дача Премиум на месяц";
 
     setError(null);
@@ -133,6 +142,8 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
         </div>
 
         <div className="px-6 py-5 space-y-5">
+          <YearlyPromoBanner offer={offer} compact />
+
           <Card
             className={`p-5 cursor-pointer transition-all border-2 ${
               selectedPlan === "monthly"
@@ -165,9 +176,7 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
             }`}
             onClick={() => setSelectedPlan("yearly")}
           >
-            <div className="absolute -top-2.5 right-5 bg-emerald-600 text-white text-xs px-3 py-1 rounded-full font-medium shadow-sm">
-              2 месяца в подарок
-            </div>
+            <YearlyPlanBadge offer={offer} className="absolute -top-2.5 right-5" />
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-lg font-semibold">Годовой</p>
@@ -177,9 +186,7 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
                     / год
                   </span>
                 </p>
-                <p className="text-emerald-600 dark:text-emerald-400 text-sm mt-1">
-                  Экономия 398 ₽ — как 10 месяцев по цене года
-                </p>
+                <YearlyPlanDetails offer={offer} className="mt-2" />
               </div>
               {selectedPlan === "yearly" && (
                 <Check className="w-6 h-6 text-emerald-600 mt-1 flex-shrink-0" />

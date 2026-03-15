@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/get-user";
 import { prisma } from "@/lib/prisma";
+import { getYearlyPlanExtraMonths } from "@/lib/yearly-promo";
 
 export async function POST(request: NextRequest) {
   const user = await getAuthUser();
@@ -46,9 +47,17 @@ export async function POST(request: NextRequest) {
 
   try {
     const idempotenceKey = crypto.randomUUID();
+    const yearlyPromoExtraMonths =
+      plan === "yearly" ? getYearlyPlanExtraMonths(user.createdAt, new Date()) : 0;
 
     const returnUrl = `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/garden?payment=success`;
-    const receiptDescription = description ?? (plan === "yearly" ? "Премиум на год" : "Премиум на месяц");
+    const receiptDescription =
+      description ??
+      (plan === "yearly"
+        ? yearlyPromoExtraMonths > 0
+          ? "Премиум на год + 2 месяца по акции"
+          : "Премиум на год"
+        : "Премиум на месяц");
 
     const response = await fetch("https://api.yookassa.ru/v3/payments", {
       method: "POST",
@@ -65,7 +74,11 @@ export async function POST(request: NextRequest) {
           return_url: returnUrl,
         },
         description,
-        metadata: { plan, userId: user.email },
+        metadata: {
+          plan,
+          userId: user.email,
+          yearlyPromoExtraMonths: String(yearlyPromoExtraMonths),
+        },
         receipt: {
           customer: { email: user.email ?? undefined },
           items: [

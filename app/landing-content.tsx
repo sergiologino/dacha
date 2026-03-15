@@ -20,11 +20,16 @@ import { Card } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { FeedbackLinks } from "@/components/feedback-links";
 import {
+  YearlyPromoBanner,
+  useYearlyPromoOffer,
+} from "@/components/yearly-promo";
+import {
   MotionDiv,
   StaggerContainer,
   StaggerItem,
   motion,
 } from "@/components/motion";
+import type { YearlyPromoOffer } from "@/lib/yearly-promo";
 
 const USER_COUNT = "30 000";
 
@@ -94,7 +99,13 @@ const colorMap: Record<string, string> = {
   teal: "bg-teal-100 dark:bg-teal-900 text-teal-600 dark:text-teal-400",
 };
 
-export function LandingContent() {
+export function LandingContent({
+  initialOffer,
+}: {
+  initialOffer: YearlyPromoOffer;
+}) {
+  const { offer } = useYearlyPromoOffer({ initialOffer });
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950 dark:via-slate-950 dark:to-amber-950">
       {/* Header */}
@@ -166,6 +177,9 @@ export function LandingContent() {
               <Link href="/guide">Открыть справочник</Link>
             </Button>
           </div>
+        </MotionDiv>
+        <MotionDiv variant="fadeUp" delay={0.35} className="mt-6">
+          <YearlyPromoBanner offer={offer} ctaHref="/subscribe" />
         </MotionDiv>
         <MotionDiv variant="fadeUp" delay={0.4} className="mt-12 rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700">
           <Image
