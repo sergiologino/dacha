@@ -306,6 +306,12 @@ export function LandingContent({
               Любимая Дача © {new Date().getFullYear()}
             </div>
             <div className="flex flex-wrap items-center gap-4">
+              <Link href="/kogda-sazhat-rassadu" className="hover:text-emerald-600">
+                Когда сажать рассаду
+              </Link>
+              <Link href="/kalendar-posadok-2026" className="hover:text-emerald-600">
+                Календарь посадок 2026
+              </Link>
               <Link href="/guide" className="hover:text-emerald-600">
                 Справочник
               </Link>

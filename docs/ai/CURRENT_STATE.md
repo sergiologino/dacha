@@ -7,7 +7,7 @@
 - [x] **Название приложения** — «Любимая Дача» (вместо ДачаAI)
 - [x] **126+ страниц** (19 маршрутов + 100 SSG страниц культур)
 - [x] **PWA** — manifest.json, service worker, полный набор PNG-иконок (13 шт, включая maskable + apple-touch)
-- [x] **SEO** — robots.txt, sitemap.xml (103 URL), metadata, h1/h2, OpenGraph, viewport
+- [x] **SEO** — robots.txt, sitemap.xml, metadata, h1/h2, OpenGraph, canonical; отдельные публичные SEO-страницы `/kogda-sazhat-rassadu` и `/kalendar-posadok-2026` под высокоинтентные поисковые кластеры; `structured data` (JSON-LD) на главной, в справочнике и на страницах культур; `llms.txt` и `llms-full.txt` для AI-discovery
 - [x] **Аналитика** — Яндекс.Метрика (NEXT_PUBLIC_YM_ID), Google Analytics gtag (NEXT_PUBLIC_GA_ID), верификация Яндекса (meta yandex-verification, fallback 57dacdee3aae7bf0)
 - [x] **Справочник 100 культур** — фото (Unsplash), сорта (3–6 шт для топ-20), AI-подробности с кешем в БД
 - [x] **Интересные факты** `/facts` — 25 фактов в 5 категориях, фильтрация, случайный факт
