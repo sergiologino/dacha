@@ -469,7 +469,7 @@ export default function SettingsPage() {
           <p className="text-sm text-slate-600 dark:text-slate-400">
             {session.user.name}
           </p>
-          <p className="text-sm text-slate-500">{session.user.email}</p>
+          <p className="text-sm text-slate-500">{session.user.email || session.user.phone || "Без email"}</p>
           <div className="mt-3 flex items-center gap-2">
             {isPremium ? (
               <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">

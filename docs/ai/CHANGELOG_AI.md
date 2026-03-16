@@ -4,6 +4,23 @@
 
 ---
 
+## 2026-03-16 — Вход по телефону через SMS.ru и юридические документы
+
+- **Задача**: добавить альтернативный вход по номеру телефона с маской российского номера, отправкой одноразового кода через `SMS.ru`, а также вывести на странице входа согласие с `Условиями использования` и `Политикой конфиденциальности`.
+- **Реализация**:
+  - В `prisma/schema.prisma` добавлены поля `User.phone`, `User.phoneVerifiedAt` и новая таблица `PhoneAuthCode`; подготовлена миграция `20260316090000_add_phone_auth`.
+  - Добавлены серверные утилиты `lib/phone.ts`, `lib/sms-ru.ts`, `lib/phone-auth.ts`: нормализация и маска телефона `+7 (###) ###-##-##`, генерация и хеширование 6-значных кодов, ограничения на повторную отправку и интеграция с `SMS.ru`.
+  - В `auth.ts` подключён `Credentials`-провайдер `phone-otp`; `NextAuth`-сессия теперь несёт `user.id` и `user.phone`, а `lib/get-user.ts` умеет находить пользователя по `id`, `email` или `phone`.
+  - Добавлен маршрут `POST /api/auth/phone/send-code`; в `app/auth/signin/signin-form.tsx` реализован двухшаговый UX для SMS-входа: маска, отправка кода, подтверждение, повторная отправка по таймеру и юридический текст с ссылками.
+  - Созданы публичные страницы `/terms` и `/privacy`, которые рендерят `TERMS_OF_USE.md` и `PRIVACY_POLICY.md` из корня проекта; ссылки добавлены в `sitemap`.
+  - Для совместимости телефонных пользователей обновлены ключевые маршруты, которые раньше опирались только на `email`: `app/api/region/analyze/route.ts`, `app/api/chat/route.ts`, `app/api/ai/analyze/route.ts`, `app/api/crops/route.ts`, `app/api/payments/route.ts`, `app/api/payments/sync/route.ts`, а в `app/(app)/settings/page.tsx` профиль теперь показывает `email` или `phone`.
+- **Тесты**:
+  - Добавлен `__tests__/lib/phone.test.ts` на нормализацию номера, маску и очистку SMS-кода.
+- **Документация**:
+  - Обновлены `.env.example`, `docs/DEPLOY.md`, `docs/ai/CURRENT_STATE.md`.
+
+---
+
 ## 2026-03-15 — Yandex OAuth: защита от повторного запуска и диагностика callback
 
 - **Проблема**: вход через Яндекс возвращал пользователя обратно на `/auth/signin` с общей ошибкой `Configuration`, а в серверных логах причина проявлялась как `CallbackRouteError` / `invalid_grant` / `Code has expired`.

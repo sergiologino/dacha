@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { getPromptByKey } from "@/lib/get-prompt";
@@ -48,9 +47,9 @@ function isWeatherRelated(text: string): boolean {
   return keywords.some((k) => lower.includes(k));
 }
 
-async function getUserLocation(email: string) {
+async function getUserLocation(userId: string) {
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { id: userId },
     select: { id: true, latitude: true, longitude: true, locationName: true, region: true },
   });
   if (user) return user;
@@ -113,8 +112,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const session = await auth();
-  if (!session?.user?.email) {
+  const user = await getAuthUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -128,7 +127,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userInfo = await getUserLocation(session.user.email);
+    const userInfo = await getUserLocation(user.id);
     const hasLocation = !!(userInfo?.latitude && userInfo?.longitude);
 
     const lastUserMsg = messages[messages.length - 1]?.content || "";
@@ -150,7 +149,7 @@ export async function POST(request: NextRequest) {
 
     const { content: aiMessage, responseData } = await callAI(
       fullMessages,
-      session.user.email,
+      user.email ?? user.phone ?? user.id,
       networkName || "openai-gpt4o-mini"
     );
 
@@ -178,7 +177,7 @@ export async function POST(request: NextRequest) {
       ];
       const { content: retryMessage, responseData: retryData } = await callAI(
         retryMessages,
-        session.user.email,
+        user.email ?? user.phone ?? user.id,
         "openai-gpt4o"
       );
 
@@ -207,8 +206,8 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Failed to process AI request";
     try {
-      const session = await auth();
-      const userInfo = session?.user?.email ? await getUserLocation(session.user.email) : null;
+      const user = await getAuthUser();
+      const userInfo = user ? await getUserLocation(user.id) : null;
       await logAiCall({
         userId: userInfo?.id ?? null,
         endpoint: "/api/chat",

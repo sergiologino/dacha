@@ -117,7 +117,7 @@ export async function generateTimelineForPlant(plantId: string): Promise<void> {
     where: { id: plantId },
     include: {
       bed: true,
-      user: { select: { id: true, email: true, region: true, locationName: true } },
+      user: { select: { id: true, email: true, phone: true, region: true, locationName: true } },
     },
   });
   if (!plant?.user?.email) return;
@@ -150,7 +150,10 @@ export async function generateTimelineForPlant(plantId: string): Promise<void> {
   ];
 
   try {
-    const { content, responseData } = await callAI(messages, plant.user.email);
+    const { content, responseData } = await callAI(
+      messages,
+      plant.user.email ?? plant.user.phone ?? plant.user.id,
+    );
 
     await logAiCall({
       userId: plant.user.id,

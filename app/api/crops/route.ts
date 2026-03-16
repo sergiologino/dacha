@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser } from "@/lib/get-user";
 import { getMergedCrops } from "@/lib/crops-merge";
 import { getPromptByKey } from "@/lib/get-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
@@ -234,8 +234,8 @@ async function uniqueSlug(base: string): Promise<string> {
 /** POST — добавить культуру в справочник (по запросу + опционально текст от нейроэксперта), с генерацией фото. */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
+    const user = await getAuthUser();
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -247,11 +247,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "query is required" }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    });
-    const extracted = await extractCropFromAI(query, user?.id ?? null, aiResult);
+    const extracted = await extractCropFromAI(query, user.id, aiResult);
     if (!extracted) {
       return NextResponse.json(
         { error: "Не удалось извлечь данные культуры из ответа нейросети" },
@@ -263,7 +259,7 @@ export async function POST(request: NextRequest) {
 
     let imageUrl: string | null = null;
     try {
-      const { url } = await generateCropImage(extracted.name, extracted.category, user?.id ?? null);
+      const { url } = await generateCropImage(extracted.name, extracted.category, user.id);
       imageUrl = url;
     } catch {
       // сохраняем без фото

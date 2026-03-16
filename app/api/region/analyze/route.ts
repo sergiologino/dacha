@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import { findClimateZone, getDefaultReport } from "@/lib/data/climate-zones";
+import { prisma } from "@/lib/prisma";
+import { getAuthUser } from "@/lib/get-user";
 
 export async function POST(request: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.email) {
+  const user = await getAuthUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   const zone = findClimateZone(latitude, longitude) ?? getDefaultReport(latitude, longitude);
 
   await prisma.user.update({
-    where: { email: session.user.email },
+    where: { id: user.id },
     data: {
       latitude,
       longitude,

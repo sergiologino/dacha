@@ -3,13 +3,41 @@ import { prisma } from "@/lib/prisma";
 
 export async function getAuthUser() {
   const session = await auth();
-  if (!session?.user?.email) return null;
+  if (!session?.user) return null;
 
-  const user = await prisma.user.upsert({
-    where: { email: session.user.email },
-    update: { name: session.user.name ?? undefined, image: session.user.image ?? undefined },
-    create: { email: session.user.email, name: session.user.name, image: session.user.image },
-  });
+  if (session.user.id) {
+    const userById = await prisma.user.findUnique({
+      where: { id: session.user.id },
+    });
+    if (userById) {
+      return userById;
+    }
+  }
 
-  return user;
+  if (session.user.email) {
+    return prisma.user.upsert({
+      where: { email: session.user.email },
+      update: { name: session.user.name ?? undefined, image: session.user.image ?? undefined },
+      create: { email: session.user.email, name: session.user.name, image: session.user.image },
+    });
+  }
+
+  if (session.user.phone) {
+    return prisma.user.upsert({
+      where: { phone: session.user.phone },
+      update: {
+        name: session.user.name ?? undefined,
+        image: session.user.image ?? undefined,
+        phoneVerifiedAt: new Date(),
+      },
+      create: {
+        phone: session.user.phone,
+        phoneVerifiedAt: new Date(),
+        name: session.user.name,
+        image: session.user.image,
+      },
+    });
+  }
+
+  return null;
 }

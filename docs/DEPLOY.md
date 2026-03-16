@@ -32,6 +32,7 @@
 | `NEXTAUTH_URL` | URL приложения (например `https://dacha-ai.ru`) |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | OAuth Google |
 | `AUTH_YANDEX_ID`, `AUTH_YANDEX_SECRET` | OAuth Яндекс |
+| `SMS_RU_API_ID` | API ID для отправки одноразовых кодов через SMS.ru |
 | `WEATHER_API_KEY` | Ключ WeatherAPI.com |
 | `AI_INTEGRATION_URL`, `AI_INTEGRATION_API_KEY` | AI-интегратор |
 | `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY` | ЮKassa (оплаты) |
@@ -44,6 +45,8 @@
 | `NEXT_PUBLIC_FEEDBACK_TELEGRAM_URL` | Ссылка на Telegram для обратной связи (отдаётся через `/api/config`) |
 | `NEXT_PUBLIC_FEEDBACK_MAX_URL` | Ссылка на MAX для обратной связи |
 | `NEXT_PUBLIC_YANDEX_VERIFICATION` | Код верификации в Вебмастере Яндекса |
+| `SMS_RU_FROM` | Подпись отправителя в SMS.ru, если она подключена в аккаунте |
+| `SMS_RU_TEST` | `1` для тестового режима SMS.ru без реальной отправки |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Ключи Web Push (для пуш-напоминаний о плановых работах). Сгенерировать: `npx web-push generate-vapid-keys` |
 | `CRON_SECRET` | Секрет для вызова крон-задачи напоминаний (GET `/api/cron/push-reminders?secret=...` или заголовок `Authorization: Bearer ...`) |
 | `PUSH_REMINDERS_TZ` | Часовой пояс для «сегодня/завтра» (по умолчанию `Europe/Moscow`) |

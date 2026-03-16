@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
     const idempotenceKey = crypto.randomUUID();
     const yearlyPromoExtraMonths =
       plan === "yearly" ? getYearlyPlanExtraMonths(user.createdAt, new Date()) : 0;
+    const paymentUserIdentifier = user.email ?? user.phone ?? user.id;
 
     const returnUrl = `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/garden?payment=success`;
     const receiptDescription =
@@ -76,22 +77,24 @@ export async function POST(request: NextRequest) {
         description,
         metadata: {
           plan,
-          userId: user.email,
+          userId: paymentUserIdentifier,
           yearlyPromoExtraMonths: String(yearlyPromoExtraMonths),
         },
-        receipt: {
-          customer: { email: user.email ?? undefined },
-          items: [
-            {
-              description: receiptDescription,
-              quantity: 1,
-              amount: { value: amountNum.toFixed(2), currency: "RUB" },
-              vat_code: 1,
-              payment_mode: "full_payment",
-              payment_subject: "service",
-            },
-          ],
-        },
+        receipt: user.email
+          ? {
+              customer: { email: user.email },
+              items: [
+                {
+                  description: receiptDescription,
+                  quantity: 1,
+                  amount: { value: amountNum.toFixed(2), currency: "RUB" },
+                  vat_code: 1,
+                  payment_mode: "full_payment",
+                  payment_subject: "service",
+                },
+              ],
+            }
+          : undefined,
       }),
     });
 

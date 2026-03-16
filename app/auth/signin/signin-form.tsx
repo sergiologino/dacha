@@ -1,11 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { AlertCircle, Loader2, Sprout } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  extractRussianPhoneDigits,
+  formatRussianPhoneMask,
+  normalizeRussianPhone,
+  sanitizeSmsCode,
+} from "@/lib/phone";
 
 const LAST_AUTH_PROVIDER_KEY = "dacha_last_auth_provider";
 
@@ -13,6 +20,14 @@ export function SignInForm() {
   const searchParams = useSearchParams();
   const [pendingProvider, setPendingProvider] = useState<"google" | "yandex" | null>(null);
   const [lastProvider, setLastProvider] = useState<string | null>(null);
+  const [phoneDigits, setPhoneDigits] = useState("");
+  const [submittedPhone, setSubmittedPhone] = useState<string | null>(null);
+  const [smsCode, setSmsCode] = useState("");
+  const [phoneInfo, setPhoneInfo] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
+  const [retryAfterSec, setRetryAfterSec] = useState(0);
   const error = searchParams.get("error");
 
   useEffect(() => {
@@ -23,6 +38,23 @@ export function SignInForm() {
       setPendingProvider(null);
     }
   }, [error]);
+
+  useEffect(() => {
+    if (retryAfterSec <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setRetryAfterSec((current) => {
+        if (current <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [retryAfterSec]);
 
   const errorMessage = useMemo(() => {
     if (!error) return null;
@@ -42,6 +74,11 @@ export function SignInForm() {
     return "Не удалось выполнить вход. Попробуйте ещё раз чуть позже.";
   }, [error, lastProvider]);
 
+  const phoneValue = useMemo(() => formatRussianPhoneMask(phoneDigits), [phoneDigits]);
+  const normalizedPhone = useMemo(() => normalizeRussianPhone(phoneDigits), [phoneDigits]);
+  const isPhoneReady = !!normalizedPhone;
+  const isPhoneFlowBusy = isSendingCode || isVerifyingCode || !!pendingProvider;
+
   const startSignIn = async (provider: "google" | "yandex") => {
     if (pendingProvider) return;
 
@@ -53,12 +90,81 @@ export function SignInForm() {
     await signIn(provider, { callbackUrl: "/garden" });
   };
 
+  const sendPhoneCode = async () => {
+    if (!isPhoneReady || isPhoneFlowBusy) return;
+
+    setPhoneError(null);
+    setPhoneInfo(null);
+    setIsSendingCode(true);
+
+    try {
+      const response = await fetch("/api/auth/phone/send-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone: normalizedPhone,
+        }),
+      });
+
+      const data = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        maskedPhone?: string;
+        retryAfterSec?: number;
+      };
+
+      if (!response.ok || !data.ok) {
+        setPhoneError(data.error || "Не удалось отправить код.");
+        setRetryAfterSec(data.retryAfterSec ?? 0);
+        return;
+      }
+
+      setSubmittedPhone(normalizedPhone);
+      setSmsCode("");
+      setRetryAfterSec(data.retryAfterSec ?? 60);
+      setPhoneInfo(`Код отправлен на ${data.maskedPhone ?? phoneValue}.`);
+    } catch {
+      setPhoneError("Не удалось отправить код. Проверьте соединение и попробуйте ещё раз.");
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
+
+  const verifyPhoneCode = async () => {
+    if (!submittedPhone || smsCode.length !== 6 || isPhoneFlowBusy) return;
+
+    setPhoneError(null);
+    setIsVerifyingCode(true);
+
+    try {
+      const result = await signIn("phone-otp", {
+        phone: submittedPhone,
+        code: smsCode,
+        redirect: false,
+        callbackUrl: "/garden",
+      });
+
+      if (!result || result.error) {
+        setPhoneError("Неверный код или срок его действия истёк. Запросите новый код и попробуйте ещё раз.");
+        return;
+      }
+
+      window.location.href = result.url || "/garden";
+    } catch {
+      setPhoneError("Не удалось завершить вход по номеру телефона. Попробуйте ещё раз.");
+    } finally {
+      setIsVerifyingCode(false);
+    }
+  };
+
   return (
-    <Card className="w-full max-w-sm p-8">
+    <Card className="w-full max-w-md p-8">
       <div className="flex flex-col items-center mb-8">
         <Sprout className="w-12 h-12 text-emerald-600 mb-4" />
         <h1 className="text-2xl font-bold">Вход в Любимая Дача</h1>
-        <p className="text-slate-500 text-sm mt-2">Выберите способ входа</p>
+        <p className="text-slate-500 text-sm mt-2">Выберите удобный способ входа</p>
       </div>
 
       {errorMessage && (
@@ -117,6 +223,144 @@ export function SignInForm() {
           )}
         </Button>
       </div>
+
+      <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-slate-400">
+        <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+        <span>или</span>
+        <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+      </div>
+
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <label htmlFor="phone" className="text-sm font-medium text-slate-700 dark:text-slate-200">
+            Вход по номеру телефона
+          </label>
+          <input
+            id="phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            value={phoneValue}
+            onChange={(event) => {
+              setPhoneDigits(extractRussianPhoneDigits(event.target.value));
+              setSubmittedPhone(null);
+              setSmsCode("");
+              setPhoneInfo(null);
+              setPhoneError(null);
+            }}
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-800 dark:bg-slate-950"
+            placeholder="+7 (___) ___-__-__"
+            disabled={isPhoneFlowBusy}
+          />
+          <p className="text-xs text-slate-500">
+            Сейчас поддерживаются номера РФ. Если начать ввод с <code>+7</code> или <code>8</code>, префикс будет отброшен автоматически.
+          </p>
+        </div>
+
+        <Button
+          type="button"
+          onClick={sendPhoneCode}
+          className="h-12 w-full rounded-2xl text-base"
+          disabled={!isPhoneReady || isPhoneFlowBusy}
+        >
+          {isSendingCode ? (
+            <>
+              <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+              Отправляем код...
+            </>
+          ) : (
+            "Получить код по SMS"
+          )}
+        </Button>
+
+        {submittedPhone && (
+          <div className="space-y-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/80 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+                  Введите код из SMS
+                </p>
+                <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">
+                  {phoneInfo ?? `Код отправлен на ${submittedPhone}.`}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSubmittedPhone(null);
+                  setSmsCode("");
+                  setPhoneInfo(null);
+                  setPhoneError(null);
+                }}
+                className="text-xs font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-300"
+                disabled={isPhoneFlowBusy}
+              >
+                Изменить
+              </button>
+            </div>
+
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={smsCode}
+              onChange={(event) => {
+                setSmsCode(sanitizeSmsCode(event.target.value));
+                setPhoneError(null);
+              }}
+              className="h-12 w-full rounded-2xl border border-emerald-200 bg-white px-4 text-center text-lg tracking-[0.35em] outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-emerald-900 dark:bg-slate-950"
+              placeholder="000000"
+              disabled={isPhoneFlowBusy}
+            />
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                onClick={verifyPhoneCode}
+                className="h-12 flex-1 rounded-2xl text-base"
+                disabled={smsCode.length !== 6 || isPhoneFlowBusy}
+              >
+                {isVerifyingCode ? (
+                  <>
+                    <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                    Проверяем...
+                  </>
+                ) : (
+                  "Войти"
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={sendPhoneCode}
+                className="h-12 rounded-2xl"
+                disabled={retryAfterSec > 0 || isPhoneFlowBusy}
+              >
+                {retryAfterSec > 0 ? `Повторно через ${retryAfterSec}с` : "Отправить ещё раз"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {phoneError && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+            {phoneError}
+          </div>
+        )}
+      </div>
+
+      <p className="mt-6 text-center text-xs leading-5 text-slate-500">
+        Продолжая, вы соглашаетесь с{" "}
+        <Link href="/terms" className="font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400">
+          Условиями использования
+        </Link>{" "}
+        и{" "}
+        <Link href="/privacy" className="font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400">
+          Политикой конфиденциальности
+        </Link>
+        . Номер телефона используется только для входа в аккаунт и отправки кода подтверждения.
+      </p>
     </Card>
   );
 }

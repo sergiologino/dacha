@@ -21,6 +21,8 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const paymentUserIdentifier = user.email ?? user.phone ?? user.id;
+
   const authHeader = yookassaAuth();
   if (!authHeader) {
     return NextResponse.json({ error: "Payment service not configured" }, { status: 500 });
@@ -73,7 +75,7 @@ export async function GET() {
 
   // Fallback: нет записей pending (платёж создан до сохранения в БД или с другой вкладки).
   // Пробуем взять список платежей ЮKassa и найти успешный по metadata.userId (email).
-  if (pending.length === 0 && user.email) {
+  if (pending.length === 0) {
     try {
       const listRes = await fetch("https://api.yookassa.ru/v3/payments?limit=20", {
         headers: { Authorization: authHeader },
@@ -93,7 +95,7 @@ export async function GET() {
       const succeeded = items.find(
         (p) =>
           (p.status === "succeeded" || p.status === "waiting_for_capture") &&
-          p.metadata?.userId === user.email
+          p.metadata?.userId === paymentUserIdentifier
       );
       if (succeeded) {
         if (succeeded.id) {
