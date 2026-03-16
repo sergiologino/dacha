@@ -31,6 +31,31 @@ async function hashYandexCallbackSignature(value: string): Promise<string> {
     .join("");
 }
 
+function getPublicBaseUrl(request: NextRequest): string {
+  const envBase =
+    process.env.NEXTAUTH_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (envBase) {
+    return envBase.replace(/\/+$/, "");
+  }
+
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const host = forwardedHost || request.headers.get("host");
+  const proto =
+    request.headers.get("x-forwarded-proto") ||
+    (request.nextUrl.protocol ? request.nextUrl.protocol.replace(":", "") : "https");
+
+  if (host) {
+    return `${proto}://${host}`.replace(/\/+$/, "");
+  }
+
+  return request.nextUrl.origin.replace(/\/+$/, "");
+}
+
+function buildPublicUrl(path: string, request: NextRequest): URL {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return new URL(normalizedPath, `${getPublicBaseUrl(request)}/`);
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const isYandexCallback = url.pathname.endsWith("/callback/yandex");
@@ -75,7 +100,9 @@ export async function GET(request: NextRequest) {
       forwardedProto: request.headers.get("x-forwarded-proto"),
     });
 
-    return NextResponse.redirect(new URL("/garden", request.url), { status: 302 });
+    return NextResponse.redirect(buildPublicUrl("/garden", request), {
+      status: 302,
+    });
   }
 
   if (
@@ -89,7 +116,9 @@ export async function GET(request: NextRequest) {
       forwardedProto: request.headers.get("x-forwarded-proto"),
     });
 
-    return NextResponse.redirect(new URL("/garden", request.url), { status: 302 });
+    return NextResponse.redirect(buildPublicUrl("/garden", request), {
+      status: 302,
+    });
   }
 
   if (isYandexCallback && callbackSignature) {
