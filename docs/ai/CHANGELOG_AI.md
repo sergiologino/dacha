@@ -19,6 +19,7 @@
 - **Документация**:
   - Обновлены `.env.example`, `docs/DEPLOY.md`, `docs/ai/CURRENT_STATE.md`.
   - После проверки деплоя уточнён `.dockerignore`: `PRIVACY_POLICY.md` и `TERMS_OF_USE.md` явно включены в Docker build context, чтобы prerender страниц `/privacy` и `/terms` не падал на сервере.
+  - До оформления договора с SMS-провайдером UI входа по телефону временно скрыт за флагом `NEXT_PUBLIC_ENABLE_PHONE_AUTH`; ссылки на документы на странице входа оставлены видимыми.
 
 ---
 

@@ -15,6 +15,7 @@ import {
 } from "@/lib/phone";
 
 const LAST_AUTH_PROVIDER_KEY = "dacha_last_auth_provider";
+const SHOW_PHONE_AUTH = process.env.NEXT_PUBLIC_ENABLE_PHONE_AUTH === "1";
 
 export function SignInForm() {
   const searchParams = useSearchParams();
@@ -224,131 +225,135 @@ export function SignInForm() {
         </Button>
       </div>
 
-      <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-slate-400">
-        <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
-        <span>или</span>
-        <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
-      </div>
+      {SHOW_PHONE_AUTH && (
+        <>
+          <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-slate-400">
+            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+            <span>или</span>
+            <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
+          </div>
 
-      <div className="space-y-3">
-        <div className="space-y-2">
-          <label htmlFor="phone" className="text-sm font-medium text-slate-700 dark:text-slate-200">
-            Вход по номеру телефона
-          </label>
-          <input
-            id="phone"
-            type="tel"
-            inputMode="tel"
-            autoComplete="tel"
-            value={phoneValue}
-            onChange={(event) => {
-              setPhoneDigits(extractRussianPhoneDigits(event.target.value));
-              setSubmittedPhone(null);
-              setSmsCode("");
-              setPhoneInfo(null);
-              setPhoneError(null);
-            }}
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-800 dark:bg-slate-950"
-            placeholder="+7 (___) ___-__-__"
-            disabled={isPhoneFlowBusy}
-          />
-          <p className="text-xs text-slate-500">
-            Сейчас поддерживаются номера РФ. Если начать ввод с <code>+7</code> или <code>8</code>, префикс будет отброшен автоматически.
-          </p>
-        </div>
-
-        <Button
-          type="button"
-          onClick={sendPhoneCode}
-          className="h-12 w-full rounded-2xl text-base"
-          disabled={!isPhoneReady || isPhoneFlowBusy}
-        >
-          {isSendingCode ? (
-            <>
-              <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-              Отправляем код...
-            </>
-          ) : (
-            "Получить код по SMS"
-          )}
-        </Button>
-
-        {submittedPhone && (
-          <div className="space-y-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/80 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-                  Введите код из SMS
-                </p>
-                <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">
-                  {phoneInfo ?? `Код отправлен на ${submittedPhone}.`}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <label htmlFor="phone" className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                Вход по номеру телефона
+              </label>
+              <input
+                id="phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={phoneValue}
+                onChange={(event) => {
+                  setPhoneDigits(extractRussianPhoneDigits(event.target.value));
                   setSubmittedPhone(null);
                   setSmsCode("");
                   setPhoneInfo(null);
                   setPhoneError(null);
                 }}
-                className="text-xs font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-300"
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-slate-800 dark:bg-slate-950"
+                placeholder="+7 (___) ___-__-__"
                 disabled={isPhoneFlowBusy}
-              >
-                Изменить
-              </button>
+              />
+              <p className="text-xs text-slate-500">
+                Сейчас поддерживаются номера РФ. Если начать ввод с <code>+7</code> или <code>8</code>, префикс будет отброшен автоматически.
+              </p>
             </div>
 
-            <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={smsCode}
-              onChange={(event) => {
-                setSmsCode(sanitizeSmsCode(event.target.value));
-                setPhoneError(null);
-              }}
-              className="h-12 w-full rounded-2xl border border-emerald-200 bg-white px-4 text-center text-lg tracking-[0.35em] outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-emerald-900 dark:bg-slate-950"
-              placeholder="000000"
-              disabled={isPhoneFlowBusy}
-            />
+            <Button
+              type="button"
+              onClick={sendPhoneCode}
+              className="h-12 w-full rounded-2xl text-base"
+              disabled={!isPhoneReady || isPhoneFlowBusy}
+            >
+              {isSendingCode ? (
+                <>
+                  <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                  Отправляем код...
+                </>
+              ) : (
+                "Получить код по SMS"
+              )}
+            </Button>
 
-            <div className="flex gap-3">
-              <Button
-                type="button"
-                onClick={verifyPhoneCode}
-                className="h-12 flex-1 rounded-2xl text-base"
-                disabled={smsCode.length !== 6 || isPhoneFlowBusy}
-              >
-                {isVerifyingCode ? (
-                  <>
-                    <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                    Проверяем...
-                  </>
-                ) : (
-                  "Войти"
-                )}
-              </Button>
+            {submittedPhone && (
+              <div className="space-y-3 rounded-2xl border border-emerald-200/70 bg-emerald-50/80 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
+                      Введите код из SMS
+                    </p>
+                    <p className="text-xs text-emerald-800/80 dark:text-emerald-200/80">
+                      {phoneInfo ?? `Код отправлен на ${submittedPhone}.`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubmittedPhone(null);
+                      setSmsCode("");
+                      setPhoneInfo(null);
+                      setPhoneError(null);
+                    }}
+                    className="text-xs font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-300"
+                    disabled={isPhoneFlowBusy}
+                  >
+                    Изменить
+                  </button>
+                </div>
 
-              <Button
-                type="button"
-                variant="outline"
-                onClick={sendPhoneCode}
-                className="h-12 rounded-2xl"
-                disabled={retryAfterSec > 0 || isPhoneFlowBusy}
-              >
-                {retryAfterSec > 0 ? `Повторно через ${retryAfterSec}с` : "Отправить ещё раз"}
-              </Button>
-            </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  value={smsCode}
+                  onChange={(event) => {
+                    setSmsCode(sanitizeSmsCode(event.target.value));
+                    setPhoneError(null);
+                  }}
+                  className="h-12 w-full rounded-2xl border border-emerald-200 bg-white px-4 text-center text-lg tracking-[0.35em] outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 dark:border-emerald-900 dark:bg-slate-950"
+                  placeholder="000000"
+                  disabled={isPhoneFlowBusy}
+                />
+
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    onClick={verifyPhoneCode}
+                    className="h-12 flex-1 rounded-2xl text-base"
+                    disabled={smsCode.length !== 6 || isPhoneFlowBusy}
+                  >
+                    {isVerifyingCode ? (
+                      <>
+                        <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                        Проверяем...
+                      </>
+                    ) : (
+                      "Войти"
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={sendPhoneCode}
+                    className="h-12 rounded-2xl"
+                    disabled={retryAfterSec > 0 || isPhoneFlowBusy}
+                  >
+                    {retryAfterSec > 0 ? `Повторно через ${retryAfterSec}с` : "Отправить ещё раз"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {phoneError && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+                {phoneError}
+              </div>
+            )}
           </div>
-        )}
-
-        {phoneError && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
-            {phoneError}
-          </div>
-        )}
-      </div>
+        </>
+      )}
 
       <p className="mt-6 text-center text-xs leading-5 text-slate-500">
         Продолжая, вы соглашаетесь с{" "}
@@ -359,7 +364,7 @@ export function SignInForm() {
         <Link href="/privacy" className="font-medium text-emerald-700 hover:text-emerald-800 dark:text-emerald-400">
           Политикой конфиденциальности
         </Link>
-        . Номер телефона используется только для входа в аккаунт и отправки кода подтверждения.
+        .
       </p>
     </Card>
   );

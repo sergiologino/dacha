@@ -45,6 +45,7 @@
 | `NEXT_PUBLIC_FEEDBACK_TELEGRAM_URL` | Ссылка на Telegram для обратной связи (отдаётся через `/api/config`) |
 | `NEXT_PUBLIC_FEEDBACK_MAX_URL` | Ссылка на MAX для обратной связи |
 | `NEXT_PUBLIC_YANDEX_VERIFICATION` | Код верификации в Вебмастере Яндекса |
+| `NEXT_PUBLIC_ENABLE_PHONE_AUTH` | `1` чтобы показать вход по телефону на UI; по умолчанию блок скрыт до готовности провайдера |
 | `SMS_RU_FROM` | Подпись отправителя в SMS.ru, если она подключена в аккаунте |
 | `SMS_RU_TEST` | `1` для тестового режима SMS.ru без реальной отправки |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Ключи Web Push (для пуш-напоминаний о плановых работах). Сгенерировать: `npx web-push generate-vapid-keys` |

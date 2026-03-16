@@ -4,7 +4,7 @@ import { SignInForm } from "./signin-form";
 
 export const metadata: Metadata = {
   title: "Вход — Любимая Дача",
-  description: "Войдите через Google, Яндекс или по номеру телефона, чтобы начать работу с Любимая Дача",
+  description: "Войдите через Google или Яндекс, чтобы начать работу с Любимая Дача",
 };
 
 export default function SignInPage() {
