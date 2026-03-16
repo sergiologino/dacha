@@ -18,6 +18,7 @@
   - Добавлен `__tests__/lib/phone.test.ts` на нормализацию номера, маску и очистку SMS-кода.
 - **Документация**:
   - Обновлены `.env.example`, `docs/DEPLOY.md`, `docs/ai/CURRENT_STATE.md`.
+  - После проверки деплоя уточнён `.dockerignore`: `PRIVACY_POLICY.md` и `TERMS_OF_USE.md` явно включены в Docker build context, чтобы prerender страниц `/privacy` и `/terms` не падал на сервере.
 
 ---
 
