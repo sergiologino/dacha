@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { getPromptByKey } from "@/lib/get-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
+import { prisma } from "@/lib/prisma";
 
 const AI_URL = process.env.AI_INTEGRATION_URL;
 const AI_KEY = process.env.AI_INTEGRATION_API_KEY;
@@ -13,11 +12,6 @@ const VISION_PROMPT_FALLBACK =
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     if (!AI_URL || !AI_KEY) {
       return NextResponse.json(
         { error: "AI service not configured" },
@@ -61,7 +55,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        userId: session.user.email,
+        userId: user.email ?? user.phone ?? user.id,
         networkName: "openai-gpt4o",
         requestType: "chat",
         payload: {

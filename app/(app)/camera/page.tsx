@@ -8,6 +8,7 @@ import { ShareIcon, CheckIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SubscribeModal } from "@/components/subscribe-modal";
+import { compressImageFile } from "@/lib/compress-image";
 
 interface AnalysisItem {
   id: string;
@@ -51,9 +52,19 @@ export default function CameraPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+    if (file.size <= 400_000) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setSelectedImage(ev.target?.result as string);
+      reader.readAsDataURL(file);
+      return;
+    }
+    try {
+      const dataUrl = await compressImageFile(file);
+      setSelectedImage(dataUrl);
+    } catch {
       const reader = new FileReader();
       reader.onload = (ev) => setSelectedImage(ev.target?.result as string);
       reader.readAsDataURL(file);

@@ -1,10 +1,10 @@
-const CACHE_NAME = "dacha-ai-v1";
+const CACHE_NAME = "dacha-ai-v2";
 
 const STATIC_ASSETS = [
-  "/",
-  "/guide",
-  "/auth/signin",
   "/manifest.json",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -16,9 +16,13 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)));
+      if (self.registration.navigationPreload) {
+        await self.registration.navigationPreload.enable().catch(() => {});
+      }
+    })()
   );
   self.clients.claim();
 });
@@ -68,13 +72,54 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
 
   if (request.method !== "GET") return;
+  if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
+  if (url.pathname.startsWith("/_next/")) return;
+
+  if (request.mode === "navigate") {
+    event.respondWith(
+      (async () => {
+        try {
+          const preloadResponse = await event.preloadResponse;
+          if (preloadResponse) {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(request, preloadResponse.clone());
+            return preloadResponse;
+          }
+
+          const networkResponse = await fetch(request);
+          if (networkResponse.ok) {
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(request, networkResponse.clone());
+          }
+          return networkResponse;
+        } catch {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          const fallback = await caches.match("/");
+          if (fallback) return fallback;
+          throw new Error("Navigation request failed");
+        }
+      })()
+    );
+    return;
+  }
+
+  const isCacheableAsset =
+    request.destination === "image" ||
+    request.destination === "style" ||
+    request.destination === "font" ||
+    url.pathname === "/manifest.json" ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname.startsWith("/uploads/");
+
+  if (!isCacheableAsset) return;
 
   event.respondWith(
     caches.match(request).then((cached) => {
       const fetching = fetch(request)
         .then((response) => {
-          if (response.ok && url.origin === self.location.origin) {
+          if (response.ok) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           }

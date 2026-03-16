@@ -1,5 +1,11 @@
 import { Metadata } from "next";
 import { LandingContent } from "./landing-content";
+import { auth } from "@/auth";
+import { getAuthUser } from "@/lib/get-user";
+import {
+  buildYearlyPromoOffer,
+  getInactiveYearlyPromoOffer,
+} from "@/lib/yearly-promo";
 
 export const metadata: Metadata = {
   title: "Любимая Дача — умный AI-помощник для дачников и садоводов",
@@ -22,6 +28,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function LandingPage() {
-  return <LandingContent />;
+export default async function LandingPage() {
+  const session = await auth();
+  const user = session?.user?.email ? await getAuthUser().catch(() => null) : null;
+  const initialOffer = user
+    ? buildYearlyPromoOffer(user)
+    : getInactiveYearlyPromoOffer();
+
+  return <LandingContent initialOffer={initialOffer} />;
 }
