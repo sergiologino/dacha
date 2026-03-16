@@ -2,28 +2,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handlers } from "@/auth";
 
-const YANDEX_CALLBACK_COOKIE = "dacha_yandex_callback_ok";
-const YANDEX_CALLBACK_COOKIE_MAX_AGE_SEC = 5 * 60;
-const YANDEX_CALLBACK_MEMORY_TTL_MS = 5 * 60 * 1000;
+const OAUTH_CALLBACK_COOKIE_PREFIX = "dacha_oauth_callback_ok";
+const OAUTH_CALLBACK_COOKIE_MAX_AGE_SEC = 5 * 60;
+const OAUTH_CALLBACK_MEMORY_TTL_MS = 5 * 60 * 1000;
 
-type YandexCallbackState = {
+type OAuthCallbackState = {
   status: "processing" | "success";
   expiresAt: number;
 };
 
-const yandexCallbackStore = (
+const oauthCallbackStore = (
   globalThis as typeof globalThis & {
-    __dachaYandexCallbackStore?: Map<string, YandexCallbackState>;
+    __dachaOauthCallbackStore?: Map<string, OAuthCallbackState>;
   }
-).__dachaYandexCallbackStore ?? new Map<string, YandexCallbackState>();
+).__dachaOauthCallbackStore ?? new Map<string, OAuthCallbackState>();
 
 (
   globalThis as typeof globalThis & {
-    __dachaYandexCallbackStore?: Map<string, YandexCallbackState>;
+    __dachaOauthCallbackStore?: Map<string, OAuthCallbackState>;
   }
-).__dachaYandexCallbackStore = yandexCallbackStore;
+).__dachaOauthCallbackStore = oauthCallbackStore;
 
-async function hashYandexCallbackSignature(value: string): Promise<string> {
+async function hashOAuthCallbackSignature(value: string): Promise<string> {
   const data = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(digest))
@@ -56,18 +56,34 @@ function buildPublicUrl(path: string, request: NextRequest): URL {
   return new URL(normalizedPath, `${getPublicBaseUrl(request)}/`);
 }
 
+function getCallbackProvider(pathname: string): string | null {
+  const match = pathname.match(/\/callback\/([^/]+)$/);
+  return match?.[1] ?? null;
+}
+
+function getCallbackLogPrefix(provider: string): string {
+  return `[auth][${provider}][callback]`;
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const isYandexCallback = url.pathname.endsWith("/callback/yandex");
+  const callbackProvider = getCallbackProvider(url.pathname);
+  const isOAuthCallback = !!callbackProvider;
   const code = url.searchParams.get("code") ?? "";
+  const state = url.searchParams.get("state") ?? "";
   const cid = url.searchParams.get("cid") ?? "";
   const callbackSignature =
-    isYandexCallback && code
-      ? await hashYandexCallbackSignature(`${code}:${cid}`)
+    isOAuthCallback && code
+      ? await hashOAuthCallbackSignature(
+          `${callbackProvider}:${code}:${state || cid || "no-secondary-token"}`
+        )
       : null;
+  const callbackCookieName = callbackProvider
+    ? `${OAUTH_CALLBACK_COOKIE_PREFIX}_${callbackProvider}`
+    : null;
 
-  if (isYandexCallback) {
-    console.info("[auth][yandex][callback][start]", {
+  if (callbackProvider) {
+    console.info(`${getCallbackLogPrefix(callbackProvider)}[start]`, {
       host: request.headers.get("host"),
       forwardedHost: request.headers.get("x-forwarded-host"),
       forwardedProto: request.headers.get("x-forwarded-proto"),
@@ -80,19 +96,19 @@ export async function GET(request: NextRequest) {
   }
 
   const now = Date.now();
-  for (const [key, value] of yandexCallbackStore.entries()) {
+  for (const [key, value] of oauthCallbackStore.entries()) {
     if (value.expiresAt <= now) {
-      yandexCallbackStore.delete(key);
+      oauthCallbackStore.delete(key);
     }
   }
 
   const existingState =
-    isYandexCallback && callbackSignature
-      ? yandexCallbackStore.get(callbackSignature)
+    isOAuthCallback && callbackSignature
+      ? oauthCallbackStore.get(callbackSignature)
       : undefined;
 
-  if (isYandexCallback && callbackSignature && existingState) {
-    console.info("[auth][yandex][callback][duplicate-memory]", {
+  if (callbackProvider && callbackSignature && existingState) {
+    console.info(`${getCallbackLogPrefix(callbackProvider)}[duplicate-memory]`, {
       state: existingState.status,
       signaturePrefix: callbackSignature.slice(0, 8),
       host: request.headers.get("host"),
@@ -106,11 +122,12 @@ export async function GET(request: NextRequest) {
   }
 
   if (
-    isYandexCallback &&
+    isOAuthCallback &&
     callbackSignature &&
-    request.cookies.get(YANDEX_CALLBACK_COOKIE)?.value === callbackSignature
+    callbackCookieName &&
+    request.cookies.get(callbackCookieName)?.value === callbackSignature
   ) {
-    console.info("[auth][yandex][callback][duplicate]", {
+    console.info(`${getCallbackLogPrefix(callbackProvider!)}[duplicate]`, {
       host: request.headers.get("host"),
       forwardedHost: request.headers.get("x-forwarded-host"),
       forwardedProto: request.headers.get("x-forwarded-proto"),
@@ -121,44 +138,44 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  if (isYandexCallback && callbackSignature) {
-    yandexCallbackStore.set(callbackSignature, {
+  if (isOAuthCallback && callbackSignature) {
+    oauthCallbackStore.set(callbackSignature, {
       status: "processing",
-      expiresAt: now + YANDEX_CALLBACK_MEMORY_TTL_MS,
+      expiresAt: now + OAUTH_CALLBACK_MEMORY_TTL_MS,
     });
   }
 
   const response = await handlers.GET(request);
 
-  if (isYandexCallback) {
-    console.info("[auth][yandex][callback][finish]", {
+  if (callbackProvider) {
+    console.info(`${getCallbackLogPrefix(callbackProvider)}[finish]`, {
       status: response.status,
       location: response.headers.get("location"),
     });
   }
 
-  if (isYandexCallback && callbackSignature) {
+  if (isOAuthCallback && callbackSignature && callbackCookieName) {
     const location = response.headers.get("location");
     if (response.status >= 300 && response.status < 400 && location) {
       try {
         const redirectUrl = new URL(location, request.url);
         if (redirectUrl.pathname === "/garden") {
-          yandexCallbackStore.set(callbackSignature, {
+          oauthCallbackStore.set(callbackSignature, {
             status: "success",
-            expiresAt: Date.now() + YANDEX_CALLBACK_MEMORY_TTL_MS,
+            expiresAt: Date.now() + OAUTH_CALLBACK_MEMORY_TTL_MS,
           });
           response.headers.append(
             "set-cookie",
-            `${YANDEX_CALLBACK_COOKIE}=${callbackSignature}; Max-Age=${YANDEX_CALLBACK_COOKIE_MAX_AGE_SEC}; Path=/; HttpOnly; SameSite=Lax; Secure`
+            `${callbackCookieName}=${callbackSignature}; Max-Age=${OAUTH_CALLBACK_COOKIE_MAX_AGE_SEC}; Path=/; HttpOnly; SameSite=Lax; Secure`
           );
         } else {
-          yandexCallbackStore.delete(callbackSignature);
+          oauthCallbackStore.delete(callbackSignature);
         }
       } catch {
-        yandexCallbackStore.delete(callbackSignature);
+        oauthCallbackStore.delete(callbackSignature);
       }
     } else {
-      yandexCallbackStore.delete(callbackSignature);
+      oauthCallbackStore.delete(callbackSignature);
     }
   }
 
