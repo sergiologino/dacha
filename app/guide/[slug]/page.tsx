@@ -1,6 +1,12 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/json-ld";
+import {
+  type CommunityCropRow,
+  findMatchingStaticCropBySlugOrName,
+  mapCommunityCropRow,
+  mergeCropWithCommunityData,
+} from "@/lib/crop-community";
 import { crops as staticCrops } from "@/lib/data/crops";
 import { prisma } from "@/lib/prisma";
 import { absoluteUrl } from "@/lib/seo";
@@ -14,38 +20,43 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-function dbRowToCrop(row: {
-  id: number;
-  name: string;
-  slug: string;
-  category: string;
-  description: string | null;
-  plantMonths: string[];
-  harvestMonths: string[];
-  waterSchedule: string | null;
-  regions: string[];
-  careNotes: string | null;
-  imageUrl: string | null;
-  varieties: unknown;
-}): Crop & { addedByCommunity?: boolean } {
-  const varieties = Array.isArray(row.varieties)
-    ? (row.varieties as { name: string; desc: string }[])
-    : undefined;
-  return {
-    id: row.id,
-    name: row.name,
-    slug: row.slug,
-    category: row.category,
-    description: row.description ?? undefined,
-    region: row.regions ?? [],
-    plantMonth: row.plantMonths?.[0] ?? "",
-    harvestMonth: row.harvestMonths?.[0] ?? "",
-    water: row.waterSchedule ?? "",
-    note: row.careNotes ?? "",
-    imageUrl: row.imageUrl ?? undefined,
-    varieties,
-    addedByCommunity: true,
-  };
+async function resolveCropBySlug(slug: string): Promise<(Crop & { addedByCommunity?: boolean }) | null> {
+  const staticCrop = staticCrops.find((c) => c.slug === slug) ?? null;
+
+  let dbRow: CommunityCropRow | null = null;
+  try {
+    dbRow = await prisma.crop.findUnique({ where: { slug } });
+  } catch {
+    dbRow = null;
+  }
+
+  if (staticCrop && dbRow) {
+    return {
+      ...mergeCropWithCommunityData(staticCrop, dbRow),
+      addedByCommunity: true,
+    };
+  }
+
+  if (staticCrop) {
+    return staticCrop;
+  }
+
+  if (dbRow) {
+    const baseStatic = findMatchingStaticCropBySlugOrName(dbRow.name);
+    if (baseStatic) {
+      return {
+        ...mergeCropWithCommunityData(baseStatic, dbRow),
+        addedByCommunity: true,
+      };
+    }
+
+    return {
+      ...mapCommunityCropRow(dbRow),
+      addedByCommunity: true,
+    };
+  }
+
+  return null;
 }
 
 export async function generateStaticParams() {
@@ -54,15 +65,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  let crop: (Crop & { addedByCommunity?: boolean }) | null = staticCrops.find((c) => c.slug === slug) ?? null;
-  if (!crop) {
-    try {
-      const row = await prisma.crop.findUnique({ where: { slug } });
-      crop = row ? dbRowToCrop(row) : null;
-    } catch {
-      crop = null;
-    }
-  }
+  const crop = await resolveCropBySlug(slug);
   if (!crop) return {};
 
   const description =
@@ -89,15 +92,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CropPage({ params }: Props) {
   const { slug } = await params;
-  let crop: (Crop & { addedByCommunity?: boolean }) | null = staticCrops.find((c) => c.slug === slug) ?? null;
-  if (!crop) {
-    try {
-      const row = await prisma.crop.findUnique({ where: { slug } });
-      crop = row ? dbRowToCrop(row) : null;
-    } catch {
-      crop = null;
-    }
-  }
+  const crop = await resolveCropBySlug(slug);
   if (!crop) notFound();
 
   return (

@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  findExistingCropMatch,
+  inferVarietyName,
+  mergeVarieties,
+  normalizeCropText,
+} from "@/lib/crop-community";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { getMergedCrops } from "@/lib/crops-merge";
@@ -62,7 +68,7 @@ async function generateCropImage(
   if (!AI_URL || !AI_KEY) return { url: null };
   const template =
     (await getPromptByKey("crops_image")) ??
-    "Реалистичное фото растения или овоща/фрукта: {{cropName}}, категория {{category}}. Красивое, чёткое, на белом или нейтральном фоне, для каталога растений.";
+    "Ультрареалистичная фотография растения или овоща/фрукта: {{cropName}}, категория {{category}}. Натуральный свет, фотокачество, ботаническая точность, без рисунка, без иллюстративного стиля, без текста, как настоящая предметная фотография для каталога растений.";
   const prompt = template.replace("{{cropName}}", cropName).replace("{{category}}", category);
   try {
     const res = await fetch(`${AI_URL}/api/ai/process`, {
@@ -70,7 +76,7 @@ async function generateCropImage(
       headers: { "X-API-Key": AI_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({
         userId: "guide@dacha-ai.ru",
-        networkName: "openai-dall-e-3",
+        networkName: "openai-gpt-image-1.5",
         requestType: "image_gen",
         payload: { prompt, size: "1024x1024" },
       }),
@@ -107,6 +113,53 @@ async function generateCropImage(
   }
 }
 
+async function fetchWikipediaImage(searchTerm: string): Promise<string | null> {
+  const variants = [
+    `${searchTerm} растение`,
+    searchTerm,
+  ];
+
+  for (const variant of variants) {
+    for (const lang of ["ru", "en"]) {
+      const params = new URLSearchParams({
+        action: "query",
+        format: "json",
+        origin: "*",
+        generator: "search",
+        gsrsearch: variant,
+        gsrlimit: "5",
+        prop: "pageimages",
+        piprop: "original",
+      });
+
+      try {
+        const response = await fetch(`https://${lang}.wikipedia.org/w/api.php?${params.toString()}`, {
+          cache: "no-store",
+        });
+        if (!response.ok) continue;
+
+        const data = (await response.json()) as {
+          query?: {
+            pages?: Record<string, { original?: { source?: string } }>;
+          };
+        };
+
+        const image = Object.values(data.query?.pages ?? {}).find(
+          (page) => page.original?.source?.includes("upload.wikimedia.org"),
+        )?.original?.source;
+
+        if (image) {
+          return image;
+        }
+      } catch {
+        // ignore and continue
+      }
+    }
+  }
+
+  return null;
+}
+
 /** Извлечение структурированных данных культуры через AI (из текста ответа нейроэксперта или по запросу). */
 async function extractCropFromAI(
   query: string,
@@ -114,6 +167,8 @@ async function extractCropFromAI(
   aiResult?: string
 ): Promise<{
   name: string;
+  baseCropName?: string;
+  varietyName?: string;
   slug: string;
   category: string;
   description: string;
@@ -127,7 +182,7 @@ async function extractCropFromAI(
   if (!AI_URL || !AI_KEY) return null;
   const systemTemplate =
     (await getPromptByKey("crops_extract_system")) ??
-    `Ты помощник для справочника растений. Верни ТОЛЬКО валидный JSON без markdown и без комментариев. Поля: name, slug, category (одна из: {{categories}}), description, plantMonths, harvestMonths, waterSchedule, careNotes, regions, varieties.`;
+    `Ты помощник для справочника растений. Верни ТОЛЬКО валидный JSON без markdown и без комментариев. Поля: name, baseCropName?, varietyName?, slug, category (одна из: {{categories}}), description, plantMonths, harvestMonths, waterSchedule, careNotes, regions, varieties. Если запрос относится к сорту существующей культуры, укажи baseCropName как базовую культуру, а varietyName как название сорта.`;
   const systemPrompt = systemTemplate.replace("{{categories}}", CATEGORIES.join(", "));
   const userContent = aiResult
     ? `По тексту ниже выдели данные культуры для справочника и верни JSON.\n\nТекст:\n${aiResult.slice(0, 4000)}`
@@ -166,6 +221,8 @@ async function extractCropFromAI(
     const jsonStr = raw.replace(/^```json?\s*/i, "").replace(/\s*```$/i, "").trim();
     const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
     const name = String(parsed.name || query).trim();
+    const baseCropName = String(parsed.baseCropName ?? "").trim() || undefined;
+    const varietyName = String(parsed.varietyName ?? "").trim() || undefined;
     const rawSlug = (parsed.slug as string)?.trim();
     const slugBase =
       rawSlug && /^[a-z0-9-]+$/i.test(rawSlug)
@@ -187,6 +244,8 @@ async function extractCropFromAI(
 
     const extracted = {
       name,
+      baseCropName,
+      varietyName,
       slug: slugBase,
       category,
       description,
@@ -255,12 +314,97 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const targetStaticCrop = findExistingCropMatch(query, extracted.name, extracted.baseCropName);
+    const inferredVarietyName = inferVarietyName(
+      query,
+      targetStaticCrop,
+      extracted.name,
+      extracted.varietyName,
+    );
+
+    if (targetStaticCrop) {
+      const existingOverlay = await prisma.crop.findUnique({
+        where: { slug: targetStaticCrop.slug },
+      });
+
+      if (!inferredVarietyName && !existingOverlay) {
+        return NextResponse.json(
+          {
+            ...targetStaticCrop,
+            addedByCommunity: false,
+          },
+          { status: 200 },
+        );
+      }
+
+      const mergedVarieties = mergeVarieties(
+        targetStaticCrop.varieties,
+        mergeVarieties(
+          existingOverlay && Array.isArray(existingOverlay.varieties)
+            ? (existingOverlay.varieties as { name: string; desc: string }[])
+            : undefined,
+          inferredVarietyName
+            ? [
+                {
+                  name: inferredVarietyName,
+                  desc:
+                    extracted.description ||
+                    `Пользовательский сорт культуры «${targetStaticCrop.name}».`,
+                },
+              ]
+            : extracted.varieties,
+        ),
+      );
+
+      const payload = {
+        name: targetStaticCrop.name,
+        slug: targetStaticCrop.slug,
+        category: targetStaticCrop.category,
+        description: existingOverlay?.description ?? targetStaticCrop.description ?? extracted.description,
+        plantMonths: existingOverlay?.plantMonths ?? [targetStaticCrop.plantMonth],
+        harvestMonths: existingOverlay?.harvestMonths ?? [targetStaticCrop.harvestMonth],
+        waterSchedule: existingOverlay?.waterSchedule ?? targetStaticCrop.water,
+        regions: existingOverlay?.regions ?? targetStaticCrop.region,
+        careNotes: existingOverlay?.careNotes ?? targetStaticCrop.note,
+        imageUrl: existingOverlay?.imageUrl ?? targetStaticCrop.imageUrl ?? null,
+        varieties: mergedVarieties && mergedVarieties.length > 0 ? (mergedVarieties as object) : undefined,
+      };
+
+      const crop = await prisma.crop.upsert({
+        where: { slug: targetStaticCrop.slug },
+        create: payload,
+        update: payload,
+      });
+
+      return NextResponse.json(
+        {
+          id: crop.id,
+          name: crop.name,
+          slug: crop.slug,
+          category: crop.category,
+          description: crop.description ?? undefined,
+          region: crop.regions,
+          plantMonth: crop.plantMonths[0] ?? "",
+          harvestMonth: crop.harvestMonths[0] ?? "",
+          water: crop.waterSchedule ?? "",
+          note: crop.careNotes ?? "",
+          imageUrl: crop.imageUrl ?? targetStaticCrop.imageUrl ?? undefined,
+          varieties: mergedVarieties,
+          addedByCommunity: true,
+        },
+        { status: existingOverlay ? 200 : 201 },
+      );
+    }
+
     const slug = await uniqueSlug(extracted.slug);
 
     let imageUrl: string | null = null;
     try {
-      const { url } = await generateCropImage(extracted.name, extracted.category, user.id);
-      imageUrl = url;
+      imageUrl = await fetchWikipediaImage(extracted.name);
+      if (!imageUrl) {
+        const { url } = await generateCropImage(extracted.name, extracted.category, user.id);
+        imageUrl = url;
+      }
     } catch {
       // сохраняем без фото
     }
