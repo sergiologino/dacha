@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import { isPushConfigured, sendPushToUser } from "@/lib/push-server";
 import {
+  buildReminderDedupeKey,
   getReminderEventsByUserForDate,
   formatReminderPayload,
+  formatCombinedReminderPayload,
   getDayBoundsInTimezone,
 } from "@/lib/push-reminders";
 
@@ -29,44 +32,84 @@ export async function GET(request: NextRequest) {
 
   const todayByUser = await getReminderEventsByUserForDate(todayStart, todayEnd);
   const tomorrowByUser = await getReminderEventsByUserForDate(tomorrowStart, tomorrowEnd);
+  const todayKey = todayStart.toISOString().slice(0, 10);
+  const tomorrowKey = tomorrowStart.toISOString().slice(0, 10);
 
   const allUserIds = new Set([...todayByUser.keys(), ...tomorrowByUser.keys()]);
   let totalSent = 0;
   let totalFailed = 0;
+  let totalSkippedDuplicates = 0;
+  let totalSkippedWithoutSubscriptions = 0;
+  let totalStaleDeleted = 0;
 
   for (const userId of allUserIds) {
     const todayEvents = todayByUser.get(userId) ?? [];
     const tomorrowEvents = tomorrowByUser.get(userId) ?? [];
     if (todayEvents.length === 0 && tomorrowEvents.length === 0) continue;
 
-    let title: string;
-    let body: string;
+    let payload: { title: string; body: string; url: string };
     if (todayEvents.length > 0 && tomorrowEvents.length > 0) {
-      title = "Напоминание: задачи на сегодня и завтра";
-      body = `Сегодня: ${todayEvents.length} ${todayEvents.length === 1 ? "задача" : "задач"}. Завтра: ${tomorrowEvents.length} ${tomorrowEvents.length === 1 ? "задача" : "задач"}.`;
+      payload = formatCombinedReminderPayload(todayEvents, tomorrowEvents);
     } else if (todayEvents.length > 0) {
-      const p = formatReminderPayload(todayEvents, true);
-      title = p.title;
-      body = p.body;
+      payload = formatReminderPayload(todayEvents, true);
     } else {
-      const p = formatReminderPayload(tomorrowEvents, false);
-      title = p.title;
-      body = p.body;
+      payload = formatReminderPayload(tomorrowEvents, false);
     }
 
-    const { sent, failed } = await sendPushToUser(userId, {
-      title,
-      body,
-      url: "/calendar",
+    const dedupeKey = buildReminderDedupeKey({
+      userId,
+      todayKey,
+      todayEvents,
+      tomorrowKey,
+      tomorrowEvents,
     });
+
+    try {
+      await prisma.pushDeliveryLog.create({
+        data: {
+          userId,
+          dedupeKey,
+        },
+      });
+    } catch (error) {
+      if ((error as { code?: string } | null)?.code === "P2002") {
+        totalSkippedDuplicates++;
+        continue;
+      }
+      throw error;
+    }
+
+    const { sent, failed, subscriptions, staleDeleted } = await sendPushToUser(
+      userId,
+      payload
+    );
+
+    if (subscriptions === 0) {
+      totalSkippedWithoutSubscriptions++;
+      await prisma.pushDeliveryLog.deleteMany({
+        where: { dedupeKey },
+      });
+      continue;
+    }
+
+    if (sent === 0) {
+      await prisma.pushDeliveryLog.deleteMany({
+        where: { dedupeKey },
+      });
+    }
+
     totalSent += sent;
     totalFailed += failed;
+    totalStaleDeleted += staleDeleted;
   }
 
   return NextResponse.json({
     ok: true,
     sent: totalSent,
     failed: totalFailed,
+    skippedDuplicates: totalSkippedDuplicates,
+    skippedWithoutSubscriptions: totalSkippedWithoutSubscriptions,
+    staleDeleted: totalStaleDeleted,
     users: allUserIds.size,
   });
 }
