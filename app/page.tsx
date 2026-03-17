@@ -1,30 +1,41 @@
 import { Metadata } from "next";
 import { LandingContent } from "./landing-content";
+import { JsonLd } from "@/components/json-ld";
 import { auth } from "@/auth";
 import { getAuthUser } from "@/lib/get-user";
 import {
   buildYearlyPromoOffer,
   getInactiveYearlyPromoOffer,
 } from "@/lib/yearly-promo";
+import {
+  absoluteUrl,
+  buildOrganizationJsonLd,
+  buildSoftwareApplicationJsonLd,
+  buildWebsiteJsonLd,
+} from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Любимая Дача — умный AI-помощник для дачников и садоводов",
+  title: "Календарь посадок 2026 и болезни растений по фото — Любимая Дача",
   description:
-    "Персональный AI-помощник для садоводов: календарь посадок по региону, анализ болезней растений по фото, справочник 100+ культур. Работает без интернета.",
+    "Календарь посадок по регионам России, сроки посева рассады, лунный календарь и AI-анализ болезней растений по фото. Приложение для дачников и садоводов.",
   keywords:
-    "дача, огород, сад, AI помощник, календарь посадок, болезни растений, справочник растений, садоводство",
+    "календарь посадок 2026, когда сажать рассаду, сроки посева рассады, болезни растений по фото, справочник растений, дача",
+  alternates: {
+    canonical: absoluteUrl("/"),
+  },
   openGraph: {
-    title: "Любимая Дача — умный AI-помощник для дачников",
-    description: "Календарь посадок, анализ болезней по фото, справочник 100+ культур, лунный календарь.",
+    title: "Календарь посадок 2026 и болезни растений по фото",
+    description:
+      "Сроки посева рассады, подсказки по регионам, лунный календарь и AI-анализ болезней растений.",
     type: "website",
     locale: "ru_RU",
-    url: "https://dacha-ai.ru",
+    url: absoluteUrl("/"),
     images: [{ url: "/icons/icon-512.png", width: 512, height: 512, alt: "Любимая Дача" }],
   },
   twitter: {
     card: "summary",
-    title: "Любимая Дача — умный AI-помощник для дачников",
-    description: "Календарь посадок, анализ болезней по фото, справочник культур.",
+    title: "Календарь посадок 2026 для дачников",
+    description: "Когда сажать рассаду, что сеять по месяцам и как распознать болезни растений по фото.",
   },
 };
 
@@ -35,5 +46,16 @@ export default async function LandingPage() {
     ? buildYearlyPromoOffer(user)
     : getInactiveYearlyPromoOffer();
 
-  return <LandingContent initialOffer={initialOffer} />;
+  return (
+    <>
+      <JsonLd
+        data={[
+          buildOrganizationJsonLd(),
+          buildWebsiteJsonLd(),
+          buildSoftwareApplicationJsonLd(),
+        ]}
+      />
+      <LandingContent initialOffer={initialOffer} />
+    </>
+  );
 }

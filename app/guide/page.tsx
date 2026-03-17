@@ -1,9 +1,11 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
+import { JsonLd } from "@/components/json-ld";
 import { crops as staticCrops } from "@/lib/data/crops";
 import { prisma } from "@/lib/prisma";
 import { getMergedCrops, type CropWithSource } from "@/lib/crops-merge";
+import { absoluteUrl } from "@/lib/seo";
 import { GuideSearch } from "./guide-search";
 import { GuideAccordion } from "./guide-accordion";
 
@@ -11,11 +13,14 @@ import { GuideAccordion } from "./guide-accordion";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Справочник растений — Любимая Дача",
+  title: "Справочник растений и сроки посадки — Любимая Дача",
   description:
-    "Справочник садовых и огородных культур России: томаты, огурцы, картофель, ягоды и другие. Как сажать, ухаживать, поливать — советы от нейроэксперта.",
+    "Справочник культур для дачи: томаты, перец, огурцы, баклажаны, лук, цветы и ягоды. Когда сажать, как выращивать, когда высаживать в грунт и как ухаживать.",
   keywords:
-    "справочник растений, огород, дача, как сажать помидоры, полив огурцов, выращивание картофеля",
+    "когда сажать помидоры, когда сажать перец, когда сажать огурцы, когда сажать баклажаны, справочник растений для дачи",
+  alternates: {
+    canonical: absoluteUrl("/guide"),
+  },
 };
 
 export default async function GuidePage() {
@@ -47,6 +52,16 @@ export default async function GuidePage() {
 
   return (
     <div>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: "Справочник растений и сроки посадки",
+          description:
+            "Справочник культур для дачи с ответами на запросы когда сажать, как выращивать и когда высаживать в открытый грунт.",
+          url: absoluteUrl("/guide"),
+        }}
+      />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-2">
           Справочник растений для дачи
@@ -55,6 +70,27 @@ export default async function GuidePage() {
           {crops.length} культур с рекомендациями по выращиванию в российских
           регионах
         </p>
+
+        <div className="mb-8 grid gap-3 md:grid-cols-2">
+          <Link
+            href="/kogda-sazhat-rassadu"
+            className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-900 transition hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100"
+          >
+            <span className="block font-semibold">Когда сажать рассаду</span>
+            <span className="mt-1 block text-emerald-800/80 dark:text-emerald-200/80">
+              Помидоры, перец, баклажаны, огурцы, лук и цветы по месяцам и регионам.
+            </span>
+          </Link>
+          <Link
+            href="/kalendar-posadok-2026"
+            className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950 transition hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100"
+          >
+            <span className="block font-semibold">Календарь посадок 2026</span>
+            <span className="mt-1 block text-amber-900/80 dark:text-amber-200/80">
+              Что сажать в феврале, марте, апреле и когда высаживать в теплицу и грунт.
+            </span>
+          </Link>
+        </div>
 
         <GuideSearch crops={crops} />
 

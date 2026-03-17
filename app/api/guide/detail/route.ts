@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { mergeVarieties } from "@/lib/crop-community";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { crops as staticCrops } from "@/lib/data/crops";
@@ -43,16 +44,26 @@ export async function GET(request: NextRequest) {
 
   let crop: { name: string; varieties?: { name: string }[] } | null =
     staticCrops.find((c) => c.slug === slug) ?? null;
-  if (!crop) {
-    try {
-      const row = await prisma.crop.findUnique({ where: { slug } });
-      if (row) {
-        const varieties = Array.isArray(row.varieties)
-          ? (row.varieties as { name: string; desc?: string }[]).map((v) => ({ name: v.name }))
-          : undefined;
-        crop = { name: row.name, varieties };
+  try {
+    const row = await prisma.crop.findUnique({ where: { slug } });
+    if (row) {
+      const rowVarieties = Array.isArray(row.varieties)
+        ? (row.varieties as { name: string; desc?: string }[]).map((v) => ({ name: v.name, desc: v.desc ?? "" }))
+        : undefined;
+      if (crop) {
+        crop = {
+          name: crop.name,
+          varieties: mergeVarieties(
+            crop.varieties?.map((v) => ({ name: v.name, desc: "" })),
+            rowVarieties,
+          )?.map((v) => ({ name: v.name })),
+        };
+      } else {
+        crop = { name: row.name, varieties: rowVarieties?.map((v) => ({ name: v.name })) };
       }
-    } catch {
+    }
+  } catch {
+    if (!crop) {
       crop = null;
     }
   }

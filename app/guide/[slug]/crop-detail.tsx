@@ -133,6 +133,29 @@ export function CropDetailContent({ crop }: Props) {
           </MotionDiv>
         )}
 
+        <MotionDiv variant="fadeUp" delay={0.18}>
+          <div className="grid gap-4 mb-8 md:grid-cols-3">
+            <Card className="p-5">
+              <h2 className="text-lg font-semibold mb-2">Когда сажать {crop.name.toLowerCase()}</h2>
+              <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+                Ориентировочный срок посадки или высадки: <strong>{crop.plantMonth}</strong>. Для теплолюбивых культур сверяйте срок с регионом и риском возвратных заморозков.
+              </p>
+            </Card>
+            <Card className="p-5">
+              <h2 className="text-lg font-semibold mb-2">Когда ждать урожай</h2>
+              <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+                Основной период сбора урожая: <strong>{crop.harvestMonth}</strong>. Точные сроки зависят от сорта, погоды и способа выращивания.
+              </p>
+            </Card>
+            <Card className="p-5">
+              <h2 className="text-lg font-semibold mb-2">Уход и полив</h2>
+              <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+                Базовый режим полива: <strong>{crop.water}</strong>. В заметках учтите особенность культуры: {crop.note}.
+              </p>
+            </Card>
+          </div>
+        </MotionDiv>
+
         {/* Info cards */}
         <MotionDiv variant="fadeUp" delay={0.2}>
           <div className="grid gap-4 sm:grid-cols-2 mb-8">

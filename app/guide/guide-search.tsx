@@ -255,7 +255,7 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
               )}
             </Button>
             <p className="text-xs text-slate-500 mt-2">
-              Культура будет добавлена в общий справочник с пометкой «Добавлено дачниками» и фото по запросу к нейросети.
+              Культура будет добавлена в общий справочник с пометкой «Добавлено дачниками» и иллюстрацией, если получится найти подходящее фото.
             </p>
             {addToGuideError && (
               <p className="text-sm text-red-500 mt-2">{addToGuideError}</p>

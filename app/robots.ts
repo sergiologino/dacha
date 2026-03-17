@@ -5,8 +5,25 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/guide", "/guide/*", "/facts"],
-        disallow: ["/garden", "/calendar", "/camera", "/subscribe", "/api/", "/auth/", "/settings"],
+        allow: [
+          "/",
+          "/guide",
+          "/guide/*",
+          "/facts",
+          "/kogda-sazhat-rassadu",
+          "/kalendar-posadok-2026",
+          "/llms.txt",
+          "/llms-full.txt",
+        ],
+        disallow: [
+          "/garden",
+          "/calendar",
+          "/camera",
+          "/subscribe",
+          "/api/",
+          "/auth/",
+          "/settings",
+        ],
       },
     ],
     sitemap: "https://dacha-ai.ru/sitemap.xml",

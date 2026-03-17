@@ -31,16 +31,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/privacy`,
+      url: `${baseUrl}/kogda-sazhat-rassadu`,
       lastModified: new Date(),
-      changeFrequency: "yearly",
-      priority: 0.4,
+      changeFrequency: "weekly",
+      priority: 0.95,
     },
     {
-      url: `${baseUrl}/terms`,
+      url: `${baseUrl}/kalendar-posadok-2026`,
       lastModified: new Date(),
-      changeFrequency: "yearly",
-      priority: 0.4,
+      changeFrequency: "weekly",
+      priority: 0.95,
     },
     ...cropPages,
   ];
