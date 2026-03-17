@@ -14,6 +14,9 @@ export interface BedPlantPhoto {
   id: string;
   url: string;
   takenAt: string;
+  caption?: string | null;
+  isPublic?: boolean;
+  publishedAt?: string | null;
   analysisResult?: string | null;
   analysisStatus?: string | null;
   analyzedAt?: string | null;

@@ -48,6 +48,8 @@ import type { CropWithSource } from "@/lib/crops-merge";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { PlannedWorkModal, type PlannedWorkEvent } from "@/components/planned-work-modal";
 import { NotificationPromptModal, getNotificationPromptSeen } from "@/components/notification-prompt-modal";
+import { GalleryShareButton } from "@/components/gallery-share-button";
+import { getGalleryPhotoUrl } from "@/lib/gallery";
 
 const bedTypeLabels: Record<string, string> = {
   open: "Открытый грунт",
@@ -629,6 +631,7 @@ function BedCard({
   updatingPlant: boolean;
   uploadingPhoto: boolean;
 }) {
+  const qc = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [editingBedName, setEditingBedName] = useState(false);
   const [editingBedNameValue, setEditingBedNameValue] = useState(bed.name);
@@ -649,9 +652,20 @@ function BedCard({
   const [photoPlantId, setPhotoPlantId] = useState<string | null>(null);
   const [gallery, setGallery] = useState<{
     plantName: string;
-    photos: { id: string; url: string; takenAt: string; analysisResult?: string | null; analysisStatus?: string | null }[];
+    photos: {
+      id: string;
+      url: string;
+      takenAt: string;
+      caption?: string | null;
+      isPublic?: boolean;
+      publishedAt?: string | null;
+      analysisResult?: string | null;
+      analysisStatus?: string | null;
+    }[];
     index: number;
   } | null>(null);
+  const [galleryCaption, setGalleryCaption] = useState("");
+  const [gallerySaving, setGallerySaving] = useState(false);
   const [regeneratingPlantId, setRegeneratingPlantId] = useState<string | null>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -724,6 +738,11 @@ function BedCard({
 
   const closeGallery = () => setGallery(null);
 
+  useEffect(() => {
+    const currentPhoto = gallery?.photos[gallery.index];
+    setGalleryCaption(currentPhoto?.caption ?? "");
+  }, [gallery?.index, gallery?.photos]);
+
   const galleryPrev = () => {
     if (!gallery) return;
     setGallery((g) =>
@@ -736,6 +755,65 @@ function BedCard({
     setGallery((g) =>
       g ? { ...g, index: g.index < g.photos.length - 1 ? g.index + 1 : 0 } : null
     );
+  };
+
+  const updateGalleryPhoto = (photoId: string, patch: {
+    caption?: string | null;
+    isPublic?: boolean;
+    publishedAt?: string | null;
+  }) => {
+    setGallery((current) =>
+      current
+        ? {
+            ...current,
+            photos: current.photos.map((photo) =>
+              photo.id === photoId ? { ...photo, ...patch } : photo
+            ),
+          }
+        : current
+    );
+  };
+
+  const saveGalleryPhoto = async (isPublic: boolean) => {
+    const currentPhoto = gallery?.photos[gallery.index];
+    if (!currentPhoto) return;
+
+    setGallerySaving(true);
+    try {
+      const res = await fetch(`/api/photos/${currentPhoto.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          caption: galleryCaption.trim() || null,
+          isPublic,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Не удалось обновить публикацию");
+      }
+
+      updateGalleryPhoto(currentPhoto.id, {
+        caption: data.caption ?? null,
+        isPublic: !!data.isPublic,
+        publishedAt: data.publishedAt ?? null,
+      });
+      await qc.invalidateQueries({ queryKey: ["beds"] });
+      await qc.invalidateQueries({ queryKey: ["gallery-feed"] });
+      toast.success(
+        data.isPublic
+          ? "Фото опубликовано в галерее"
+          : "Фото снято с публикации"
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Не удалось обновить публикацию"
+      );
+    } finally {
+      setGallerySaving(false);
+    }
   };
 
   return (
@@ -1294,6 +1372,73 @@ function BedCard({
                   <p className="mt-0.5">{gallery.photos[gallery.index].analysisResult}</p>
                 </div>
               )}
+              <div className="w-full flex-shrink-0 px-4 py-3 bg-black/65 text-white text-sm space-y-3">
+                <textarea
+                  value={galleryCaption}
+                  onChange={(e) => setGalleryCaption(e.target.value)}
+                  rows={2}
+                  maxLength={280}
+                  placeholder="Подпись к публикации: что выросло, чем гордитесь, какой результат."
+                  className="w-full rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-sm placeholder:text-white/50"
+                />
+                <div className="flex flex-wrap gap-2 items-center">
+                  {gallery.photos[gallery.index]?.isPublic ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => saveGalleryPhoto(true)}
+                        disabled={gallerySaving}
+                        className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        {gallerySaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                        Обновить публикацию
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => saveGalleryPhoto(false)}
+                        disabled={gallerySaving}
+                        className="rounded-xl border-white/20 bg-white/5 text-white hover:bg-white/10"
+                      >
+                        Снять с публикации
+                      </Button>
+                      <Button
+                        asChild
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-xl border-white/20 bg-white/5 text-white hover:bg-white/10"
+                      >
+                        <Link href={`/gallery/${gallery.photos[gallery.index].id}`}>
+                          Открыть пост
+                        </Link>
+                      </Button>
+                      <GalleryShareButton
+                        url={getGalleryPhotoUrl(gallery.photos[gallery.index].id)}
+                        title={galleryCaption || gallery.plantName}
+                        variant="outline"
+                        size="sm"
+                      />
+                    </>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => saveGalleryPhoto(true)}
+                      disabled={gallerySaving}
+                      className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {gallerySaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                      Опубликовать в галерее
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-white/70">
+                  Опубликованные фото попадут в общую галерею дачников, где их можно лайкать, комментировать и отправлять по ссылке.
+                </p>
+              </div>
               {gallery.photos.length > 1 && (
                 <>
                   <Button
