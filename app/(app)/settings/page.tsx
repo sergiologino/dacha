@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3, BookOpen } from "lucide-react";
+import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3, BookOpen, CloudSun } from "lucide-react";
 import { clearFeatureOnboardingSeen } from "@/components/feature-onboarding";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,6 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { usePushSubscription } from "@/lib/hooks/use-push-subscription";
+import {
+  WEATHER_CHECK_INTERVAL_OPTIONS,
+  WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT,
+} from "@/lib/weather-settings";
 
 type PaymentRow = {
   id: string;
@@ -78,6 +82,12 @@ export default function SettingsPage() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [pageVisitsSummary, setPageVisitsSummary] = useState<PageVisitSummaryItem[]>([]);
   const [pageVisitsLoading, setPageVisitsLoading] = useState(false);
+  const [weatherPushEnabled, setWeatherPushEnabled] = useState(false);
+  const [weatherCheckIntervalMinutes, setWeatherCheckIntervalMinutes] = useState(
+    WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT
+  );
+  const [weatherHasLocation, setWeatherHasLocation] = useState(false);
+  const [weatherSaving, setWeatherSaving] = useState(false);
   const push = usePushSubscription();
 
   const fetchUsers = () => {
@@ -104,14 +114,22 @@ export default function SettingsPage() {
     Promise.all([
       fetch("/api/user/location").then((r) => r.json()),
       fetch("/api/user/premium").then((r) => r.json()),
+      fetch("/api/user/weather-settings").then((r) => r.json()),
     ])
-      .then(([loc, prem]) => {
+      .then(([loc, prem, weather]) => {
         if (loc.latitude && loc.longitude) {
           setPosition({ lat: loc.latitude, lng: loc.longitude });
           setLocationName(loc.locationName || "");
         }
         setIsPremium(!!prem.isPremium);
         setIsAdmin(!!prem.isAdmin);
+        setWeatherPushEnabled(!!weather.weatherPushEnabled);
+        setWeatherCheckIntervalMinutes(
+          typeof weather.weatherCheckIntervalMinutes === "number"
+            ? weather.weatherCheckIntervalMinutes
+            : WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT
+        );
+        setWeatherHasLocation(!!weather.hasLocation);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -201,10 +219,47 @@ export default function SettingsPage() {
       });
 
       toast.success("Местоположение обновлено");
+      setWeatherHasLocation(true);
     } catch {
       toast.error("Ошибка сохранения");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveWeatherSettings = async () => {
+    setWeatherSaving(true);
+    try {
+      const res = await fetch("/api/user/weather-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weatherPushEnabled,
+          weatherCheckIntervalMinutes,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Не удалось сохранить погодные уведомления");
+      }
+
+      setWeatherPushEnabled(!!data.weatherPushEnabled);
+      setWeatherCheckIntervalMinutes(
+        typeof data.weatherCheckIntervalMinutes === "number"
+          ? data.weatherCheckIntervalMinutes
+          : WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT
+      );
+      setWeatherHasLocation(!!data.hasLocation);
+      toast.success("Погодные уведомления сохранены");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Не удалось сохранить погодные уведомления"
+      );
+    } finally {
+      setWeatherSaving(false);
     }
   };
 
@@ -609,6 +664,68 @@ export default function SettingsPage() {
             </>
           );
         })()}
+      </Card>
+
+      <Card className="p-6 mb-6">
+        <h2 className="font-semibold mb-3 flex items-center gap-2">
+          <CloudSun className="w-5 h-5 text-emerald-600" />
+          Погодные предупреждения
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+          Пуши при заметных изменениях погоды: заморозки, сильный ветер, дождь, снег и жара. Проверка идёт по вашему местоположению.
+        </p>
+
+        <label className="flex items-start gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 mb-4">
+          <input
+            type="checkbox"
+            checked={weatherPushEnabled}
+            onChange={(e) => setWeatherPushEnabled(e.target.checked)}
+            disabled={weatherSaving || !weatherHasLocation}
+            className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600"
+          />
+          <div>
+            <p className="text-sm font-medium">Включить погодные предупреждения</p>
+            <p className="text-xs text-slate-500 mt-1">
+              {weatherHasLocation
+                ? "Предупреждения будут приходить только при реальных изменениях погодных рисков."
+                : "Сначала сохраните местоположение участка выше на карте."}
+            </p>
+          </div>
+        </label>
+
+        <label className="flex flex-col gap-2 text-sm mb-4">
+          <span className="text-slate-500">Интервал проверки погоды</span>
+          <select
+            value={String(weatherCheckIntervalMinutes)}
+            onChange={(e) => setWeatherCheckIntervalMinutes(Number(e.target.value))}
+            disabled={weatherSaving || !weatherHasLocation}
+            className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-sm"
+          >
+            {WEATHER_CHECK_INTERVAL_OPTIONS.map((minutes) => (
+              <option key={minutes} value={minutes}>
+                {minutes < 60
+                  ? `${minutes} мин`
+                  : minutes % 60 === 0
+                    ? `${minutes / 60} ч`
+                    : `${Math.floor(minutes / 60)} ч ${minutes % 60} мин`}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <Button
+          type="button"
+          onClick={saveWeatherSettings}
+          disabled={weatherSaving || !weatherHasLocation}
+          className="w-full h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700"
+        >
+          {weatherSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CloudSun className="w-4 h-4 mr-2" />}
+          Сохранить погодные уведомления
+        </Button>
+
+        <p className="text-xs text-slate-400 mt-3">
+          Для работы нужны включённые push-уведомления выше и сохранённое местоположение. По умолчанию проверка выполняется раз в час.
+        </p>
       </Card>
 
       <Button

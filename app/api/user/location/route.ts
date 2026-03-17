@@ -16,7 +16,14 @@ export async function POST(request: NextRequest) {
 
   const updated = await prisma.user.update({
     where: { id: user.id },
-    data: { latitude, longitude, locationName },
+    data: {
+      latitude,
+      longitude,
+      locationName,
+      weatherLastCheckedAt: null,
+      weatherAlertKeys: [],
+      weatherLastPressureMb: null,
+    },
   });
 
   return NextResponse.json({

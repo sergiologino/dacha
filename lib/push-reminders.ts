@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getCropDisplayName } from "@/lib/crop-weather-context";
 
 /** Смещение Москвы от UTC в миллисекундах (UTC+3). */
 const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -36,7 +37,9 @@ export type ReminderEvent = {
   id: string;
   title: string;
   bedName: string;
+  bedType: string | null;
   plantName: string;
+  cropLabel: string | null;
   description: string | null;
   isUserCreated: boolean;
 };
@@ -73,8 +76,38 @@ function buildOriginSummary(events: ReminderEvent[]): string {
   return `Вручную: ${manualCount}, по календарю: ${generatedCount}.`;
 }
 
+function capitalize(value: string): string {
+  return value ? value[0]!.toUpperCase() + value.slice(1) : value;
+}
+
+function buildBedLabel(event: ReminderEvent): string {
+  if (event.bedType === "greenhouse") {
+    return `в теплице «${event.bedName}»`;
+  }
+  if (event.bedType === "raised") {
+    return `на высокой грядке «${event.bedName}»`;
+  }
+  if (event.bedType === "seedling_home") {
+    return `для рассады дома`;
+  }
+  return `на грядке «${event.bedName}»`;
+}
+
 function buildEventContext(event: ReminderEvent): string {
-  return [event.plantName, event.bedName].filter(Boolean).join(" · ");
+  return [event.plantName, buildBedLabel(event)].filter(Boolean).join(" · ");
+}
+
+function buildCropFocus(events: ReminderEvent[]): string {
+  const crops = Array.from(
+    new Set(events.map((event) => event.cropLabel).filter(Boolean))
+  ) as string[];
+
+  if (crops.length === 0) return "";
+  if (crops.length === 1) return `Фокус: ${capitalize(crops[0]!)}.`;
+  if (crops.length === 2) {
+    return `Фокус: ${capitalize(crops[0]!)} и ${crops[1]}.`;
+  }
+  return `Фокус: ${capitalize(crops[0]!)} и другие культуры.`;
 }
 
 /**
@@ -116,7 +149,13 @@ export async function getReminderEventsByUserForDate(
       id: e.id,
       title: e.title,
       bedName: e.plant.bed?.name ?? "Без грядки",
+      bedType: e.plant.bed?.type ?? null,
       plantName: e.plant.name,
+      cropLabel: getCropDisplayName({
+        name: e.plant.name,
+        cropSlug: e.plant.cropSlug,
+        bedType: e.plant.bed?.type ?? null,
+      }),
       description: e.description,
       isUserCreated: e.isUserCreated,
     });
@@ -138,7 +177,10 @@ export function formatReminderPayload(
   }
   if (events.length === 1) {
     const e = events[0]!;
-    const details = [buildEventContext(e)];
+    const details = [
+      e.cropLabel ? capitalize(e.cropLabel) : null,
+      buildEventContext(e),
+    ].filter(Boolean) as string[];
     if (e.isUserCreated) {
       details.push("добавлено вручную");
     }
@@ -154,7 +196,7 @@ export function formatReminderPayload(
   const first = events[0]!;
   return {
     title: `${dateLabel}: ${formatWorksCount(events.length)}`,
-    body: `Сначала: ${first.title} (${first.plantName}). ${buildOriginSummary(events)}`,
+    body: `${buildCropFocus(events)} Сначала: ${first.title} — ${first.plantName} ${buildBedLabel(first)}. ${buildOriginSummary(events)}`.trim(),
     url: "/calendar",
   };
 }
@@ -163,9 +205,11 @@ export function formatCombinedReminderPayload(
   todayEvents: ReminderEvent[],
   tomorrowEvents: ReminderEvent[]
 ): { title: string; body: string; url: string } {
+  const todayFocus = buildCropFocus(todayEvents);
+  const tomorrowFocus = buildCropFocus(tomorrowEvents);
   return {
     title: "Работы на сегодня и завтра",
-    body: `Сегодня ${formatWorksCount(todayEvents.length)}, завтра ${formatWorksCount(tomorrowEvents.length)}. ${buildOriginSummary([
+    body: `Сегодня ${formatWorksCount(todayEvents.length)}${todayFocus ? ` (${todayFocus.replace(/^Фокус:\s*/, "").replace(/\.$/, "")})` : ""}, завтра ${formatWorksCount(tomorrowEvents.length)}${tomorrowFocus ? ` (${tomorrowFocus.replace(/^Фокус:\s*/, "").replace(/\.$/, "")})` : ""}. ${buildOriginSummary([
       ...todayEvents,
       ...tomorrowEvents,
     ])}`,
