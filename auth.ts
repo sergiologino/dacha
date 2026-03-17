@@ -108,7 +108,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = (token.sub ?? token.id) as string;
+        session.user.id = (token.id ?? token.sub) as string;
         session.user.name = token.name ?? "";
         session.user.email = typeof token.email === "string" ? token.email : "";
         session.user.image = typeof token.picture === "string" ? token.picture : "";
