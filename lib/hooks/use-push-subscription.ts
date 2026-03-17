@@ -74,7 +74,7 @@ export function usePushSubscription() {
         throw new Error((data as { error?: string }).error || "Ошибка подписки");
       }
       setState("subscribed");
-      setMessage("Уведомления включены. Вы будете получать напоминания о плановых работах.");
+      setMessage("Уведомления включены. Напоминания по работам активны, а погодные предупреждения можно настроить в профиле ниже.");
     } catch (err) {
       setState("error");
       setMessage(err instanceof Error ? err.message : "Ошибка подписки");

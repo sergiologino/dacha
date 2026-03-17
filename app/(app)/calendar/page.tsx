@@ -213,6 +213,14 @@ export default function CalendarPage() {
                 lat={location?.latitude ?? null}
                 lon={location?.longitude ?? null}
                 locationName={location?.locationName || ""}
+                bedTypes={(beds ?? []).map((bed) => bed.type)}
+                plants={(beds ?? []).flatMap((bed) =>
+                  (bed.plants ?? []).map((plant) => ({
+                    name: plant.name,
+                    cropSlug: plant.cropSlug,
+                    bedType: bed.type,
+                  }))
+                )}
               />
             </div>
           )}

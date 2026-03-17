@@ -10,7 +10,9 @@ const makeEvent = (overrides: Partial<ReminderEvent> = {}): ReminderEvent => ({
   id: "event-1",
   title: "Полив",
   bedName: "Теплица",
+  bedType: "greenhouse",
   plantName: "Томат Черри",
+  cropLabel: "томаты",
   description: "Проверить влажность почвы и полить под корень.",
   isUserCreated: false,
   ...overrides,
@@ -25,6 +27,7 @@ describe("push reminders", () => {
 
     expect(payload.title).toBe("Сегодня: Проверить листья");
     expect(payload.body).toContain("добавлено вручную");
+    expect(payload.body).toContain("Томаты");
   });
 
   it("formats mixed task list with manual and generated counts", () => {
@@ -38,6 +41,7 @@ describe("push reminders", () => {
     );
 
     expect(payload.title).toBe("Завтра: 3 работы");
+    expect(payload.body).toContain("Фокус: Томаты");
     expect(payload.body).toContain("Вручную: 1, по календарю: 2.");
   });
 
@@ -48,8 +52,26 @@ describe("push reminders", () => {
     );
 
     expect(payload.title).toBe("Работы на сегодня и завтра");
-    expect(payload.body).toContain("Сегодня 1 работа, завтра 1 работа.");
+    expect(payload.body).toContain("Сегодня 1 работа");
+    expect(payload.body).toContain("Томаты");
     expect(payload.body).toContain("Вручную: 1, по календарю: 1.");
+  });
+
+  it("adds bed-specific wording for raised beds", () => {
+    const payload = formatReminderPayload(
+      [
+        makeEvent({
+          bedName: "Клубника у дорожки",
+          bedType: "raised",
+          plantName: "Клубника",
+          cropLabel: "клубника",
+        }),
+      ],
+      false
+    );
+
+    expect(payload.body).toContain("на высокой грядке");
+    expect(payload.body).toContain("Клубника");
   });
 
   it("builds stable dedupe key regardless of event order", () => {

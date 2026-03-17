@@ -33,7 +33,6 @@
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | OAuth Google |
 | `AUTH_YANDEX_ID`, `AUTH_YANDEX_SECRET` | OAuth Яндекс |
 | `SMS_RU_API_ID` | API ID для отправки одноразовых кодов через SMS.ru |
-| `WEATHER_API_KEY` | Ключ WeatherAPI.com |
 | `AI_INTEGRATION_URL`, `AI_INTEGRATION_API_KEY` | AI-интегратор |
 | `YOOKASSA_SHOP_ID`, `YOOKASSA_SECRET_KEY` | ЮKassa (оплаты) |
 | `ADMIN_EMAILS` | Список email админов через запятую (для админки и платежей) |
@@ -48,8 +47,8 @@
 | `NEXT_PUBLIC_ENABLE_PHONE_AUTH` | `1` чтобы показать вход по телефону на UI; по умолчанию блок скрыт до готовности провайдера |
 | `SMS_RU_FROM` | Подпись отправителя в SMS.ru, если она подключена в аккаунте |
 | `SMS_RU_TEST` | `1` для тестового режима SMS.ru без реальной отправки |
-| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Ключи Web Push (для пуш-напоминаний о плановых работах). Сгенерировать: `npx web-push generate-vapid-keys` |
-| `CRON_SECRET` | Секрет для вызова крон-задачи напоминаний (GET `/api/cron/push-reminders?secret=...` или заголовок `Authorization: Bearer ...`) |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Ключи Web Push (для пуш-напоминаний о работах и погодных предупреждений). Сгенерировать: `npx web-push generate-vapid-keys` |
+| `CRON_SECRET` | Секрет для вызова cron-задач пушей (GET `/api/cron/push-reminders?secret=...`, `/api/cron/weather-alerts?secret=...` или заголовок `Authorization: Bearer ...`) |
 | `PUSH_REMINDERS_TZ` | Часовой пояс для «сегодня/завтра» (по умолчанию `Europe/Moscow`) |
 
 ---
@@ -138,7 +137,6 @@ docker run -d \
   -e AUTH_GOOGLE_SECRET="..." \
   -e AUTH_YANDEX_ID="..." \
   -e AUTH_YANDEX_SECRET="..." \
-  -e WEATHER_API_KEY="..." \
   -e AI_INTEGRATION_URL="..." \
   -e AI_INTEGRATION_API_KEY="..." \
   -e YOOKASSA_SHOP_ID="..." \
@@ -200,7 +198,7 @@ node .next/standalone/server.js
 - [ ] `ADMIN_EMAILS` задан (для админки и вкладки «Платежи» в настройках)
 - [ ] В сборку переданы `NEXT_PUBLIC_GA_ID` и `NEXT_PUBLIC_YM_ID` (если нужна аналитика)
 - [ ] ЮKassa: на продакшене используются боевые `YOOKASSA_SHOP_ID` и `YOOKASSA_SECRET_KEY`
-- [ ] Пуш-напоминания: заданы `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`; настроен ежедневный вызов `/api/cron/push-reminders` с `CRON_SECRET` (см. раздел 8)
+- [ ] Пуш-напоминания: заданы `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`; настроены cron-вызовы `/api/cron/push-reminders` и `/api/cron/weather-alerts` с `CRON_SECRET` (см. раздел 8)
 
 ---
 
@@ -265,3 +263,27 @@ node .next/standalone/server.js
 - **VAPID не заданы** — без них пуши не отправляются; в ответе крона будет 503 «Push not configured».
 - **Дата события** — «сегодня» и «завтра» считаются по часовому поясу `PUSH_REMINDERS_TZ` (по умолчанию Europe/Moscow). Событие должно быть с `isAction: true` и без `doneAt`. В выборку попадают и работы из календаря ухода, и события, добавленные пользователем вручную (`isUserCreated: true`).
 - **Повторы крона** — одинаковое уведомление не должно уйти повторно: cron дедуплицируется через таблицу `push_delivery_logs`. Если подписок у пользователя нет, уведомление не фиксируется как отправленное.
+
+### 8.1 Погодные предупреждения
+
+Погодные push-уведомления о заморозках, сильном ветре, дожде, снеге и жаре отправляются отдельным cron-эндпоинтом:
+
+`GET https://ваш-домен/api/cron/weather-alerts`
+
+Условия работы:
+
+1. Заданы `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` и `CRON_SECRET`.
+2. Пользователь включил обычные push-уведомления в профиле.
+3. Пользователь сохранил местоположение участка и включил в профиле «Погодные предупреждения».
+4. Cron запускается регулярно, лучше раз в 15 минут, чтобы поддерживать минимальный пользовательский интервал проверки.
+
+**Рекомендуемый cron для погоды (раз в 15 минут):**
+```bash
+*/15 * * * * curl -s "https://dacha-ai.ru/api/cron/weather-alerts?secret=$CRON_SECRET"
+```
+
+Важно:
+
+- У каждого пользователя свой интервал проверки в профиле: от `15 минут` до `6 часов`, по умолчанию `1 час`.
+- Если погода не изменилась по значимым рискам, новый push не отправляется.
+- При смене местоположения состояние прошлых погодных предупреждений сбрасывается, чтобы система пересчитала риски заново.

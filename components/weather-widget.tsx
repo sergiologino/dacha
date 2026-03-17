@@ -7,12 +7,15 @@ import { Button } from "@/components/ui/button";
 import { MotionDiv } from "@/components/motion";
 import { useWeather, type ForecastDay } from "@/lib/hooks/use-weather";
 import { generateWeatherTips, type WeatherTip } from "@/lib/weather-tips";
+import type { PlantWeatherInfo } from "@/lib/crop-weather-context";
 
 interface WeatherWidgetProps {
   lat: number | null;
   lon: number | null;
   locationName?: string;
   compact?: boolean;
+  bedTypes?: string[];
+  plants?: PlantWeatherInfo[];
 }
 
 const severityColors: Record<string, string> = {
@@ -65,7 +68,14 @@ function ForecastCard({ day }: { day: ForecastDay }) {
   );
 }
 
-export function WeatherWidget({ lat, lon, locationName, compact = false }: WeatherWidgetProps) {
+export function WeatherWidget({
+  lat,
+  lon,
+  locationName,
+  compact = false,
+  bedTypes,
+  plants,
+}: WeatherWidgetProps) {
   const { data, isLoading, isFetching, error, refresh } = useWeather(lat, lon);
 
   if (!lat || !lon) return null;
@@ -82,7 +92,10 @@ export function WeatherWidget({ lat, lon, locationName, compact = false }: Weath
 
   if (error || !data) return null;
 
-  const tips = generateWeatherTips(data.current, data.forecast);
+  const tips = generateWeatherTips(data.current, data.forecast, {
+    bedTypes,
+    plants,
+  });
   const displayName = locationName || data.location.name || "";
   const updatedAt = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 

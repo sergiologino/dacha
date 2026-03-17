@@ -124,4 +124,30 @@ describe("generateWeatherTips", () => {
     expect(dry).toBeDefined();
     expect(dry!.text).toContain("3 дня");
   });
+
+  it("gives greenhouse-specific wind advice", () => {
+    const tips = generateWeatherTips(makeCurrent({ wind_kph: 50 }), makeForecast(), {
+      bedTypes: ["greenhouse"],
+      plants: [
+        { name: "Томат", cropSlug: "tomat" },
+        { name: "Огурец", cropSlug: "ogurets" },
+      ],
+    });
+    const wind = tips.find((t) => t.emoji === "💨");
+    expect(wind).toBeDefined();
+    expect(wind!.text).toContain("теплиц");
+    expect(wind!.text).toContain("томаты");
+  });
+
+  it("keeps seedling_home tips focused on drafts and stable indoor mode", () => {
+    const tips = generateWeatherTips(
+      makeCurrent({ wind_kph: 35, pressure_mb: 998 }),
+      makeForecast(),
+      { bedTypes: ["seedling_home"] }
+    );
+
+    expect(tips.some((tip) => tip.emoji === "🪟")).toBe(true);
+    expect(tips.some((tip) => tip.text.includes("рассады дома"))).toBe(true);
+    expect(tips.some((tip) => tip.emoji === "❄️")).toBe(false);
+  });
 });

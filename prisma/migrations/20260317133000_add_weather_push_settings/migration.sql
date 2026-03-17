@@ -1,0 +1,5 @@
+ALTER TABLE "users"
+ADD COLUMN "weatherPushEnabled" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN "weatherCheckIntervalMinutes" INTEGER NOT NULL DEFAULT 60,
+ADD COLUMN "weatherLastCheckedAt" TIMESTAMP(3),
+ADD COLUMN "weatherAlertKeys" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

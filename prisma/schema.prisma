@@ -22,6 +22,11 @@ model User {
   latitude      Float?
   longitude     Float?
   locationName  String?
+  weatherPushEnabled Boolean @default(false)
+  weatherCheckIntervalMinutes Int @default(60)
+  weatherLastCheckedAt DateTime?
+  weatherAlertKeys String[] @default([])
+  weatherLastPressureMb Float?
   regionReport  String?
   onboardingDone Boolean  @default(false)
   isPremium     Boolean   @default(false)
