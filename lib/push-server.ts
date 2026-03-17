@@ -26,11 +26,13 @@ export type PushPayload = {
   url?: string;
 };
 
+type PushSubscriptionSendResult = "sent" | "stale";
+
 export async function sendPushToSubscription(
   subscription: { endpoint: string; p256dh: string; auth: string },
   payload: PushPayload
-): Promise<boolean> {
-  if (!isPushConfigured()) return false;
+): Promise<PushSubscriptionSendResult> {
+  if (!isPushConfigured()) return "stale";
   try {
     await webpush.sendNotification(
       {
@@ -45,10 +47,10 @@ export async function sendPushToSubscription(
         TTL: 60 * 60 * 24,
       }
     );
-    return true;
+    return "sent";
   } catch (err) {
     const status = (err as { statusCode?: number }).statusCode;
-    if (status === 410 || status === 404) return false;
+    if (status === 410 || status === 404) return "stale";
     throw err;
   }
 }
@@ -56,23 +58,42 @@ export async function sendPushToSubscription(
 export async function sendPushToUser(
   userId: string,
   payload: PushPayload
-): Promise<{ sent: number; failed: number }> {
+): Promise<{ sent: number; failed: number; subscriptions: number; staleDeleted: number }> {
   const subs = await prisma.pushSubscription.findMany({
     where: { userId },
   });
   let sent = 0;
   let failed = 0;
+  const staleIds: string[] = [];
   for (const sub of subs) {
     try {
-      const ok = await sendPushToSubscription(
+      const result = await sendPushToSubscription(
         { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
         payload
       );
-      if (ok) sent++;
-      else failed++;
+      if (result === "sent") {
+        sent++;
+      } else {
+        failed++;
+        staleIds.push(sub.id);
+      }
     } catch {
       failed++;
     }
   }
-  return { sent, failed };
+
+  if (staleIds.length > 0) {
+    await prisma.pushSubscription.deleteMany({
+      where: {
+        id: { in: staleIds },
+      },
+    });
+  }
+
+  return {
+    sent,
+    failed,
+    subscriptions: subs.length,
+    staleDeleted: staleIds.length,
+  };
 }

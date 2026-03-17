@@ -39,6 +39,7 @@ model User {
   chatMessages ChatMessage[]
   payments     Payment[]
   pushSubscriptions PushSubscription[]
+  pushDeliveryLogs PushDeliveryLog[]
   pageVisits   PageVisit[]
   phoneAuthCodes PhoneAuthCode[]
 
@@ -57,6 +58,19 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+model PushDeliveryLog {
+  id         String   @id @default(cuid())
+  userId     String
+  channel    String   @default("webpush")
+  dedupeKey  String   @unique
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("push_delivery_logs")
 }
 
 model Account {
