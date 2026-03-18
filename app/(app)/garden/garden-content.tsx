@@ -130,13 +130,18 @@ export default function GardenContent() {
   const hasSuggestedOnboardingRef = useRef(false);
   const [loadingFallback, setLoadingFallback] = useState(false);
 
-  const { data: plants = [], isLoading: plantsLoading } = usePlants();
+  const plantsQuery = usePlants();
+  const plants = plantsQuery.data ?? [];
+  const plantsLoading = plantsQuery.isLoading;
   const createPlant = useCreatePlant();
   const updatePlant = useUpdatePlant();
   const deletePlant = useDeletePlant();
 
   const qc = useQueryClient();
-  const { data: beds = [], isLoading: bedsLoading } = useBeds();
+  const bedsQuery = useBeds();
+  const beds = bedsQuery.data ?? [];
+  const bedsLoading = bedsQuery.isLoading;
+  const bedsError = bedsQuery.isError;
   const { data: cropsList } = useCrops();
   const createBed = useCreateBed();
   const updateBed = useUpdateBed();
@@ -192,7 +197,7 @@ export default function GardenContent() {
   }, []);
 
   useEffect(() => {
-    if (bedsLoading) return;
+    if (status !== "authenticated" || bedsLoading || bedsError) return;
     if (beds.length === 0 && !hasSeededRef.current) {
       hasSeededRef.current = true;
       fetch("/api/user/seed-demo-garden", { method: "POST" })
@@ -213,7 +218,7 @@ export default function GardenContent() {
       hasSuggestedOnboardingRef.current = true;
       setShowFeatureOnboarding(true);
     }
-  }, [bedsLoading, beds.length, showOnboardingParam, qc]);
+  }, [bedsLoading, bedsError, beds.length, showOnboardingParam, qc, status]);
 
   const addBed = () => {
     if (!newBedName) return;

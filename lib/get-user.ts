@@ -7,7 +7,7 @@ export async function getAuthUser() {
 
   const sessionEmail =
     typeof session.user.email === "string" && session.user.email.trim()
-      ? session.user.email.trim()
+      ? session.user.email.trim().toLowerCase()
       : null;
   const sessionPhone =
     typeof session.user.phone === "string" && session.user.phone.trim()

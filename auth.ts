@@ -10,6 +10,14 @@ if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
       clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      profile(profile) {
+        return {
+          id: String(profile.sub ?? profile.id ?? ""),
+          name: typeof profile.name === "string" ? profile.name : null,
+          email: typeof profile.email === "string" ? profile.email : null,
+          image: typeof profile.picture === "string" ? profile.picture : null,
+        };
+      },
     })
   );
 }
@@ -19,6 +27,48 @@ if (process.env.AUTH_YANDEX_ID && process.env.AUTH_YANDEX_SECRET) {
     Yandex({
       clientId: process.env.AUTH_YANDEX_ID,
       clientSecret: process.env.AUTH_YANDEX_SECRET,
+      profile(profile) {
+        const yandexProfile = profile as {
+          id?: string | number;
+          client_id?: string;
+          default_email?: string;
+          emails?: string[];
+          real_name?: string;
+          display_name?: string;
+          login?: string;
+          default_avatar_id?: string;
+          avatar_url?: string;
+        };
+        const candidateEmail =
+          typeof yandexProfile.default_email === "string"
+            ? yandexProfile.default_email
+            : Array.isArray(yandexProfile.emails) && typeof yandexProfile.emails[0] === "string"
+              ? yandexProfile.emails[0]
+              : null;
+
+        const candidateName =
+          typeof yandexProfile.real_name === "string"
+            ? yandexProfile.real_name
+            : typeof yandexProfile.display_name === "string"
+              ? yandexProfile.display_name
+              : typeof yandexProfile.login === "string"
+                ? yandexProfile.login
+                : null;
+
+        const candidateImage =
+          typeof yandexProfile.default_avatar_id === "string" && yandexProfile.default_avatar_id
+            ? `https://avatars.yandex.net/get-yapic/${yandexProfile.default_avatar_id}/islands-200`
+            : typeof yandexProfile.avatar_url === "string"
+              ? yandexProfile.avatar_url
+              : null;
+
+        return {
+          id: String(yandexProfile.id ?? yandexProfile.client_id ?? ""),
+          name: candidateName,
+          email: candidateEmail,
+          image: candidateImage,
+        };
+      },
     })
   );
 }
@@ -92,7 +142,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, user }) {
-      // При первом входе сохраняем пользователя в токен (как по умолчанию в NextAuth).
       if (user) {
         token.id = user.id;
         token.name = user.name;
@@ -100,10 +149,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.picture = user.image;
         token.phone = user.phone ?? null;
       }
-      // Продлеваем срок действия при каждом обращении (сессия истекает через 7 дней без активности).
-      if (token) {
-        token.exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SEC;
-      }
+
       return token;
     },
     async session({ session, token }) {
