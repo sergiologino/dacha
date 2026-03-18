@@ -17,9 +17,8 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    weatherPushEnabled: user.weatherPushEnabled,
-    weatherCheckIntervalMinutes:
-      user.weatherCheckIntervalMinutes ?? WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT,
+    weatherPushEnabled: false,
+    weatherCheckIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT,
     hasLocation: user.latitude != null && user.longitude != null,
     minIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MIN,
     maxIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MAX,
@@ -55,22 +54,42 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const updated = await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      weatherPushEnabled,
-      weatherCheckIntervalMinutes,
-      weatherLastCheckedAt: null,
-      weatherAlertKeys: [],
-      weatherLastPressureMb: null,
-    },
-  });
+  try {
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        weatherPushEnabled,
+        weatherCheckIntervalMinutes,
+        weatherLastCheckedAt: null,
+        weatherAlertKeys: [],
+        weatherLastPressureMb: null,
+      },
+      select: {
+        latitude: true,
+        longitude: true,
+        weatherPushEnabled: true,
+        weatherCheckIntervalMinutes: true,
+      },
+    });
 
-  return NextResponse.json({
-    weatherPushEnabled: updated.weatherPushEnabled,
-    weatherCheckIntervalMinutes: updated.weatherCheckIntervalMinutes,
-    hasLocation: updated.latitude != null && updated.longitude != null,
-    minIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MIN,
-    maxIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MAX,
-  });
+    return NextResponse.json({
+      weatherPushEnabled: updated.weatherPushEnabled,
+      weatherCheckIntervalMinutes: updated.weatherCheckIntervalMinutes,
+      hasLocation: updated.latitude != null && updated.longitude != null,
+      minIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MIN,
+      maxIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MAX,
+    });
+  } catch (error) {
+    if ((error as { code?: string } | null)?.code === "P2022") {
+      return NextResponse.json(
+        {
+          error:
+            "Погодные уведомления временно недоступны: в рабочей базе ещё не применена миграция настроек погоды.",
+        },
+        { status: 503 }
+      );
+    }
+
+    throw error;
+  }
 }

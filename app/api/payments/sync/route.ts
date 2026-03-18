@@ -58,6 +58,7 @@ export async function GET() {
           prisma.user.update({
             where: { id: user.id },
             data: { isPremium: true, premiumUntil },
+            select: { id: true },
           }),
         ]);
         return NextResponse.json({ isPremium: true, activated: true });
@@ -132,6 +133,7 @@ export async function GET() {
           prisma.user.update({
             where: { id: user.id },
             data: { isPremium: true, premiumUntil },
+            select: { id: true },
           }),
           ...(succeeded.id
             ? [

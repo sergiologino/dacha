@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
       onboardingDone: true,
       region: zone.name,
     },
+    select: { id: true },
   });
 
   return NextResponse.json({
