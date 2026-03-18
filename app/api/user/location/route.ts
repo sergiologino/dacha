@@ -14,17 +14,50 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
   }
 
-  const updated = await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      latitude,
-      longitude,
-      locationName,
-      weatherLastCheckedAt: null,
-      weatherAlertKeys: [],
-      weatherLastPressureMb: null,
-    },
-  });
+  let updated:
+    | {
+        latitude: number | null;
+        longitude: number | null;
+        locationName: string | null;
+      }
+    | null = null;
+
+  try {
+    updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        latitude,
+        longitude,
+        locationName,
+        weatherLastCheckedAt: null,
+        weatherAlertKeys: [],
+        weatherLastPressureMb: null,
+      },
+      select: {
+        latitude: true,
+        longitude: true,
+        locationName: true,
+      },
+    });
+  } catch (error) {
+    if ((error as { code?: string } | null)?.code !== "P2022") {
+      throw error;
+    }
+
+    updated = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        latitude,
+        longitude,
+        locationName,
+      },
+      select: {
+        latitude: true,
+        longitude: true,
+        locationName: true,
+      },
+    });
+  }
 
   return NextResponse.json({
     latitude: updated.latitude,

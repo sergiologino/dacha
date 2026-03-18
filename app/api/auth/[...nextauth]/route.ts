@@ -1,4 +1,3 @@
-// app/api/auth/[...nextauth]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { handlers } from "@/auth";
 
@@ -107,7 +106,7 @@ export async function GET(request: NextRequest) {
       ? oauthCallbackStore.get(callbackSignature)
       : undefined;
 
-  if (callbackProvider && callbackSignature && existingState) {
+  if (callbackProvider && callbackSignature && existingState?.status === "success") {
     console.info(`${getCallbackLogPrefix(callbackProvider)}[duplicate-memory]`, {
       state: existingState.status,
       signaturePrefix: callbackSignature.slice(0, 8),
@@ -138,7 +137,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  if (isOAuthCallback && callbackSignature) {
+  if (isOAuthCallback && callbackSignature && !existingState) {
     oauthCallbackStore.set(callbackSignature, {
       status: "processing",
       expiresAt: now + OAUTH_CALLBACK_MEMORY_TTL_MS,

@@ -1,7 +1,8 @@
 import { MetadataRoute } from "next";
 import { crops } from "@/lib/data/crops";
+import { prisma } from "@/lib/prisma";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = "https://dacha-ai.ru";
 
   const cropPages = crops.map((crop) => ({
@@ -10,6 +11,32 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "monthly" as const,
     priority: 0.7,
   }));
+
+  let galleryPosts: Array<{
+    id: string;
+    publishedAt: Date | null;
+    createdAt: Date;
+  }> = [];
+
+  try {
+    galleryPosts = await prisma.photo.findMany({
+      where: {
+        isPublic: true,
+        publishedAt: { not: null },
+      },
+      select: {
+        id: true,
+        publishedAt: true,
+        createdAt: true,
+      },
+      orderBy: {
+        publishedAt: "desc",
+      },
+      take: 500,
+    });
+  } catch {
+    galleryPosts = [];
+  }
 
   return [
     {
@@ -31,6 +58,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
+      url: `${baseUrl}/gallery`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.85,
+    },
+    {
       url: `${baseUrl}/kogda-sazhat-rassadu`,
       lastModified: new Date(),
       changeFrequency: "weekly",
@@ -42,6 +75,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.95,
     },
+    ...galleryPosts.map((photo) => ({
+      url: `${baseUrl}/gallery/${photo.id}`,
+      lastModified: photo.publishedAt ?? photo.createdAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.65,
+    })),
     ...cropPages,
   ];
 }

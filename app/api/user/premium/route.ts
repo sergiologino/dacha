@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: { isPremium: !!enable },
+      select: { isPremium: true },
     });
 
     return NextResponse.json({ isPremium: updated.isPremium });

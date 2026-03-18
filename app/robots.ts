@@ -10,6 +10,8 @@ export default function robots(): MetadataRoute.Robots {
           "/guide",
           "/guide/*",
           "/facts",
+          "/gallery",
+          "/gallery/*",
           "/kogda-sazhat-rassadu",
           "/kalendar-posadok-2026",
           "/llms.txt",

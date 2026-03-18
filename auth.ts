@@ -92,7 +92,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, user }) {
-      // При первом входе сохраняем пользователя в токен (как по умолчанию в NextAuth).
       if (user) {
         token.id = user.id;
         token.name = user.name;
@@ -100,15 +99,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.picture = user.image;
         token.phone = user.phone ?? null;
       }
-      // Продлеваем срок действия при каждом обращении (сессия истекает через 7 дней без активности).
-      if (token) {
-        token.exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SEC;
-      }
+
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = (token.sub ?? token.id) as string;
+        session.user.id = (token.id ?? token.sub) as string;
         session.user.name = token.name ?? "";
         session.user.email = typeof token.email === "string" ? token.email : "";
         session.user.image = typeof token.picture === "string" ? token.picture : "";

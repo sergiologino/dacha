@@ -40,6 +40,8 @@ model User {
   beds         Bed[]
   analyses     Analysis[]
   photos       Photo[]
+  photoLikes   PhotoLike[]
+  photoComments PhotoComment[]
   tasks        TaskQueue[]
   chatMessages ChatMessage[]
   payments     Payment[]
@@ -231,6 +233,7 @@ model Photo {
   url            String
   caption        String?
   isPublic       Boolean   @default(false)
+  publishedAt    DateTime?
   takenAt        DateTime  @default(now())
   createdAt      DateTime  @default(now())
   syncedAt       DateTime?
@@ -238,11 +241,43 @@ model Photo {
   analysisStatus String?   // ok | problem — для точки на таймлайне (синяя/красная)
   analyzedAt     DateTime? // когда выполнен анализ
 
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plant Plant? @relation(fields: [plantId], references: [id], onDelete: SetNull)
-  bed   Bed?   @relation(fields: [bedId], references: [id], onDelete: SetNull)
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plant    Plant?         @relation(fields: [plantId], references: [id], onDelete: SetNull)
+  bed      Bed?           @relation(fields: [bedId], references: [id], onDelete: SetNull)
+  likes    PhotoLike[]
+  comments PhotoComment[]
 
+  @@index([isPublic, publishedAt])
   @@map("photos")
+}
+
+model PhotoLike {
+  id        String   @id @default(cuid())
+  photoId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([photoId, userId])
+  @@index([photoId, createdAt])
+  @@map("photo_likes")
+}
+
+model PhotoComment {
+  id        String   @id @default(cuid())
+  photoId   String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  photo Photo @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([photoId, createdAt])
+  @@index([userId, createdAt])
+  @@map("photo_comments")
 }
 
 model Analysis {
