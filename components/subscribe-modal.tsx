@@ -55,8 +55,8 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
     const description =
       selectedPlan === "yearly"
         ? offer.isEligible
-          ? "Любимая Дача Премиум на год + 2 месяца по ранней скидке"
-          : "Любимая Дача Премиум на год"
+          ? "Любимая Дача Премиум: 12 мес + 2 мес по акции новичка"
+          : "Любимая Дача Премиум на 12 месяцев (годовая оплата)"
         : "Любимая Дача Премиум на месяц";
 
     setError(null);

@@ -110,8 +110,8 @@ export function YearlyPlanBadge({
   className?: string;
 }) {
   const label = offer.isEligible
-    ? `${offer.totalFreeMonths} месяца в подарок`
-    : `${offer.baseFreeMonths} месяца в подарок`;
+    ? "Ранняя скидка: +2 месяца"
+    : "Годовой — выгоднее помесячной";
 
   return (
     <div
@@ -139,10 +139,16 @@ export function YearlyPlanDetails({
     return (
       <div className={cn("space-y-1.5", className)}>
         <p className="text-amber-700 dark:text-amber-300 text-sm font-medium">
-          14 месяцев доступа по цене года
+          Год премиума по цене «десяти месяцев» — плюс два месяца в подарок
         </p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Постоянная скидка 2 месяца + ещё 2 месяца для новых пользователей.
+        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+          Разовый платёж <span className="font-medium text-slate-700 dark:text-slate-300">1990 ₽</span> — это примерно{" "}
+          <span className="font-medium">десять</span> оплат по 199 ₽, при этом доступ на{" "}
+          <span className="font-medium">12 месяцев</span>. В первые дни после регистрации добавляем ещё{" "}
+          <span className="font-medium">2 месяца</span>: обычно это <span className="font-medium">поздняя осень и зима</span>{" "}
+          — на грядках тише, зато планы и справочник с вами к сезону. К оплате всё равно один раз 1990 ₽; по сравнению с{" "}
+          14 раз по 199 ₽ экономия около <span className="font-medium">800 ₽</span> — впору на{" "}
+          <span className="font-medium">мангал</span> или <span className="font-medium">коньяк к открытию сезона</span>.
         </p>
         {countdownText && (
           <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
@@ -155,9 +161,18 @@ export function YearlyPlanDetails({
   }
 
   return (
-    <p className={cn("text-emerald-600 dark:text-emerald-400 text-sm mt-1", className)}>
-      Экономия 398 ₽ — как 10 месяцев по цене года
-    </p>
+    <div className={cn("space-y-1.5 mt-1", className)}>
+      <p className="text-emerald-700 dark:text-emerald-300 text-sm font-medium">
+        Год за 1990 ₽ вместо 12×199 ₽
+      </p>
+      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+        По сути платите <span className="font-medium">как за ~10 месяцев</span>, пользуетесь{" "}
+        <span className="font-medium">целый год (12 мес)</span>. Экономия около{" "}
+        <span className="font-medium">400 ₽</span> — хватит, например, на{" "}
+        <span className="font-medium">новый мангал</span> или{" "}
+        <span className="font-medium">бутылку к первому шашлыку</span>.
+      </p>
+    </div>
   );
 }
 
@@ -193,17 +208,18 @@ export function YearlyPromoBanner({
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="bg-amber-500 text-white hover:bg-amber-500">
                 <Sparkles className="w-3 h-3" />
-                Новая скидка
+                Скидка новичкам
               </Badge>
               <Badge
                 variant="outline"
                 className="border-emerald-200 text-emerald-700 dark:border-emerald-700 dark:text-emerald-300"
               >
-                Годовой тариф: 4 месяца бесплатно
+                +2 мес к году (осень и зима)
               </Badge>
             </div>
             <p className={cn("font-medium text-slate-900 dark:text-slate-100", compact && "text-sm")}>
-              Дополнительно 2 месяца бесплатно при оплате за год в первые дни после регистрации.
+              Уже берёте год выгоднее помесячной оплаты — и в первые дни после регистрации даём ещё два месяца: спокойнее на
+              участке, а приложение с вами к новому сезону.
             </p>
             {countdownText && (
               <p className="text-xs text-amber-700 dark:text-amber-300 flex items-center gap-1.5">
@@ -220,7 +236,7 @@ export function YearlyPromoBanner({
             size={compact ? "sm" : "default"}
             className="rounded-2xl bg-emerald-600 hover:bg-emerald-700"
           >
-            <Link href={ctaHref}>Получить 4 месяца</Link>
+            <Link href={ctaHref}>Оформить год со скидкой</Link>
           </Button>
         )}
       </div>
