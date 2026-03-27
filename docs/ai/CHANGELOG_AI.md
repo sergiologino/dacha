@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-03-27 — Деплой: `proxy.ts`, Next 16.2.1, `npm audit` 0
+
+- **Next.js**: конвенция `middleware.ts` переименована в **`proxy.ts`**, экспорт `{ auth as proxy }` (см. [migration](https://nextjs.org/docs/messages/middleware-to-proxy)); тот же `config.matcher`.
+- **Зависимости**: `next` / `eslint-config-next` **16.2.1** (закрыты moderate-замечания audit для 16.1.x); `@prisma/client` / `prisma` **^6.19.0**; после `npm audit fix` добавлен **`overrides.effect` ^3.21.0** (transitive от `@prisma/config`), итог **`npm audit` — 0 vulnerabilities**.
+- **Документация**: `ARCHITECTURE.md`, `CURRENT_STATE.md` — ссылки на proxy вместо middleware.
+
+---
+
 ## 2026-03-27 — GET `/api/user/weather-settings` читалась из БД; DEPLOY: CRON_SECRET
 
 - **Баг**: настройки «Погодные предупреждения» не восстанавливались после перезахода — в `GET` маршрута всегда отдавались `weatherPushEnabled: false` и дефолт интервала, без чтения из `users`.

@@ -116,7 +116,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-    // Не используем Prisma здесь: middleware работает в Edge Runtime, где Prisma (node:*) недоступен.
+    // Не используем Prisma здесь: proxy (бывш. middleware) в Edge Runtime, где Prisma (node:*) недоступен.
     async signIn() {
       return true;
     },
