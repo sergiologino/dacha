@@ -1,8 +1,13 @@
 FROM node:22-alpine AS base
-# Date 2026-03-27
 # ── Dependencies ─────────────────────────────────────────────
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+# Повторы при transient DNS / dl-cdn.alpinelinux.org (сборка на PaaS).
+RUN for i in 1 2 3 4 5; do \
+      apk add --no-cache libc6-compat && break; \
+      [ "$i" -eq 5 ] && exit 1; \
+      echo "apk add libc6-compat failed (try $i/5), sleep 12s"; \
+      sleep 12; \
+    done
 WORKDIR /app
 
 COPY package.json package-lock.json ./
