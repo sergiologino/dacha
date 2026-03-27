@@ -8,6 +8,8 @@ export interface Plant {
 export interface CropVariety {
   name: string;
   desc: string;
+  /** Иллюстрация конкретного сорта (дачники / генерация). */
+  imageUrl?: string;
 }
 
 export interface Crop {

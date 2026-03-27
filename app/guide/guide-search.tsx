@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
+import { CropImage } from "@/components/crop-image";
 import { Search, Sparkles, Loader2, BookPlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Crop } from "@/lib/types";
+import { getCropDisplayImageUrl } from "@/lib/crop-community";
 import type { CropWithSource } from "@/lib/crops-merge";
 
 export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
@@ -101,40 +102,42 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
 
       {hasResults && (
         <div className="space-y-3">
-          {filtered.map((c) => (
-            <Link key={`${c.slug}-${c.id}`} href={`/guide/${c.slug}`}>
-              <Card className="hover:scale-[1.01] transition-all cursor-pointer mb-3 overflow-hidden flex">
-                {c.imageUrl && (
-                  <div className="relative w-20 h-20 flex-shrink-0">
-                    <Image
-                      src={c.imageUrl}
-                      alt={c.name}
-                      fill
-                      className="object-cover"
-                      sizes="80px"
-                      unoptimized
-                    />
+          {filtered.map((c) => {
+            const thumb = getCropDisplayImageUrl(c);
+            return (
+              <Link key={`${c.slug}-${c.id}`} href={`/guide/${c.slug}`}>
+                <Card className="hover:scale-[1.01] transition-all cursor-pointer mb-3 overflow-hidden flex">
+                  {thumb && (
+                    <div className="relative w-20 h-20 flex-shrink-0">
+                      <CropImage
+                        src={thumb}
+                        alt={c.name}
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                    </div>
+                  )}
+                  <div className="p-4 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold">{c.name}</h3>
+                      {c.varieties && (
+                        <Badge variant="secondary" className="text-xs">
+                          {c.varieties.length} сортов
+                        </Badge>
+                      )}
+                      {c.addedByCommunity && (
+                        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 text-xs">
+                          Добавлено дачниками
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-500">{c.note}</p>
                   </div>
-                )}
-                <div className="p-4 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold">{c.name}</h3>
-                    {c.varieties && (
-                      <Badge variant="secondary" className="text-xs">
-                        {c.varieties.length} сортов
-                      </Badge>
-                    )}
-                    {c.addedByCommunity && (
-                      <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 text-xs">
-                        Добавлено дачниками
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-slate-500">{c.note}</p>
-                </div>
-              </Card>
-            </Link>
-          ))}
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       )}
 
@@ -255,7 +258,7 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
               )}
             </Button>
             <p className="text-xs text-slate-500 mt-2">
-              Культура будет добавлена в общий справочник с пометкой «Добавлено дачниками» и иллюстрацией, если получится найти подходящее фото.
+              Культура попадёт в справочник с пометкой «Добавлено дачниками»; иллюстрация подбирается по Википедии и Commons, при необходимости генерируется. Для сорта (черри, бычье сердце и т.д.) стараемся дать отдельное изображение.
             </p>
             {addToGuideError && (
               <p className="text-sm text-red-500 mt-2">{addToGuideError}</p>

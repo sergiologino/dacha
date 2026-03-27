@@ -4,6 +4,7 @@ import { JsonLd } from "@/components/json-ld";
 import {
   type CommunityCropRow,
   findMatchingStaticCropBySlugOrName,
+  getCropDisplayImageUrl,
   mapCommunityCropRow,
   mergeCropWithCommunityData,
 } from "@/lib/crop-community";
@@ -72,6 +73,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     crop.description ||
     `${crop.name}: когда сажать, как выращивать, когда высаживать в грунт и как ухаживать на даче.`;
 
+  const previewImg = getCropDisplayImageUrl(crop);
+  const ogImage =
+    previewImg && !previewImg.startsWith("data:") ? previewImg : undefined;
+
   return {
     title: `${crop.name}: когда сажать и как выращивать | Любимая Дача`,
     description,
@@ -85,7 +90,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: "article",
       locale: "ru_RU",
       url: absoluteUrl(`/guide/${crop.slug}`),
-      images: crop.imageUrl ? [{ url: crop.imageUrl, alt: crop.name }] : undefined,
+      images: ogImage ? [{ url: ogImage, alt: crop.name }] : undefined,
     },
   };
 }
@@ -94,6 +99,10 @@ export default async function CropPage({ params }: Props) {
   const { slug } = await params;
   const crop = await resolveCropBySlug(slug);
   if (!crop) notFound();
+
+  const previewImg = getCropDisplayImageUrl(crop);
+  const schemaImage =
+    previewImg && !previewImg.startsWith("data:") ? [previewImg] : undefined;
 
   return (
     <>
@@ -108,7 +117,7 @@ export default async function CropPage({ params }: Props) {
               `${crop.name}: когда сажать, как выращивать и как ухаживать на даче.`,
             url: absoluteUrl(`/guide/${crop.slug}`),
             inLanguage: "ru-RU",
-            image: crop.imageUrl ? [crop.imageUrl] : undefined,
+            image: schemaImage,
           },
           {
             "@context": "https://schema.org",

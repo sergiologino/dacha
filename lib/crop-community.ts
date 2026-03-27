@@ -1,6 +1,14 @@
 import { crops as staticCrops } from "@/lib/data/crops";
 import type { Crop, CropVariety } from "@/lib/types";
 
+/** Главное фото культуры или первое фото сорта (если общее не задано). */
+export function getCropDisplayImageUrl(crop: Pick<Crop, "imageUrl" | "varieties">): string | undefined {
+  const main = crop.imageUrl?.trim();
+  if (main) return main;
+  const withVarietyImg = crop.varieties?.find((v) => v.imageUrl?.trim());
+  return withVarietyImg?.imageUrl?.trim();
+}
+
 export interface CommunityCropRow {
   id: number;
   name: string;
@@ -53,6 +61,13 @@ function buildVarieties(raw: unknown): CropVariety[] | undefined {
         typeof item === "object" && item && "desc" in item
           ? String((item as { desc?: unknown }).desc ?? "").trim()
           : "",
+      imageUrl:
+        typeof item === "object" &&
+        item &&
+        "imageUrl" in item &&
+        typeof (item as { imageUrl?: unknown }).imageUrl === "string"
+          ? String((item as { imageUrl: string }).imageUrl).trim() || undefined
+          : undefined,
     }))
     .filter((item) => item.name.length > 0);
 
@@ -75,8 +90,13 @@ export function mergeVarieties(
       continue;
     }
 
-    if ((!existing.desc || existing.desc === "—") && item.desc && item.desc !== "—") {
-      seen.set(key, item);
+    const nextDesc =
+      (!existing.desc || existing.desc === "—") && item.desc && item.desc !== "—"
+        ? item.desc
+        : existing.desc;
+    const nextImg = existing.imageUrl || item.imageUrl;
+    if (nextDesc !== existing.desc || nextImg !== existing.imageUrl) {
+      seen.set(key, { name: existing.name, desc: nextDesc, imageUrl: nextImg });
     }
   }
 

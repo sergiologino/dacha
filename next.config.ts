@@ -37,6 +37,18 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "cdn.pixabay.com",
       },
+      {
+        protocol: "https",
+        hostname: "oaidalleapiprodscus.blob.core.windows.net",
+      },
+      {
+        protocol: "https",
+        hostname: "**.blob.core.windows.net",
+      },
+      {
+        protocol: "https",
+        hostname: "cdn.openai.com",
+      },
     ],
   },
 };

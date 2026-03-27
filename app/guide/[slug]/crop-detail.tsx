@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { CropImage } from "@/components/crop-image";
 import {
   ArrowLeft,
   Droplets,
@@ -22,12 +22,14 @@ import { Badge } from "@/components/ui/badge";
 import { MotionDiv, StaggerContainer, StaggerItem } from "@/components/motion";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import type { Crop } from "@/lib/types";
+import { getCropDisplayImageUrl } from "@/lib/crop-community";
 
 interface Props {
   crop: Crop & { addedByCommunity?: boolean };
 }
 
 export function CropDetailContent({ crop }: Props) {
+  const heroImageUrl = getCropDisplayImageUrl(crop);
   const [detailContent, setDetailContent] = useState<string | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -70,16 +72,15 @@ export function CropDetailContent({ crop }: Props) {
         </Button>
 
         {/* Hero image */}
-        {crop.imageUrl && (
+        {heroImageUrl && (
           <MotionDiv variant="fadeIn">
             <div className="relative w-full h-48 sm:h-64 rounded-2xl overflow-hidden mb-6">
-              <Image
-                src={crop.imageUrl}
+              <CropImage
+                src={heroImageUrl}
                 alt={crop.name}
                 fill
                 className="object-cover"
                 sizes="(max-width: 672px) 100vw, 672px"
-                unoptimized
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
               <div className="absolute bottom-4 left-4">
@@ -99,7 +100,7 @@ export function CropDetailContent({ crop }: Props) {
           </MotionDiv>
         )}
 
-        {!crop.imageUrl && (
+        {!heroImageUrl && (
           <MotionDiv variant="fadeUp">
             <h1 className="text-3xl font-bold mb-2">{crop.name}</h1>
             <div className="flex gap-2 mb-6 flex-wrap">
@@ -215,8 +216,19 @@ export function CropDetailContent({ crop }: Props) {
                       )
                     }
                   >
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-semibold text-emerald-700 dark:text-emerald-400">
+                    <div className="flex items-center justify-between gap-3">
+                      {v.imageUrl && (
+                        <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 border border-slate-200 dark:border-slate-600">
+                          <CropImage
+                            src={v.imageUrl}
+                            alt={v.name}
+                            fill
+                            className="object-cover"
+                            sizes="64px"
+                          />
+                        </div>
+                      )}
+                      <h3 className="font-semibold text-emerald-700 dark:text-emerald-400 flex-1 text-left">
                         {v.name}
                       </h3>
                       {expandedVariety === v.name ? (

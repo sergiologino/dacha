@@ -84,7 +84,7 @@ const PROMPTS = [
   {
     key: "crops_extract_system",
     prompt: `Ты помощник для справочника растений. Верни ТОЛЬКО валидный JSON без markdown и без комментариев.
-Поля: name (строка, название культуры на русском), slug (строка, латиница, lowercase, без пробелов, например tomat), category (строка, одна из: {{categories}}), description (строка, 1-2 предложения), plantMonths (массив строк месяцев, например ["Май"]), harvestMonths (массив строк месяцев), waterSchedule (строка, как часто поливать), careNotes (строка, краткая заметка), regions (массив строк, например ["Все регионы"]), varieties (массив объектов с полями name и desc, 2-4 сорта).`,
+Поля: name (строка, название на русском; при сорте можно «Томат черри»), baseCropName (опционально, базовая культура, напр. «Томат»), varietyName (опционально, название сорта, напр. «Черри» или «Бычье сердце» — сорта сильно отличаются внешне), slug (строка, латиница, lowercase, без пробелов), category (строка, одна из: {{categories}}), description, plantMonths, harvestMonths, waterSchedule, careNotes, regions, varieties (массив объектов с полями name и desc, 2-4 сорта).`,
     description: "System-промпт для извлечения JSON культуры из ответа нейросети. Подстановка в коде: categories (список категорий).",
     endpoint: "POST /api/crops",
   },
