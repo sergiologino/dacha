@@ -4,6 +4,21 @@
 
 ---
 
+## 2026-03-27 — GET `/api/user/weather-settings` читалась из БД; DEPLOY: CRON_SECRET
+
+- **Баг**: настройки «Погодные предупреждения» не восстанавливались после перезахода — в `GET` маршрута всегда отдавались `weatherPushEnabled: false` и дефолт интервала, без чтения из `users`.
+- **Исправление**: `app/api/user/weather-settings/route.ts` — `GET` загружает `weatherPushEnabled`, `weatherCheckIntervalMinutes`, координаты через `prisma.user.findUnique`; при отсутствии колонок (P2022) — 503 как у `POST`.
+- **Документация**: в `docs/DEPLOY.md` добавлен подраздел **8.0** — как сгенерировать `CRON_SECRET`, куда положить, таблица эндпоинтов `push-reminders` / `weather-alerts`, query vs `Authorization: Bearer`.
+
+---
+
+## 2026-03-27 — Сессия до 30 дней с продлением; понятное сообщение про VAPID
+
+- **Auth**: в `auth.ts` срок JWT-сессии увеличен с 7 до **30 дней**, добавлен **`updateAge` 24 ч** — при заходах в приложение срок сессии продлевается (пока пользователь не пропадёт на месяц или не выйдет). В `SessionProvider` задан **`refetchInterval` 1 ч** и **`refetchOnWindowFocus`**, чтобы клиент чаще синхронизировал сессию с сервером.
+- **Push**: при отсутствии VAPID в `.env` текст «Сервер не настроен» заменён на пояснение с командой `generate-vapid-keys` и ссылкой на `docs/DEPLOY.md`; в `.env.example` уточнены комментарии к `VAPID_*`.
+
+---
+
 ## 2026-03-27 — Онбординг: локальные SVG вместо Unsplash; тексты годовой акции
 
 - **Онбординг**: внешние картинки Unsplash часто давали пустые блоки (блокировки, CSP, сеть). Добавлен `components/onboarding-slide-illustrations.tsx` с шестью тематическими SVG; `feature-onboarding.tsx` рендерит их вместо `<img>`.
