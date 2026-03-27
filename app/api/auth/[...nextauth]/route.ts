@@ -22,6 +22,19 @@ const oauthCallbackStore = (
   }
 ).__dachaOauthCallbackStore = oauthCallbackStore;
 
+/** Один обмен code→token на параллельные GET с тем же URL; иначе второй запрос даёт invalid_grant. */
+const oauthCallbackInflight = (
+  globalThis as typeof globalThis & {
+    __dachaOauthCallbackInflight?: Map<string, Promise<Response>>;
+  }
+).__dachaOauthCallbackInflight ?? new Map<string, Promise<Response>>();
+
+(
+  globalThis as typeof globalThis & {
+    __dachaOauthCallbackInflight?: Map<string, Promise<Response>>;
+  }
+).__dachaOauthCallbackInflight = oauthCallbackInflight;
+
 async function hashOAuthCallbackSignature(value: string): Promise<string> {
   const data = new TextEncoder().encode(value);
   const digest = await crypto.subtle.digest("SHA-256", data);
@@ -64,6 +77,19 @@ function getCallbackLogPrefix(provider: string): string {
   return `[auth][${provider}][callback]`;
 }
 
+function appendDedupeCookie(
+  response: Response,
+  callbackCookieName: string,
+  callbackSignature: string,
+  secure: boolean
+): void {
+  const securePart = secure ? "; Secure" : "";
+  response.headers.append(
+    "set-cookie",
+    `${callbackCookieName}=${callbackSignature}; Max-Age=${OAUTH_CALLBACK_COOKIE_MAX_AGE_SEC}; Path=/; HttpOnly; SameSite=Lax${securePart}`
+  );
+}
+
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const callbackProvider = getCallbackProvider(url.pathname);
@@ -80,6 +106,7 @@ export async function GET(request: NextRequest) {
   const callbackCookieName = callbackProvider
     ? `${OAUTH_CALLBACK_COOKIE_PREFIX}_${callbackProvider}`
     : null;
+  const cookieSecure = getPublicBaseUrl(request).toLowerCase().startsWith("https://");
 
   if (callbackProvider) {
     console.info(`${getCallbackLogPrefix(callbackProvider)}[start]`, {
@@ -137,48 +164,67 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  if (isOAuthCallback && callbackSignature && !existingState) {
-    oauthCallbackStore.set(callbackSignature, {
-      status: "processing",
-      expiresAt: now + OAUTH_CALLBACK_MEMORY_TTL_MS,
-    });
-  }
-
-  const response = await handlers.GET(request);
-
-  if (callbackProvider) {
-    console.info(`${getCallbackLogPrefix(callbackProvider)}[finish]`, {
-      status: response.status,
-      location: response.headers.get("location"),
-    });
-  }
-
   if (isOAuthCallback && callbackSignature && callbackCookieName) {
-    const location = response.headers.get("location");
-    if (response.status >= 300 && response.status < 400 && location) {
+    const inflight = oauthCallbackInflight.get(callbackSignature);
+    if (inflight) {
+      console.info(`${getCallbackLogPrefix(callbackProvider!)}[inflight-join]`, {
+        signaturePrefix: callbackSignature.slice(0, 8),
+        host: request.headers.get("host"),
+      });
+      const shared = await inflight;
+      return shared.clone();
+    }
+
+    const leader = (async (): Promise<Response> => {
+      oauthCallbackStore.set(callbackSignature, {
+        status: "processing",
+        expiresAt: Date.now() + OAUTH_CALLBACK_MEMORY_TTL_MS,
+      });
+
       try {
-        const redirectUrl = new URL(location, request.url);
-        if (redirectUrl.pathname === "/garden") {
-          oauthCallbackStore.set(callbackSignature, {
-            status: "success",
-            expiresAt: Date.now() + OAUTH_CALLBACK_MEMORY_TTL_MS,
+        const response = await handlers.GET(request);
+
+        if (callbackProvider) {
+          console.info(`${getCallbackLogPrefix(callbackProvider)}[finish]`, {
+            status: response.status,
+            location: response.headers.get("location"),
           });
-          response.headers.append(
-            "set-cookie",
-            `${callbackCookieName}=${callbackSignature}; Max-Age=${OAUTH_CALLBACK_COOKIE_MAX_AGE_SEC}; Path=/; HttpOnly; SameSite=Lax; Secure`
-          );
+        }
+
+        const location = response.headers.get("location");
+        if (response.status >= 300 && response.status < 400 && location) {
+          try {
+            const redirectUrl = new URL(location, request.url);
+            if (redirectUrl.pathname === "/garden") {
+              oauthCallbackStore.set(callbackSignature, {
+                status: "success",
+                expiresAt: Date.now() + OAUTH_CALLBACK_MEMORY_TTL_MS,
+              });
+              appendDedupeCookie(response, callbackCookieName, callbackSignature, cookieSecure);
+            } else {
+              oauthCallbackStore.delete(callbackSignature);
+            }
+          } catch {
+            oauthCallbackStore.delete(callbackSignature);
+          }
         } else {
           oauthCallbackStore.delete(callbackSignature);
         }
-      } catch {
+
+        return response;
+      } catch (err) {
         oauthCallbackStore.delete(callbackSignature);
+        throw err;
+      } finally {
+        oauthCallbackInflight.delete(callbackSignature);
       }
-    } else {
-      oauthCallbackStore.delete(callbackSignature);
-    }
+    })();
+
+    oauthCallbackInflight.set(callbackSignature, leader);
+    return leader;
   }
 
-  return response;
+  return handlers.GET(request);
 }
 
 export async function POST(request: NextRequest) {
