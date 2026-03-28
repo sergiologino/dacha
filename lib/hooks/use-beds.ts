@@ -107,6 +107,9 @@ async function uploadPlantPhoto({
   takenAt,
 }: UploadPlantPhotoParams): Promise<BedPlantPhoto> {
   const fileToSend = await compressImageFileForUpload(file);
+  if (!fileToSend?.size) {
+    throw new Error("Пустой файл изображения — попробуйте другое фото");
+  }
   const formData = new FormData();
   formData.set("file", fileToSend);
   formData.set("plantId", plantId);
@@ -148,8 +151,13 @@ async function uploadPlantPhoto({
   } as BedPlantPhoto;
 }
 
-export function useBeds() {
-  return useQuery({ queryKey: ["beds"], queryFn: fetchBeds });
+export function useBeds(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  return useQuery({
+    queryKey: ["beds"],
+    queryFn: fetchBeds,
+    enabled,
+  });
 }
 
 function normalizeBed(bed: Bed): Bed {
@@ -221,6 +229,7 @@ export function useUploadPlantPhoto() {
         });
       });
       toast.success("Фото добавлено");
+      void qc.invalidateQueries({ queryKey: ["beds"] });
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Не удалось загрузить фото");

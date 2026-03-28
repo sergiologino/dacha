@@ -100,7 +100,9 @@ export async function compressImageFileForUpload(file: File): Promise<File> {
     const bin = atob(b64);
     const u8 = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-    return new File([u8], "plant-photo.jpg", { type: "image/jpeg" });
+    const out = new File([u8], "plant-photo.jpg", { type: "image/jpeg" });
+    if (out.size < 64) return file;
+    return out;
   } catch {
     return file;
   }

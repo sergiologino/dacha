@@ -57,6 +57,14 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
+# sharp и др. native-модули в Alpine (standalone подтягивает sharp из node_modules)
+RUN for i in 1 2 3 4 5; do \
+      apk add --no-cache libc6-compat && break; \
+      [ "$i" -eq 5 ] && exit 1; \
+      echo "apk add libc6-compat failed (try $i/5), sleep 12s"; \
+      sleep 12; \
+    done
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 

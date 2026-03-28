@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,9 +41,10 @@ function formatEventDate(scheduledDate: string, dateTo: string | null): string {
 
 export default function CalendarPage() {
   const now = new Date();
+  const { status } = useSession();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const { data: location } = useUserLocation();
-  const { data: beds } = useBeds();
+  const { data: beds } = useBeds({ enabled: status === "authenticated" });
   const qc = useQueryClient();
   const [mode, setMode] = useState<CalendarMode>("tasks");
   const [isPremium, setIsPremium] = useState<boolean | null>(null);

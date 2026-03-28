@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-03-29 — «Участок пустой» до ~30 с после входа; фото не появляются
+
+- **Пустой участок**: `useBeds` / `usePlants` запускались до готовности NextAuth → часто **401**, запрос в **ошибке** без авто-повтора до **refetchOnWindowFocus** (~десятки секунд). **Исправление**: `enabled: status === "authenticated"` на `/garden` и `/calendar`. Убрано условие спиннера `!(beds.length === 0 && hasSeededRef)` — оно скрывало загрузку во время демо-сида и давало пустой экран. При ошибке `seed-demo-garden` сбрасывается `hasSeededRef` для повторной попытки.
+- **Фото**: `sharp` переведён на **dynamic import** (падение импорта не валит route). В `next.config` — **`serverExternalPackages: ['sharp']`**; в **Docker runner** — **`libc6-compat`** (как в deps). После успешной загрузки фото снова **`invalidateQueries(['beds'])`** в дополнение к `setQueryData`. Клиент: защита от **пустого файла** после сжатия; слишком маленький JPEG после canvas → откат к исходному файлу.
+- Файлы: `lib/hooks/use-beds.ts`, `use-plants.ts`, `garden-content.tsx`, `calendar/page.tsx`, `app/api/photos/route.ts`, `next.config.ts`, `Dockerfile`, `lib/compress-image.ts`.
+
+---
+
 ## 2026-03-28 — Фото на грядке: миниатюра и полноэкран пустые (причина и фикс)
 
 - **Причина**: (1) **Service Worker** отдавал `/uploads/*` **cache-first** — для нового файла возможен пустой/битый кэш или гонка; (2) с **камеры** часто приходят **HEIC** и др. форматы — файл сохранялся с расширением `.jpg`, но содержимое не декодировалось в `<img>` в части браузеров → рамка без картинки.

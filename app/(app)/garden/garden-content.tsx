@@ -130,7 +130,7 @@ export default function GardenContent() {
   const hasSuggestedOnboardingRef = useRef(false);
   const [loadingFallback, setLoadingFallback] = useState(false);
 
-  const plantsQuery = usePlants();
+  const plantsQuery = usePlants({ enabled: status === "authenticated" });
   const plants = plantsQuery.data ?? [];
   const plantsLoading = plantsQuery.isLoading;
   const createPlant = useCreatePlant();
@@ -138,7 +138,7 @@ export default function GardenContent() {
   const deletePlant = useDeletePlant();
 
   const qc = useQueryClient();
-  const bedsQuery = useBeds();
+  const bedsQuery = useBeds({ enabled: status === "authenticated" });
   const beds = bedsQuery.data ?? [];
   const bedsLoading = bedsQuery.isLoading;
   const bedsError = bedsQuery.isError;
@@ -204,10 +204,12 @@ export default function GardenContent() {
         .then((r) => r.json())
         .then((data) => {
           if (data.seeded) {
-            qc.invalidateQueries({ queryKey: ["beds"] });
+            void qc.invalidateQueries({ queryKey: ["beds"] });
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          hasSeededRef.current = false;
+        });
       return;
     }
     if (showOnboardingParam) {
@@ -242,7 +244,6 @@ export default function GardenContent() {
   const showSpinner =
     (status === "loading" || plantsLoading || bedsLoading) &&
     !showOnboardingParam &&
-    !(beds.length === 0 && hasSeededRef.current) &&
     !loadingFallback;
 
   if (showSpinner) {

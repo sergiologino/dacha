@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { randomUUID } from "crypto";
@@ -11,9 +10,10 @@ export const dynamic = "force-dynamic";
 
 const UPLOAD_DIR = "public/uploads";
 
-/** JPEG, ориентация EXIF, лимит стороны — иначе HEIC/WebP/«ложный» .jpg не показываются в <img> у части браузеров. */
+/** JPEG, ориентация EXIF. Dynamic import — при падении sharp в контейнере не роняем весь route. */
 async function normalizePlantImageBuffer(input: Buffer): Promise<Buffer | null> {
   try {
+    const sharp = (await import("sharp")).default;
     return await sharp(input)
       .rotate()
       .resize({

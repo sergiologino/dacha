@@ -60,8 +60,13 @@ async function deletePlant(id: string): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete plant");
 }
 
-export function usePlants() {
-  return useQuery({ queryKey: ["plants"], queryFn: fetchPlants });
+export function usePlants(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  return useQuery({
+    queryKey: ["plants"],
+    queryFn: fetchPlants,
+    enabled,
+  });
 }
 
 function plantToBedPlant(plant: Plant): BedPlant {
