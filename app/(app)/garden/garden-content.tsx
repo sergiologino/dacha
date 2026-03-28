@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Camera,
+  Image as ImageIcon,
   X,
   Search,
   HelpCircle,
@@ -654,7 +655,8 @@ function BedCard({
   const [newPlantDate, setNewPlantDate] = useState(() => toDateInputValue(new Date().toISOString()));
   const [editingDatePlantId, setEditingDatePlantId] = useState<string | null>(null);
   const [editingDateValue, setEditingDateValue] = useState("");
-  const photoInputRef = useRef<HTMLInputElement>(null);
+  const photoCameraInputRef = useRef<HTMLInputElement>(null);
+  const photoGalleryInputRef = useRef<HTMLInputElement>(null);
   const photoTargetRef = useRef<{ plantId: string; bedId: string } | null>(null);
   const [gallery, setGallery] = useState<{
     plantName: string;
@@ -929,13 +931,20 @@ function BedCard({
           {bed.plants.length > 0 ? (
             <div className="space-y-2 mb-4">
               <input
-            type="file"
-            ref={photoInputRef}
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handlePhotoInputChange}
-          />
+                type="file"
+                ref={photoCameraInputRef}
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePhotoInputChange}
+              />
+              <input
+                type="file"
+                ref={photoGalleryInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoInputChange}
+              />
             {bed.plants.map((plant) => (
                 <div
                   key={plant.id}
@@ -985,23 +994,42 @@ function BedCard({
                         {new Date(plant.plantedDate).toLocaleDateString("ru-RU")}
                       </button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-slate-400 hover:text-emerald-600 flex-shrink-0"
-                      onClick={() => {
-                        photoTargetRef.current = { plantId: plant.id, bedId: bed.id };
-                        photoInputRef.current?.click();
-                      }}
-                      disabled={!!uploadingPhotoPlantId}
-                      title="Сделать фото растения"
-                    >
-                      {uploadingPhotoPlantId === plant.id ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Camera className="w-3.5 h-3.5" />
-                      )}
-                    </Button>
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-emerald-600"
+                        onClick={() => {
+                          photoTargetRef.current = { plantId: plant.id, bedId: bed.id };
+                          photoCameraInputRef.current?.click();
+                        }}
+                        disabled={!!uploadingPhotoPlantId}
+                        title="Снять камерой"
+                      >
+                        {uploadingPhotoPlantId === plant.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Camera className="w-3.5 h-3.5" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-emerald-600"
+                        onClick={() => {
+                          photoTargetRef.current = { plantId: plant.id, bedId: bed.id };
+                          photoGalleryInputRef.current?.click();
+                        }}
+                        disabled={!!uploadingPhotoPlantId}
+                        title="Добавить из галереи"
+                      >
+                        {uploadingPhotoPlantId === plant.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <ImageIcon className="w-3.5 h-3.5" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   <Button
                     variant="ghost"

@@ -118,6 +118,7 @@ async function uploadPlantPhoto({
   const res = await fetch("/api/photos", {
     method: "POST",
     body: formData,
+    credentials: "same-origin",
   });
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
@@ -211,28 +212,8 @@ export function useUploadPlantPhoto() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: uploadPlantPhoto,
-    onSuccess: (data, variables) => {
-      const { plantId, bedId } = variables;
-      const newPhoto: BedPlantPhoto = data;
-      const prev = qc.getQueryData<Bed[]>(["beds"]);
-      if (!prev?.length) {
-        void qc.invalidateQueries({ queryKey: ["beds"] });
-      } else {
-        qc.setQueryData<Bed[]>(["beds"], (old) => {
-          if (!old) return old;
-          return old.map((bed) => {
-            if (bed.id !== bedId) return bed;
-            return {
-              ...bed,
-              plants: bed.plants.map((plant) => {
-                if (plant.id !== plantId) return plant;
-                const photos = [newPhoto, ...(plant.photos ?? [])];
-                return { ...plant, photos };
-              }),
-            };
-          });
-        });
-      }
+    onSuccess: async () => {
+      await qc.refetchQueries({ queryKey: ["beds"] });
       toast.success("Фото добавлено");
     },
     onError: (err) => {

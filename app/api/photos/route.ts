@@ -105,7 +105,22 @@ export async function POST(request: NextRequest) {
       user.id
     ).catch((err) => console.error("analyzePhotoForTimeline:", err));
 
-    return NextResponse.json(photo, { status: 201 });
+    const payload = {
+      id: photo.id,
+      url: photo.url,
+      plantId: photo.plantId,
+      bedId: photo.bedId,
+      userId: photo.userId,
+      caption: photo.caption,
+      isPublic: photo.isPublic,
+      publishedAt: photo.publishedAt?.toISOString() ?? null,
+      takenAt: photo.takenAt.toISOString(),
+      createdAt: photo.createdAt.toISOString(),
+      analysisResult: photo.analysisResult,
+      analysisStatus: photo.analysisStatus,
+      analyzedAt: photo.analyzedAt?.toISOString() ?? null,
+    };
+    return NextResponse.json(payload, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Photos POST error:", err);
