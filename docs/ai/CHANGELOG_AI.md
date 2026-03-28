@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-03-28 — Мобильный UI: ширина экрана, фото на грядке, сразу видны новые грядки/растения
+
+- **Горизонтальный скролл**: `body` и shell приложения с `overflow-x-hidden` / `max-w-[100vw]`; шапка — `min-w-0`, меньший кегль бренда на узких экранах, отступы; компактный виджет погоды с `truncate` и ограничением ширины блока локации.
+- **Фото растения**: сжатие файла перед `POST /api/photos` (`compressImageFileForUpload`, как на `/camera`); цель съёмки через `ref`, чтобы после выбора из галереи не терялся `plantId`; кэш грядок без перетирания оптимистичного обновления (убраны лишние `refetch` после загрузки); превью и полноэкранная галерея с `resolvePhotoUrl` (абсолютный origin для `/uploads`) и явной высотой области изображения.
+- **Новые грядки/растения на мобильных**: список грядок больше не обёрнут в `StaggerContainer`/`whileInView` с `once: true` — добавленные карточки не оставались с `opacity: 0` до перезагрузки страницы.
+- **API**: `export const dynamic = "force-dynamic"` для `/api/beds`, `/api/plants`, `POST /api/photos`; ответ `POST /api/beds` с тем же `include`, что и список (растения + фото + таймлайн); клиентские `fetch` для грядок/растений с `cache: "no-store"`; мутации создания грядки/растения: `invalidateQueries` в `onSettled`.
+
+---
+
 ## 2026-03-27 — Деплой: `proxy.ts`, Next 16.2.1, `npm audit` 0
 
 - **Next.js**: конвенция `middleware.ts` переименована в **`proxy.ts`**, экспорт `{ auth as proxy }` (см. [migration](https://nextjs.org/docs/messages/middleware-to-proxy)); тот же `config.matcher`.

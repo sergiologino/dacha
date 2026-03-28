@@ -68,3 +68,18 @@ export function compressImageFile(file: File): Promise<string> {
     img.src = url;
   });
 }
+
+/** Файл для multipart (грядка, камера): сжимает крупные снимки с телефона. */
+export async function compressImageFileForUpload(file: File): Promise<File> {
+  if (file.size <= 400_000) return file;
+  const dataUrl = await compressImageFile(file);
+  const m = /^data:(.*?);base64,(.*)$/.exec(dataUrl);
+  if (!m) return file;
+  const mime = m[1] || "image/jpeg";
+  const b64 = m[2];
+  const bin = atob(b64);
+  const u8 = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  const ext = mime.includes("png") ? ".png" : ".jpg";
+  return new File([u8], `plant-photo${ext}`, { type: mime });
+}

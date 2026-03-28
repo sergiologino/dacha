@@ -6,6 +6,8 @@ import { getAuthUser } from "@/lib/get-user";
 import { randomUUID } from "crypto";
 import { analyzePhotoForTimeline } from "@/lib/analyze-photo-timeline";
 
+export const dynamic = "force-dynamic";
+
 const UPLOAD_DIR = "public/uploads";
 
 export async function POST(request: NextRequest) {

@@ -29,7 +29,7 @@ export default async function AppLayout({
     : getInactiveYearlyPromoOffer();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950 dark:via-slate-950 dark:to-amber-950 pb-20">
+    <div className="min-h-screen max-w-[100vw] overflow-x-hidden bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950 dark:via-slate-950 dark:to-amber-950 pb-20">
       <PageVisitTracker />
       <AppHeader />
       <FeedbackLinks />

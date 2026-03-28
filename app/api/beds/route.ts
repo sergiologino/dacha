@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 
+export const dynamic = "force-dynamic";
+
+const bedInclude = {
+  plants: {
+    orderBy: { createdAt: "desc" as const },
+    include: {
+      photos: { orderBy: { takenAt: "desc" as const } },
+      timelineEvents: { orderBy: [{ scheduledDate: "asc" as const }, { sortOrder: "asc" as const }] },
+    },
+  },
+  photos: { orderBy: { createdAt: "desc" as const }, take: 4 },
+};
+
 export async function GET() {
   try {
     const user = await getAuthUser();
@@ -9,16 +22,7 @@ export async function GET() {
 
     const beds = await prisma.bed.findMany({
       where: { userId: user.id },
-      include: {
-        plants: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            photos: { orderBy: { takenAt: "desc" } },
-            timelineEvents: { orderBy: [{ scheduledDate: "asc" }, { sortOrder: "asc" }] },
-          },
-        },
-        photos: { orderBy: { createdAt: "desc" }, take: 4 },
-      },
+      include: bedInclude,
       orderBy: { createdAt: "desc" },
     });
 
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
         number: number || null,
         type: type || "open",
       },
-      include: { plants: true, photos: true },
+      include: bedInclude,
     });
 
     return NextResponse.json(bed, { status: 201 });
@@ -96,16 +100,7 @@ export async function PATCH(request: NextRequest) {
     const updated = await prisma.bed.update({
       where: { id },
       data,
-      include: {
-        plants: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            photos: { orderBy: { takenAt: "desc" } },
-            timelineEvents: { orderBy: [{ scheduledDate: "asc" }, { sortOrder: "asc" }] },
-          },
-        },
-        photos: { orderBy: { createdAt: "desc" }, take: 4 },
-      },
+      include: bedInclude,
     });
 
     return NextResponse.json(updated);

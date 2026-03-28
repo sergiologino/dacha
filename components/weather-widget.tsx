@@ -102,17 +102,22 @@ export function WeatherWidget({
   if (compact) {
     return (
       <MotionDiv variant="fadeUp">
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">{data.current.condition.icon}</span>
-              <div>
+        <Card className="p-4 min-w-0 max-w-full overflow-hidden">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <span className="text-3xl flex-shrink-0">{data.current.condition.icon}</span>
+              <div className="min-w-0">
                 <span className="text-2xl font-bold">{Math.round(data.current.temp_c)}°C</span>
-                <p className="text-xs text-slate-500">{data.current.condition.text}</p>
+                <p className="text-xs text-slate-500 truncate">{data.current.condition.text}</p>
               </div>
             </div>
-            <div className="text-right text-xs text-slate-500">
-              {displayName && <p className="flex items-center gap-1 justify-end"><MapPin className="w-3 h-3" />{displayName}</p>}
+            <div className="text-right text-xs text-slate-500 flex-shrink-0 max-w-[45%] sm:max-w-none">
+              {displayName && (
+                <p className="flex items-center gap-1 justify-end min-w-0">
+                  <MapPin className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{displayName}</span>
+                </p>
+              )}
               <p className="flex items-center gap-1 justify-end mt-0.5">
                 <Droplets className="w-3 h-3" /> {data.current.humidity}%
                 <Wind className="w-3 h-3 ml-1" /> {Math.round(data.current.wind_kph)} км/ч

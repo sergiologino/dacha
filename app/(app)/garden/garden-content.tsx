@@ -32,7 +32,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MotionDiv, StaggerContainer, StaggerItem } from "@/components/motion";
+import { MotionDiv } from "@/components/motion";
 import { WeatherWidget } from "@/components/weather-widget";
 import { useOnboardingCheck } from "@/lib/hooks/use-onboarding-check";
 import { useUserLocation } from "@/lib/hooks/use-user-location";
@@ -413,22 +413,20 @@ export default function GardenContent() {
         </MotionDiv>
       )}
 
-      {/* Beds list */}
-      <StaggerContainer className="space-y-4">
+      {/* Beds list — без StaggerContainer/whileInView: новые грядки сразу видны на мобильных */}
+      <div className="space-y-4 max-w-full min-w-0">
         {beds.length === 0 && unassignedPlants.length === 0 ? (
-          <StaggerItem>
-            <Card className="p-12 text-center">
-              <LayoutGrid className="w-12 h-12 mx-auto text-emerald-300 mb-4" />
-              <p className="text-slate-500 mb-2">Участок пока пустой</p>
-              <p className="text-sm text-slate-400">
-                Создайте грядку и добавьте в неё растения
-              </p>
-            </Card>
-          </StaggerItem>
+          <Card className="p-12 text-center">
+            <LayoutGrid className="w-12 h-12 mx-auto text-emerald-300 mb-4" />
+            <p className="text-slate-500 mb-2">Участок пока пустой</p>
+            <p className="text-sm text-slate-400">
+              Создайте грядку и добавьте в неё растения
+            </p>
+          </Card>
         ) : (
           <>
             {beds.map((bed: Bed) => (
-              <StaggerItem key={bed.id}>
+              <div key={bed.id}>
                 <BedCard
                   bed={bed}
                   crops={crops}
@@ -449,14 +447,7 @@ export default function GardenContent() {
                   }
                   onDeletePlant={(id) => deletePlant.mutate(id)}
                   onUploadPhoto={(file, plantId, bedId, takenAt) =>
-                    uploadPhoto.mutate(
-                      { file, plantId, bedId, takenAt },
-                      {
-                        onSuccess: () => {
-                          qc.refetchQueries({ queryKey: ["beds"] });
-                        },
-                      }
-                    )
+                    uploadPhoto.mutate({ file, plantId, bedId, takenAt })
                   }
                   onRegenerateTimeline={async (plantId) => {
                     const res = await fetch(`/api/plants/${plantId}/timeline/generate`, { method: "POST" });
@@ -498,14 +489,15 @@ export default function GardenContent() {
                   }}
                   addingPlant={createPlant.isPending}
                   updatingPlant={updatePlant.isPending}
-                  uploadingPhoto={uploadPhoto.isPending}
+                  uploadingPhotoPlantId={
+                    uploadPhoto.isPending ? uploadPhoto.variables?.plantId ?? null : null
+                  }
                 />
-              </StaggerItem>
+              </div>
             ))}
 
             {/* Unassigned plants */}
             {unassignedPlants.length > 0 && (
-              <StaggerItem>
                 <Card className="p-5 border-dashed border-2 border-slate-200 dark:border-slate-700">
                   <h3 className="font-semibold text-slate-500 mb-3 flex items-center gap-2">
                     <Sprout className="w-4 h-4" /> Растения без грядки
@@ -534,11 +526,10 @@ export default function GardenContent() {
                     ))}
                   </div>
                 </Card>
-              </StaggerItem>
             )}
           </>
         )}
-      </StaggerContainer>
+      </div>
       <SubscribeModal open={showPaywall} onOpenChange={setShowPaywall} />
       <FeatureOnboarding
         open={showFeatureOnboarding}
@@ -584,6 +575,15 @@ function toDateInputValue(iso: string) {
   return iso.slice(0, 10);
 }
 
+/** Абсолютный URL для превью/галереи (надёжнее на мобильных/PWA). */
+function resolvePhotoUrl(url: string): string {
+  if (typeof window === "undefined") return url;
+  if (!url) return url;
+  if (url.startsWith("data:") || url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/")) return `${window.location.origin}${url}`;
+  return url;
+}
+
 const categoriesFromCrops = (cropsList: { category: string }[]) =>
   [...new Set(cropsList.map((c) => c.category))].sort();
 
@@ -608,7 +608,7 @@ function BedCard({
   onAddPlannedWork,
   addingPlant,
   updatingPlant,
-  uploadingPhoto,
+  uploadingPhotoPlantId,
 }: {
   bed: Bed;
   crops: { id: number; name: string; slug: string; category: string; varieties?: { name: string }[] }[];
@@ -634,7 +634,7 @@ function BedCard({
   onAddPlannedWork?: (plant: { id: string; name: string }, bed: { id: string; name: string }) => void;
   addingPlant: boolean;
   updatingPlant: boolean;
-  uploadingPhoto: boolean;
+  uploadingPhotoPlantId: string | null;
 }) {
   const qc = useQueryClient();
   const [expanded, setExpanded] = useState(false);
@@ -654,7 +654,7 @@ function BedCard({
   const [editingDatePlantId, setEditingDatePlantId] = useState<string | null>(null);
   const [editingDateValue, setEditingDateValue] = useState("");
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const [photoPlantId, setPhotoPlantId] = useState<string | null>(null);
+  const photoTargetRef = useRef<{ plantId: string; bedId: string } | null>(null);
   const [gallery, setGallery] = useState<{
     plantName: string;
     photos: {
@@ -724,10 +724,11 @@ function BedCard({
 
   const handlePhotoInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && photoPlantId) {
+    const pending = photoTargetRef.current;
+    if (file && pending) {
       const takenAt = toDateInputValue(new Date().toISOString());
-      onUploadPhoto(file, photoPlantId, bed.id, `${takenAt}T12:00:00.000Z`);
-      setPhotoPlantId(null);
+      onUploadPhoto(file, pending.plantId, pending.bedId, `${takenAt}T12:00:00.000Z`);
+      photoTargetRef.current = null;
     }
     e.target.value = "";
   };
@@ -988,13 +989,13 @@ function BedCard({
                       size="icon"
                       className="h-7 w-7 text-slate-400 hover:text-emerald-600 flex-shrink-0"
                       onClick={() => {
-                        setPhotoPlantId(plant.id);
+                        photoTargetRef.current = { plantId: plant.id, bedId: bed.id };
                         photoInputRef.current?.click();
                       }}
-                      disabled={uploadingPhoto}
+                      disabled={!!uploadingPhotoPlantId}
                       title="Сделать фото растения"
                     >
-                      {uploadingPhoto && photoPlantId === plant.id ? (
+                      {uploadingPhotoPlantId === plant.id ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       ) : (
                         <Camera className="w-3.5 h-3.5" />
@@ -1045,7 +1046,11 @@ function BedCard({
                                   style={{ left: scaleLeftPct(offset) }}
                                   title={new Date(ph.takenAt).toLocaleDateString("ru-RU")}
                                 >
-                                  <img src={ph.url} alt="" className="w-full h-full object-cover" />
+                                  <img
+                                    src={resolvePhotoUrl(ph.url)}
+                                    alt=""
+                                    className="w-full h-full object-cover"
+                                  />
                                 </button>
                               );
                             })}
@@ -1363,11 +1368,11 @@ function BedCard({
                 <X className="w-5 h-5" />
               </Button>
             </div>
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative">
+            <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative min-h-[40vh]">
               <img
-                src={gallery.photos[gallery.index].url}
+                src={resolvePhotoUrl(gallery.photos[gallery.index].url)}
                 alt=""
-                className="max-w-full max-h-full object-contain"
+                className="max-w-full max-h-[70vh] w-auto object-contain"
               />
               {gallery.photos[gallery.index]?.analysisResult && (
                 <div className="w-full flex-shrink-0 px-4 py-2 bg-black/60 text-white text-sm sm:rounded-b-2xl">

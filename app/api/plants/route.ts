@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { generateTimelineForPlant } from "@/lib/timeline-generate";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const user = await getAuthUser();
