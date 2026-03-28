@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import sharp from "sharp";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { randomUUID } from "crypto";
@@ -9,6 +10,25 @@ import { analyzePhotoForTimeline } from "@/lib/analyze-photo-timeline";
 export const dynamic = "force-dynamic";
 
 const UPLOAD_DIR = "public/uploads";
+
+/** JPEG, ориентация EXIF, лимит стороны — иначе HEIC/WebP/«ложный» .jpg не показываются в <img> у части браузеров. */
+async function normalizePlantImageBuffer(input: Buffer): Promise<Buffer | null> {
+  try {
+    return await sharp(input)
+      .rotate()
+      .resize({
+        width: 1920,
+        height: 1920,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 86, mozjpeg: true })
+      .toBuffer();
+  } catch (e) {
+    console.warn("Plant photo sharp normalize failed:", e);
+    return null;
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,14 +53,24 @@ export async function POST(request: NextRequest) {
     const bed = await prisma.bed.findFirst({ where: { id: bedId, userId: user.id } });
     if (!bed) return NextResponse.json({ error: "Bed not found" }, { status: 404 });
 
-    const ext = path.extname(file.name || "") || ".jpg";
-    const filename = `${randomUUID()}${ext}`;
     const dir = path.join(process.cwd(), UPLOAD_DIR);
     let url: string;
 
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const mimeType = file.type || "image/jpeg";
+    let buffer = Buffer.from(bytes);
+    const mimeFromClient = file.type || "image/jpeg";
+
+    const normalized = await normalizePlantImageBuffer(buffer);
+    let storedMime = "image/jpeg";
+    let filename: string;
+    if (normalized) {
+      buffer = Buffer.from(normalized);
+      filename = `${randomUUID()}.jpg`;
+    } else {
+      const ext = path.extname(file.name || "") || ".jpg";
+      filename = `${randomUUID()}${ext}`;
+      storedMime = mimeFromClient;
+    }
 
     try {
       await mkdir(dir, { recursive: true });
@@ -49,7 +79,7 @@ export async function POST(request: NextRequest) {
       url = `/uploads/${filename}`;
     } catch {
       const base64 = buffer.toString("base64");
-      url = `data:${mimeType};base64,${base64}`;
+      url = `data:${storedMime};base64,${base64}`;
     }
 
     const takenAt = takenAtStr ? new Date(takenAtStr) : new Date();
@@ -69,7 +99,7 @@ export async function POST(request: NextRequest) {
       await analyzePhotoForTimeline(
         photo.id,
         buffer.toString("base64"),
-        mimeType,
+        storedMime,
         { name: plant.name, plantedDate: plant.plantedDate },
         { type: bed.type },
         takenAt,
