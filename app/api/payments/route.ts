@@ -56,8 +56,8 @@ export async function POST(request: NextRequest) {
       description ??
       (plan === "yearly"
         ? yearlyPromoExtraMonths > 0
-          ? "Премиум на год + 2 месяца по акции"
-          : "Премиум на год"
+          ? "Премиум 12 мес + 2 мес (акция новичка)"
+          : "Премиум 12 месяцев (год)"
         : "Премиум на месяц");
 
     const response = await fetch("https://api.yookassa.ru/v3/payments", {

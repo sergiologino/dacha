@@ -50,7 +50,12 @@ export function usePushSubscription() {
       const keyRes = await fetch("/api/push/vapid-public");
       if (!keyRes.ok) {
         setState("error");
-        setMessage("Сервер не настроен для уведомлений");
+        setMessage(
+          "Push на этом сервере не включён: в окружении нет ключей VAPID. " +
+            "Владельцу сайта: выполнить «npx web-push generate-vapid-keys», " +
+            "добавить VAPID_PUBLIC_KEY и VAPID_PRIVATE_KEY в .env на сервере и перезапустить приложение. " +
+            "Инструкция: docs/DEPLOY.md (раздел про пуш-напоминания)."
+        );
         return;
       }
       const { publicKey } = await keyRes.json();

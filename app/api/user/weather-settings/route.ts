@@ -16,13 +16,49 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  return NextResponse.json({
-    weatherPushEnabled: false,
-    weatherCheckIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT,
-    hasLocation: user.latitude != null && user.longitude != null,
-    minIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MIN,
-    maxIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MAX,
-  });
+  try {
+    const row = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        latitude: true,
+        longitude: true,
+        weatherPushEnabled: true,
+        weatherCheckIntervalMinutes: true,
+      },
+    });
+
+    if (!row) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const interval = normalizeWeatherCheckIntervalMinutes(
+      row.weatherCheckIntervalMinutes
+    );
+
+    return NextResponse.json({
+      weatherPushEnabled: row.weatherPushEnabled,
+      weatherCheckIntervalMinutes: interval,
+      hasLocation: row.latitude != null && row.longitude != null,
+      minIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MIN,
+      maxIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MAX,
+    });
+  } catch (error) {
+    if ((error as { code?: string } | null)?.code === "P2022") {
+      return NextResponse.json(
+        {
+          error:
+            "Погодные уведомления временно недоступны: в рабочей базе ещё не применена миграция настроек погоды.",
+          weatherPushEnabled: false,
+          weatherCheckIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT,
+          hasLocation: user.latitude != null && user.longitude != null,
+          minIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MIN,
+          maxIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MAX,
+        },
+        { status: 503 }
+      );
+    }
+    throw error;
+  }
 }
 
 export async function POST(request: NextRequest) {

@@ -22,7 +22,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <SessionProvider>
+      <SessionProvider
+        refetchInterval={60 * 60}
+        refetchOnWindowFocus
+      >
         <QueryClientProvider client={queryClient}>
           {children}
           <Toaster position="top-center" richColors />

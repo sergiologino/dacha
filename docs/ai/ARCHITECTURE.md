@@ -32,7 +32,7 @@ app/
 ├── layout.tsx                       # Root layout (серверный + Providers)
 ├── robots.ts                        # robots.txt
 ├── sitemap.ts                       # sitemap.xml (авто из crops)
-├── (app)/                           # Защищённая группа (middleware)
+├── (app)/                           # Защищённая группа (proxy / auth)
 │   ├── layout.tsx                   # AppHeader + BottomNav + gradient bg
 │   ├── garden/page.tsx              # Мой участок
 │   ├── calendar/page.tsx            # Календарь
@@ -105,7 +105,7 @@ lib/
 
 ## Auth
 - Провайдеры: Google, Yandex
-- Middleware: `middleware.ts` → защищает /garden, /calendar, /chat, /camera, /subscribe
+- Proxy: `proxy.ts` (конвенция Next.js 16+) → защищает /garden, /calendar, /chat, /camera, /subscribe
 - Callback `authorized` в auth.ts
 - Кастомная страница: `/auth/signin`
 

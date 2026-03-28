@@ -30,4 +30,11 @@ describe("crop community helpers", () => {
     expect(merged).toHaveLength(2);
     expect(merged?.some((item) => item.name === "Всем на зависть")).toBe(true);
   });
+
+  it("merges variety imageUrl from newer entry", () => {
+    const merged = mergeVarieties([{ name: "Черри", desc: "мелкие" }], [
+      { name: "Черри", desc: "мелкие", imageUrl: "https://upload.wikimedia.org/test.jpg" },
+    ]);
+    expect(merged?.[0].imageUrl).toBe("https://upload.wikimedia.org/test.jpg");
+  });
 });

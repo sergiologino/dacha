@@ -10,6 +10,11 @@ import { getAuthUser } from "@/lib/get-user";
 import { getMergedCrops } from "@/lib/crops-merge";
 import { getPromptByKey } from "@/lib/get-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
+import {
+  attachVarietyImage,
+  buildImageLabelsForCommunityCrop,
+  resolveCropImageUrl,
+} from "@/lib/crop-image";
 
 const AI_URL = process.env.AI_INTEGRATION_URL;
 const AI_KEY = process.env.AI_INTEGRATION_API_KEY;
@@ -59,107 +64,6 @@ export async function GET() {
   }
 }
 
-/** Генерация изображения культуры через интегратор (image_gen). */
-async function generateCropImage(
-  cropName: string,
-  category: string,
-  userId: string | null
-): Promise<{ url: string | null; responseData?: Record<string, unknown> }> {
-  if (!AI_URL || !AI_KEY) return { url: null };
-  const template =
-    (await getPromptByKey("crops_image")) ??
-    "Ультрареалистичная фотография растения или овоща/фрукта: {{cropName}}, категория {{category}}. Натуральный свет, фотокачество, ботаническая точность, без рисунка, без иллюстративного стиля, без текста, как настоящая предметная фотография для каталога растений.";
-  const prompt = template.replace("{{cropName}}", cropName).replace("{{category}}", category);
-  try {
-    const res = await fetch(`${AI_URL}/api/ai/process`, {
-      method: "POST",
-      headers: { "X-API-Key": AI_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: "guide@dacha-ai.ru",
-        networkName: "openai-gpt-image-1.5",
-        requestType: "image_gen",
-        payload: { prompt, size: "1024x1024" },
-      }),
-    });
-    const data = (await res.json()) as Record<string, unknown>;
-    const url =
-      (data.response as { data?: { url?: string; b64_json?: string }[]; url?: string })?.data?.[0]?.url ??
-      (data.response as { url?: string })?.url ??
-      ((data.response as { data?: { b64_json?: string }[] })?.data?.[0]?.b64_json
-        ? `data:image/png;base64,${(data.response as { data: { b64_json: string }[] }).data[0].b64_json}`
-        : null);
-    await logAiCall({
-      userId,
-      endpoint: "/api/crops",
-      requestType: "image_gen",
-      messages: [{ role: "user", content: prompt }],
-      response: url ? "[image generated]" : null,
-      responseData: data,
-      status: data.status === "failed" ? "failed" : "success",
-      errorMessage: data.status === "failed" ? (data.errorMessage as string) : undefined,
-    });
-    if (data.status === "failed") return { url: null, responseData: data };
-    return { url: url || null, responseData: data };
-  } catch (err) {
-    await logAiCall({
-      userId,
-      endpoint: "/api/crops",
-      requestType: "image_gen",
-      messages: [{ role: "user", content: prompt }],
-      status: "failed",
-      errorMessage: err instanceof Error ? err.message : undefined,
-    });
-    return { url: null };
-  }
-}
-
-async function fetchWikipediaImage(searchTerm: string): Promise<string | null> {
-  const variants = [
-    `${searchTerm} растение`,
-    searchTerm,
-  ];
-
-  for (const variant of variants) {
-    for (const lang of ["ru", "en"]) {
-      const params = new URLSearchParams({
-        action: "query",
-        format: "json",
-        origin: "*",
-        generator: "search",
-        gsrsearch: variant,
-        gsrlimit: "5",
-        prop: "pageimages",
-        piprop: "original",
-      });
-
-      try {
-        const response = await fetch(`https://${lang}.wikipedia.org/w/api.php?${params.toString()}`, {
-          cache: "no-store",
-        });
-        if (!response.ok) continue;
-
-        const data = (await response.json()) as {
-          query?: {
-            pages?: Record<string, { original?: { source?: string } }>;
-          };
-        };
-
-        const image = Object.values(data.query?.pages ?? {}).find(
-          (page) => page.original?.source?.includes("upload.wikimedia.org"),
-        )?.original?.source;
-
-        if (image) {
-          return image;
-        }
-      } catch {
-        // ignore and continue
-      }
-    }
-  }
-
-  return null;
-}
-
 /** Извлечение структурированных данных культуры через AI (из текста ответа нейроэксперта или по запросу). */
 async function extractCropFromAI(
   query: string,
@@ -182,7 +86,7 @@ async function extractCropFromAI(
   if (!AI_URL || !AI_KEY) return null;
   const systemTemplate =
     (await getPromptByKey("crops_extract_system")) ??
-    `Ты помощник для справочника растений. Верни ТОЛЬКО валидный JSON без markdown и без комментариев. Поля: name, baseCropName?, varietyName?, slug, category (одна из: {{categories}}), description, plantMonths, harvestMonths, waterSchedule, careNotes, regions, varieties. Если запрос относится к сорту существующей культуры, укажи baseCropName как базовую культуру, а varietyName как название сорта.`;
+    `Ты помощник для справочника растений. Верни ТОЛЬКО валидный JSON без markdown и без комментариев. Поля: name, baseCropName?, varietyName?, slug, category (одна из: {{categories}}), description, plantMonths, harvestMonths, waterSchedule, careNotes, regions, varieties. Важно: если пользователь назвал сорт (например «томат черри», «помидоры бычье сердце»), обязательно заполни varietyName точным названием сорта, baseCropName — базовая культура («Томат»), а в name можно дать полную форму («Томат черри»). Сорта сильно отличаются внешне — это нужно для иллюстраций.`;
   const systemPrompt = systemTemplate.replace("{{categories}}", CATEGORIES.join(", "));
   const userContent = aiResult
     ? `По тексту ниже выдели данные культуры для справочника и верни JSON.\n\nТекст:\n${aiResult.slice(0, 4000)}`
@@ -341,7 +245,7 @@ export async function POST(request: NextRequest) {
         targetStaticCrop.varieties,
         mergeVarieties(
           existingOverlay && Array.isArray(existingOverlay.varieties)
-            ? (existingOverlay.varieties as { name: string; desc: string }[])
+            ? (existingOverlay.varieties as { name: string; desc: string; imageUrl?: string }[])
             : undefined,
           inferredVarietyName
             ? [
@@ -356,6 +260,23 @@ export async function POST(request: NextRequest) {
         ),
       );
 
+      let mergedVarietiesForDb = mergedVarieties;
+      if (inferredVarietyName) {
+        const varietyLabels = buildImageLabelsForCommunityCrop({
+          query,
+          name: `${targetStaticCrop.name} ${inferredVarietyName}`,
+          baseCropName: targetStaticCrop.name,
+          varietyName: inferredVarietyName,
+          staticBaseName: targetStaticCrop.name,
+        });
+        const varietyImageUrl = await resolveCropImageUrl({
+          labels: varietyLabels,
+          category: targetStaticCrop.category,
+          userId: user.id,
+        });
+        mergedVarietiesForDb = attachVarietyImage(mergedVarieties, inferredVarietyName, varietyImageUrl);
+      }
+
       const payload = {
         name: targetStaticCrop.name,
         slug: targetStaticCrop.slug,
@@ -367,7 +288,10 @@ export async function POST(request: NextRequest) {
         regions: existingOverlay?.regions ?? targetStaticCrop.region,
         careNotes: existingOverlay?.careNotes ?? targetStaticCrop.note,
         imageUrl: existingOverlay?.imageUrl ?? targetStaticCrop.imageUrl ?? null,
-        varieties: mergedVarieties && mergedVarieties.length > 0 ? (mergedVarieties as object) : undefined,
+        varieties:
+          mergedVarietiesForDb && mergedVarietiesForDb.length > 0
+            ? (mergedVarietiesForDb as object)
+            : undefined,
       };
 
       const crop = await prisma.crop.upsert({
@@ -389,7 +313,7 @@ export async function POST(request: NextRequest) {
           water: crop.waterSchedule ?? "",
           note: crop.careNotes ?? "",
           imageUrl: crop.imageUrl ?? targetStaticCrop.imageUrl ?? undefined,
-          varieties: mergedVarieties,
+          varieties: mergedVarietiesForDb ?? mergedVarieties,
           addedByCommunity: true,
         },
         { status: existingOverlay ? 200 : 201 },
@@ -398,16 +322,17 @@ export async function POST(request: NextRequest) {
 
     const slug = await uniqueSlug(extracted.slug);
 
-    let imageUrl: string | null = null;
-    try {
-      imageUrl = await fetchWikipediaImage(extracted.name);
-      if (!imageUrl) {
-        const { url } = await generateCropImage(extracted.name, extracted.category, user.id);
-        imageUrl = url;
-      }
-    } catch {
-      // сохраняем без фото
-    }
+    const labels = buildImageLabelsForCommunityCrop({
+      query,
+      name: extracted.name,
+      baseCropName: extracted.baseCropName,
+      varietyName: extracted.varietyName,
+    });
+    const imageUrl = await resolveCropImageUrl({
+      labels,
+      category: extracted.category,
+      userId: user.id,
+    });
 
     const crop = await prisma.crop.create({
       data: {
@@ -420,7 +345,7 @@ export async function POST(request: NextRequest) {
         waterSchedule: extracted.waterSchedule,
         regions: extracted.regions,
         careNotes: extracted.careNotes,
-        imageUrl,
+        imageUrl: imageUrl || null,
         varieties: extracted.varieties.length > 0 ? (extracted.varieties as object) : undefined,
       },
     });

@@ -7,65 +7,50 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
+import { ONBOARDING_SLIDE_ART } from "@/components/onboarding-slide-illustrations";
 
 const FEATURE_ONBOARDING_KEY = "dacha_feature_onboarding_seen";
-
-const SLIDE_IMAGES = [
-  "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&q=80",
-  "https://images.unsplash.com/photo-1592150621744-aca64f48394a?w=600&q=80",
-  "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=600&q=80",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80",
-  "https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=600&q=80",
-  "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=600&q=80",
-] as const;
 
 const SLIDES: {
   icon: typeof Sprout;
   title: string;
   text: string;
-  image: string;
   mock?: "garden" | "timeline" | "calendar" | "guide" | "chat";
 }[] = [
   {
     icon: Sprout,
     title: "Добро пожаловать в Любимую Дачу!",
     text: "Планируйте посадки, уход и урожай в одном месте. Мы уже добавили для вас пример — грядку «Рассада дома» с растением и планом ухода.",
-    image: SLIDE_IMAGES[0],
     mock: "garden",
   },
   {
     icon: LayoutGrid,
     title: "Мой участок",
     text: "Добавляйте грядки: открытый грунт, теплица, высокая грядка или рассада дома. На каждую — растения из справочника, дата посадки и фото.",
-    image: SLIDE_IMAGES[1],
     mock: "garden",
   },
   {
     icon: Calendar,
     title: "Таймлайн ухода",
     text: "По каждому растению — план: всходы, полив, рыхление, подкормка, пересадка, урожай. Добавляйте свои работы и редактируйте даты.",
-    image: SLIDE_IMAGES[2],
     mock: "timeline",
   },
   {
     icon: Calendar,
     title: "Календарь",
     text: "Общие задачи на месяц по регионам и ваши запланированные работы с грядок. Лунный календарь с приметами и рекомендациями.",
-    image: SLIDE_IMAGES[3],
     mock: "calendar",
   },
   {
     icon: BookOpen,
     title: "Справочник и нейросеть",
     text: "100+ культур с описаниями и сортами. Не нашли? Спросите AI-агронома или добавьте культуру в справочник.",
-    image: SLIDE_IMAGES[4],
     mock: "guide",
   },
   {
     icon: MessageCircle,
     title: "Чат и камера",
     text: "Задайте вопрос в «Чате» — совет по садоводству. Сфотографируйте растение в «Камере» — нейросеть подскажет, что с ним. Приятного урожая!",
-    image: SLIDE_IMAGES[5],
     mock: "chat",
   },
 ];
@@ -188,6 +173,7 @@ export function FeatureOnboarding({ open, onClose }: FeatureOnboardingProps) {
   };
 
   const slide = SLIDES[step];
+  const SlideIllustration = ONBOARDING_SLIDE_ART[step] ?? ONBOARDING_SLIDE_ART[0];
   const Icon = slide?.icon ?? Sprout;
   const isFirst = step === 0;
   const isLast = step === SLIDES.length - 1;
@@ -215,14 +201,12 @@ export function FeatureOnboarding({ open, onClose }: FeatureOnboardingProps) {
             </button>
 
             <div className="flex flex-col items-center text-center">
-              <div className="relative w-full aspect-[16/10] max-h-[180px] sm:max-h-[220px] rounded-2xl overflow-hidden shadow-lg border border-white/50 dark:border-slate-600/50 mb-4 bg-slate-100 dark:bg-slate-800">
-                <img
-                  src={slide?.image ?? SLIDE_IMAGES[0]}
-                  alt=""
-                  className="absolute inset-0 w-full h-full object-cover"
-                  loading="eager"
-                  decoding="async"
-                />
+              <div
+                className="relative w-full aspect-[16/10] max-h-[180px] sm:max-h-[220px] rounded-2xl overflow-hidden shadow-lg border border-white/50 dark:border-slate-600/50 mb-4 bg-slate-100 dark:bg-slate-800"
+                role="img"
+                aria-hidden
+              >
+                <SlideIllustration className="absolute inset-0 w-full h-full" />
               </div>
 
               {slide?.mock && (

@@ -67,9 +67,12 @@ providers.push(
   }),
 );
 
-// Сессия: не требовать авторизацию при каждом входе. Истекает через 7 дней без активности или при выходе.
-const SESSION_MAX_AGE_DAYS = 7;
+// Сессия JWT: до 30 дней с последнего продления; при заходах в приложение срок сдвигается (updateAge),
+// пока пользователь не пропадёт на месяц или не нажмёт «Выход».
+const SESSION_MAX_AGE_DAYS = 30;
 const SESSION_MAX_AGE_SEC = SESSION_MAX_AGE_DAYS * 24 * 60 * 60;
+/** Минимум секунд между продлениями cookie при обращении к сессии (скользящее окно). */
+const SESSION_UPDATE_AGE_SEC = 24 * 60 * 60;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,
@@ -85,6 +88,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: "jwt",
     maxAge: SESSION_MAX_AGE_SEC,
+    updateAge: SESSION_UPDATE_AGE_SEC,
   },
   pages: {
     signIn: "/auth/signin",
@@ -112,7 +116,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       return session;
     },
-    // Не используем Prisma здесь: middleware работает в Edge Runtime, где Prisma (node:*) недоступен.
+    // Не используем Prisma здесь: proxy (бывш. middleware) в Edge Runtime, где Prisma (node:*) недоступен.
     async signIn() {
       return true;
     },

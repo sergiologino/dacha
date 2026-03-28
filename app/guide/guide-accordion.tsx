@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
+import { CropImage } from "@/components/crop-image";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Crop } from "@/lib/types";
+import { getCropDisplayImageUrl } from "@/lib/crop-community";
 
 const categoryIcons: Record<string, { emoji: string; color: string }> = {
   "Овощи": { emoji: "🥬", color: "bg-emerald-50 dark:bg-emerald-950 border-emerald-200 dark:border-emerald-800" },
@@ -19,7 +20,11 @@ const categoryIcons: Record<string, { emoji: string; color: string }> = {
 };
 
 function getCategoryImage(crops: Crop[]): string | undefined {
-  return crops.find((c) => c.imageUrl)?.imageUrl;
+  for (const c of crops) {
+    const u = getCropDisplayImageUrl(c);
+    if (u) return u;
+  }
+  return undefined;
 }
 
 export function GuideAccordion({ crops }: { crops: Crop[] }) {
@@ -44,13 +49,12 @@ export function GuideAccordion({ crops }: { crops: Crop[] }) {
             >
               {previewImg ? (
                 <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">
-                  <Image
+                  <CropImage
                     src={previewImg}
                     alt={cat}
                     fill
                     className="object-cover"
                     sizes="56px"
-                    unoptimized
                   />
                 </div>
               ) : (
@@ -69,18 +73,19 @@ export function GuideAccordion({ crops }: { crops: Crop[] }) {
 
             {isOpen && (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-3 pl-2">
-                {catCrops.map((c) => (
+                {catCrops.map((c) => {
+                  const thumb = getCropDisplayImageUrl(c);
+                  return (
                   <Link key={c.id} href={`/guide/${c.slug}`}>
                     <Card className="hover:scale-[1.02] transition-all cursor-pointer h-full overflow-hidden">
-                      {c.imageUrl && (
+                      {thumb && (
                         <div className="relative w-full h-28">
-                          <Image
-                            src={c.imageUrl}
+                          <CropImage
+                            src={thumb}
                             alt={c.name}
                             fill
                             className="object-cover"
                             sizes="(max-width: 672px) 50vw, 300px"
-                            unoptimized
                           />
                         </div>
                       )}
@@ -97,7 +102,8 @@ export function GuideAccordion({ crops }: { crops: Crop[] }) {
                       </div>
                     </Card>
                   </Link>
-                ))}
+                );
+                })}
               </div>
             )}
           </div>
