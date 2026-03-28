@@ -214,22 +214,26 @@ export function useUploadPlantPhoto() {
     onSuccess: (data, variables) => {
       const { plantId, bedId } = variables;
       const newPhoto: BedPlantPhoto = data;
-      qc.setQueryData<Bed[]>(["beds"], (old) => {
-        if (!old) return old;
-        return old.map((bed) => {
-          if (bed.id !== bedId) return bed;
-          return {
-            ...bed,
-            plants: bed.plants.map((plant) => {
-              if (plant.id !== plantId) return plant;
-              const photos = [newPhoto, ...(plant.photos ?? [])];
-              return { ...plant, photos };
-            }),
-          };
+      const prev = qc.getQueryData<Bed[]>(["beds"]);
+      if (!prev?.length) {
+        void qc.invalidateQueries({ queryKey: ["beds"] });
+      } else {
+        qc.setQueryData<Bed[]>(["beds"], (old) => {
+          if (!old) return old;
+          return old.map((bed) => {
+            if (bed.id !== bedId) return bed;
+            return {
+              ...bed,
+              plants: bed.plants.map((plant) => {
+                if (plant.id !== plantId) return plant;
+                const photos = [newPhoto, ...(plant.photos ?? [])];
+                return { ...plant, photos };
+              }),
+            };
+          });
         });
-      });
+      }
       toast.success("Фото добавлено");
-      void qc.invalidateQueries({ queryKey: ["beds"] });
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Не удалось загрузить фото");
