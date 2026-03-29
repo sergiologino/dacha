@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowLeft, Lightbulb } from "lucide-react";
+import { GuideHackImage } from "@/components/guide-hack-image";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,11 +33,9 @@ function HackCard({ hack }: { hack: GuideHack }) {
   return (
     <Card className="overflow-hidden flex flex-col border-slate-200 dark:border-slate-700">
       <div className="relative w-full aspect-[4/3] bg-slate-100 dark:bg-slate-800">
-        <Image
+        <GuideHackImage
           src={hack.imageUrl}
           alt={hack.imageAlt}
-          fill
-          className="object-cover"
           sizes="(max-width: 768px) 100vw, 33vw"
         />
       </div>

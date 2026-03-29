@@ -242,7 +242,7 @@ model Photo {
   analyzedAt     DateTime? // когда выполнен анализ
 
   user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plant    Plant?         @relation(fields: [plantId], references: [id], onDelete: SetNull)
+  plant    Plant?         @relation(fields: [plantId], references: [id], onDelete: Cascade)
   bed      Bed?           @relation(fields: [bedId], references: [id], onDelete: SetNull)
   likes    PhotoLike[]
   comments PhotoComment[]
