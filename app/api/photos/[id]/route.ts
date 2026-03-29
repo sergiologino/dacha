@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
+import { userOwnsPhotoRow } from "@/lib/photo-access";
 
 export const dynamic = "force-dynamic";
 
@@ -14,21 +15,21 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  const photo = await prisma.photo.findFirst({
-    where: {
-      id,
-      OR: [
-        { userId: user.id },
-        { plant: { userId: user.id } },
-        { bed: { userId: user.id } },
-      ],
-    },
+  const row = await prisma.photo.findUnique({
+    where: { id },
     select: {
       id: true,
+      userId: true,
+      plantId: true,
+      bedId: true,
       isPublic: true,
       publishedAt: true,
     },
   });
+  const photo =
+    row && (await userOwnsPhotoRow(user.id, row))
+      ? { id: row.id, isPublic: row.isPublic, publishedAt: row.publishedAt }
+      : null;
 
   if (!photo) {
     return NextResponse.json({ error: "Photo not found" }, { status: 404 });

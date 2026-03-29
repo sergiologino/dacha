@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { WorkDetailModal } from "@/components/work-detail-modal";
 import { GardenPlantPhotoImg } from "@/components/garden-plant-photo";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { BedPlantPhoto, BedPlantTimelineEvent } from "@/lib/hooks/use-beds";
 import { Camera, ChevronRight } from "lucide-react";
 
@@ -34,6 +35,7 @@ export function PlantWorksList({
 }) {
   const qc = useQueryClient();
   const [openEvent, setOpenEvent] = useState<BedPlantTimelineEvent | null>(null);
+  const [lightboxPhoto, setLightboxPhoto] = useState<BedPlantPhoto | null>(null);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -171,26 +173,34 @@ export function PlantWorksList({
             </h2>
             <ul className="space-y-3">
               {sortedPhotos.map((ph) => (
-                <li
-                  key={ph.id}
-                  className="flex gap-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 items-center"
-                >
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
-                    <GardenPlantPhotoImg
-                      photoId={ph.id}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-base text-slate-500">{formatRu(ph.takenAt)}</p>
-                    {ph.analysisResult ? (
-                      <p className="text-base sm:text-lg mt-1 text-slate-800 dark:text-slate-200 line-clamp-4">
-                        {ph.analysisResult}
+                <li key={ph.id}>
+                  <button
+                    type="button"
+                    onClick={() => setLightboxPhoto(ph)}
+                    className="flex gap-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 items-center w-full text-left hover:bg-slate-50 dark:hover:bg-slate-800/90 active:bg-slate-100 dark:active:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                  >
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
+                      <GardenPlantPhotoImg
+                        photoId={ph.id}
+                        className="w-full h-full object-cover pointer-events-none"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base text-slate-500">{formatRu(ph.takenAt)}</p>
+                      {ph.analysisResult ? (
+                        <p className="text-base sm:text-lg mt-1 text-slate-800 dark:text-slate-200 line-clamp-4">
+                          {ph.analysisResult}
+                        </p>
+                      ) : (
+                        <p className="text-base text-slate-400 mt-1">Фото без описания анализа</p>
+                      )}
+                      <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
+                        Нажмите, чтобы открыть крупно
                       </p>
-                    ) : (
-                      <p className="text-base text-slate-400 mt-1">Фото без описания анализа</p>
-                    )}
-                  </div>
+                    </div>
+                    <ChevronRight className="w-6 h-6 shrink-0 text-slate-400" aria-hidden />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -230,6 +240,30 @@ export function PlantWorksList({
             </ul>
           </section>
         ) : null}
+
+        <Dialog open={!!lightboxPhoto} onOpenChange={(open) => !open && setLightboxPhoto(null)}>
+          <DialogContent className="max-w-[min(95vw,56rem)] max-h-[90vh] overflow-y-auto gap-3 p-4 sm:p-6">
+            <DialogTitle className="text-base sm:text-lg font-semibold pr-8">
+              {lightboxPhoto ? `Снимок от ${formatRu(lightboxPhoto.takenAt)}` : "Фото"}
+            </DialogTitle>
+            {lightboxPhoto ? (
+              <>
+                <div className="flex justify-center items-start min-h-[140px] bg-slate-100 dark:bg-slate-800/80 rounded-xl p-2">
+                  <GardenPlantPhotoImg
+                    key={lightboxPhoto.id}
+                    photoId={lightboxPhoto.id}
+                    className="max-w-full max-h-[min(75vh,720px)] w-auto object-contain rounded-lg"
+                  />
+                </div>
+                {lightboxPhoto.analysisResult ? (
+                  <p className="text-base text-slate-700 dark:text-slate-200 leading-relaxed">
+                    {lightboxPhoto.analysisResult}
+                  </p>
+                ) : null}
+              </>
+            ) : null}
+          </DialogContent>
+        </Dialog>
 
         <WorkDetailModal
           open={!!openEvent}
