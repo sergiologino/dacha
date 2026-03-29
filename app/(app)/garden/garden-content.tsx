@@ -577,13 +577,53 @@ function toDateInputValue(iso: string) {
   return iso.slice(0, 10);
 }
 
-/** Абсолютный URL для превью/галереи (надёжнее на мобильных/PWA). */
-function resolvePhotoUrl(url: string): string {
+/**
+ * URL для <img>: абсолютный origin для путей приложения, правка относительных `uploads/...`,
+ * cache-bust по id фото (пустой кэш/CDN или старый SW).
+ */
+function resolvePhotoUrl(url: string, photoId?: string): string {
   if (typeof window === "undefined") return url;
-  if (!url) return url;
-  if (url.startsWith("data:") || url.startsWith("http://") || url.startsWith("https://")) return url;
-  if (url.startsWith("/")) return `${window.location.origin}${url}`;
-  return url;
+  const raw = typeof url === "string" ? url.trim() : "";
+  if (!raw) return raw;
+  if (raw.startsWith("data:")) return raw;
+  let href: string;
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    href = raw;
+  } else {
+    const path = raw.startsWith("/") ? raw : `/${raw.replace(/^\/+/, "")}`;
+    href = `${window.location.origin}${path}`;
+  }
+  if (!photoId || href.startsWith("data:")) return href;
+  const sep = href.includes("?") ? "&" : "?";
+  return `${href}${sep}v=${encodeURIComponent(photoId)}`;
+}
+
+/** Превью с повтором без cache-bust (редкий nginx/прокси не отдаёт файл при ?v=). */
+function GardenPlantPhotoImg({
+  url,
+  photoId,
+  className,
+  loading = "eager",
+}: {
+  url: string;
+  photoId: string;
+  className?: string;
+  loading?: "eager" | "lazy";
+}) {
+  const [stripBust, setStripBust] = useState(false);
+  const src = resolvePhotoUrl(url, stripBust ? undefined : photoId);
+  return (
+    <img
+      src={src}
+      alt=""
+      className={className}
+      loading={loading}
+      decoding="async"
+      onError={() => {
+        if (!stripBust) setStripBust(true);
+      }}
+    />
+  );
 }
 
 const categoriesFromCrops = (cropsList: { category: string }[]) =>
@@ -1066,19 +1106,22 @@ function BedCard({
                           <div className="relative w-full h-11">
                             {(plant.photos ?? []).map((ph, idx) => {
                               const offset = (new Date(ph.takenAt).getTime() - startMs) / totalMs;
+                              const n = (plant.photos ?? []).length;
+                              /** takenAt desc: idx 0 — самое новое; выше z-index, чтобы перекрывало старые */
+                              const stackZ = 10 + (n - idx);
                               return (
                                 <button
                                   key={ph.id}
                                   type="button"
                                   onClick={() => openGallery(plant, idx)}
-                                  className="absolute top-0 w-9 h-9 rounded-lg overflow-hidden border-2 border-white dark:border-slate-700 shadow -translate-x-1/2 focus:ring-2 focus:ring-emerald-500 focus:outline-none z-10"
-                                  style={{ left: scaleLeftPct(offset) }}
+                                  className="absolute top-0 w-9 h-9 rounded-lg overflow-hidden border-2 border-white dark:border-slate-700 shadow -translate-x-1/2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                  style={{ left: scaleLeftPct(offset), zIndex: stackZ }}
                                   title={new Date(ph.takenAt).toLocaleDateString("ru-RU")}
                                 >
-                                  <img
-                                    src={resolvePhotoUrl(ph.url)}
-                                    alt=""
-                                    className="w-full h-full object-cover"
+                                  <GardenPlantPhotoImg
+                                    url={ph.url}
+                                    photoId={ph.id}
+                                    className="w-full h-full object-cover bg-slate-200/80 dark:bg-slate-700/80"
                                   />
                                 </button>
                               );
@@ -1398,10 +1441,11 @@ function BedCard({
               </Button>
             </div>
             <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative min-h-[40vh]">
-              <img
-                src={resolvePhotoUrl(gallery.photos[gallery.index].url)}
-                alt=""
-                className="max-w-full max-h-[70vh] w-auto object-contain"
+              <GardenPlantPhotoImg
+                key={gallery.photos[gallery.index].id}
+                url={gallery.photos[gallery.index].url}
+                photoId={gallery.photos[gallery.index].id}
+                className="max-w-full max-h-[70vh] w-auto object-contain bg-black"
               />
               {gallery.photos[gallery.index]?.analysisResult && (
                 <div className="w-full flex-shrink-0 px-4 py-2 bg-black/60 text-white text-sm sm:rounded-b-2xl">

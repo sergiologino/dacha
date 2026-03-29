@@ -12,10 +12,9 @@ const UPLOAD_DIR = "public/uploads";
 
 /** JPEG, ориентация EXIF. Dynamic import — при падении sharp в контейнере не роняем весь route. */
 async function normalizePlantImageBuffer(input: Buffer): Promise<Buffer | null> {
-  try {
-    const sharp = (await import("sharp")).default;
-    return await sharp(input)
-      .rotate()
+  const sharpMod = (await import("sharp")).default;
+  const pipeline = (instance: import("sharp").Sharp) =>
+    instance
       .resize({
         width: 1920,
         height: 1920,
@@ -24,10 +23,21 @@ async function normalizePlantImageBuffer(input: Buffer): Promise<Buffer | null> 
       })
       .jpeg({ quality: 86, mozjpeg: true })
       .toBuffer();
-  } catch (e) {
-    console.warn("Plant photo sharp normalize failed:", e);
-    return null;
+
+  const tries: (() => Promise<Buffer>)[] = [
+    () => pipeline(sharpMod(input, { failOn: "none" }).rotate()),
+    // без rotate: часть снимков падает только на auto-orient
+    () => pipeline(sharpMod(input, { failOn: "none" })),
+  ];
+
+  for (const run of tries) {
+    try {
+      return await run();
+    } catch (e) {
+      console.warn("Plant photo sharp normalize attempt failed:", e);
+    }
   }
+  return null;
 }
 
 export async function POST(request: NextRequest) {
