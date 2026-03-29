@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { usePushSubscription } from "@/lib/hooks/use-push-subscription";
 
@@ -85,12 +87,12 @@ export function NotificationPromptModal({
             <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-900/60 flex items-center justify-center mb-4">
               <Bell className="w-7 h-7 text-amber-600 dark:text-amber-400" />
             </div>
-            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">
+            <DialogTitle className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-2">
               Не пропустите напоминания
-            </h2>
-            <p className="text-slate-600 dark:text-slate-400 text-sm mb-4">
+            </DialogTitle>
+            <DialogDescription className="text-slate-600 dark:text-slate-400 text-sm mb-4">
               Включайте уведомления, чтобы получать напоминания о плановых работах на грядках (полив, подкормка и т.д.) на сегодня и завтра.
-            </p>
+            </DialogDescription>
 
             {!isPremium && permission === "default" && push.isSupported && (
               <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">

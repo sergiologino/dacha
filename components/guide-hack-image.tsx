@@ -12,11 +12,13 @@ type Props = {
 };
 
 /**
- * Лайфхаки тянут картинки с Wikimedia; оптимизатор Next по умолчанию качает их с сервера
- * и часто получает 403/таймаут — остаётся серый блок. unoptimized + загрузка в браузере обходят это.
+ * Картинки идут через /api/guide-image — Wikimedia часто недоступен из браузера в РФ,
+ * зато сервер приложения качает и отдаёт байты самому клиенту.
  */
 export function GuideHackImage({ src, alt, sizes, className = "object-cover" }: Props) {
   const [failed, setFailed] = useState(false);
+
+  const proxied = `/api/guide-image?url=${encodeURIComponent(src)}`;
 
   if (failed) {
     return (
@@ -29,7 +31,7 @@ export function GuideHackImage({ src, alt, sizes, className = "object-cover" }: 
 
   return (
     <Image
-      src={src}
+      src={proxied}
       alt={alt}
       fill
       className={className}
