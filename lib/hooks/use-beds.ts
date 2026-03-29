@@ -158,6 +158,8 @@ export function useBeds(options?: { enabled?: boolean }) {
     queryKey: ["beds"],
     queryFn: fetchBeds,
     enabled,
+    // Не наследовать глобальные 60s: фото/растения должны сразу подтягиваться с сервера после мутаций
+    staleTime: 0,
   });
 }
 
@@ -212,8 +214,27 @@ export function useUploadPlantPhoto() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: uploadPlantPhoto,
-    onSuccess: async () => {
-      await qc.refetchQueries({ queryKey: ["beds"] });
+    onSuccess: async (data, variables) => {
+      const { plantId, bedId } = variables;
+      const newPhoto: BedPlantPhoto = data;
+      // Как до регрессии (feb 2026): сразу показываем фото из ответа мутации; иначе при гонке refetch
+      // с запросом, начатым до коммита фото в БД, полоса превью остаётся пустой.
+      qc.setQueryData<Bed[]>(["beds"], (old) => {
+        if (!old) return old;
+        return old.map((bed) => {
+          if (bed.id !== bedId) return bed;
+          return {
+            ...bed,
+            plants: (bed.plants ?? []).map((plant) => {
+              if (plant.id !== plantId) return plant;
+              const existing = plant.photos ?? [];
+              const withoutDup = existing.filter((p) => p.id !== newPhoto.id);
+              return { ...plant, photos: [newPhoto, ...withoutDup] };
+            }),
+          };
+        });
+      });
+      await qc.invalidateQueries({ queryKey: ["beds"] });
       toast.success("Фото добавлено");
     },
     onError: (err) => {
