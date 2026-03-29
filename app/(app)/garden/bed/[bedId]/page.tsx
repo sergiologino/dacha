@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getPublicAppUrl } from "@/lib/gallery";
+import { getAuthUser } from "@/lib/get-user";
 import { notFound, redirect } from "next/navigation";
 import { BedPageClient } from "./bed-page-client";
 
@@ -11,8 +11,8 @@ export async function generateMetadata({
   params: Promise<{ bedId: string }>;
 }): Promise<Metadata> {
   const { bedId } = await params;
-  const session = await auth();
-  const uid = typeof session?.user?.id === "string" ? session.user.id : null;
+  const resolved = await getAuthUser();
+  const uid = resolved?.id ?? null;
   if (!uid) {
     return {
       title: "Грядка | Мой огород",
@@ -45,11 +45,11 @@ export default async function GardenBedPage({
 }: {
   params: Promise<{ bedId: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/auth/signin");
+  const user = await getAuthUser();
+  if (!user) redirect("/auth/signin");
   const { bedId } = await params;
   const ok = await prisma.bed.findFirst({
-    where: { id: bedId, userId: session.user.id },
+    where: { id: bedId, userId: user.id },
     select: { id: true },
   });
   if (!ok) notFound();

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getPublicAppUrl } from "@/lib/gallery";
+import { getAuthUser } from "@/lib/get-user";
 import { notFound, redirect } from "next/navigation";
 import { PlantPageClient } from "./plant-page-client";
 
@@ -11,8 +11,8 @@ export async function generateMetadata({
   params: Promise<{ bedId: string; plantId: string }>;
 }): Promise<Metadata> {
   const { bedId, plantId } = await params;
-  const session = await auth();
-  const uid = typeof session?.user?.id === "string" ? session.user.id : null;
+  const user = await getAuthUser();
+  const uid = user?.id ?? null;
   if (!uid) {
     return {
       title: "Растение | Мой огород",
@@ -59,11 +59,11 @@ export default async function GardenPlantPage({
 }: {
   params: Promise<{ bedId: string; plantId: string }>;
 }) {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/auth/signin");
+  const user = await getAuthUser();
+  if (!user) redirect("/auth/signin");
   const { bedId, plantId } = await params;
   const plant = await prisma.plant.findFirst({
-    where: { id: plantId, bedId, userId: session.user.id },
+    where: { id: plantId, bedId, userId: user.id },
     select: { id: true },
   });
   if (!plant) notFound();
