@@ -244,7 +244,12 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
         <h2 id="works-heading" className="sr-only">
           Работы и фотографии
         </h2>
-        <PlantWorksList plantId={plant.id} events={plant.timelineEvents ?? []} photos={plant.photos ?? []} />
+        <PlantWorksList
+          plantId={plant.id}
+          plantName={plant.name}
+          events={plant.timelineEvents ?? []}
+          photos={plant.photos ?? []}
+        />
       </section>
 
       <PlannedWorkModal

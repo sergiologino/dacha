@@ -4,7 +4,10 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { WorkDetailModal } from "@/components/work-detail-modal";
 import { GardenPlantPhotoImg } from "@/components/garden-plant-photo";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  GardenPlantGalleryDialog,
+  type GardenGalleryState,
+} from "@/components/garden-plant-gallery-dialog";
 import type { BedPlantPhoto, BedPlantTimelineEvent } from "@/lib/hooks/use-beds";
 import { Camera, ChevronRight } from "lucide-react";
 
@@ -26,16 +29,18 @@ function formatRu(d: string) {
 
 export function PlantWorksList({
   plantId,
+  plantName,
   events,
   photos,
 }: {
   plantId: string;
+  plantName: string;
   events: BedPlantTimelineEvent[];
   photos: BedPlantPhoto[];
 }) {
   const qc = useQueryClient();
   const [openEvent, setOpenEvent] = useState<BedPlantTimelineEvent | null>(null);
-  const [lightboxPhoto, setLightboxPhoto] = useState<BedPlantPhoto | null>(null);
+  const [gallery, setGallery] = useState<GardenGalleryState>(null);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -75,6 +80,15 @@ export function PlantWorksList({
     "w-full text-left rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-4 min-h-[3.75rem] flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/80 active:bg-slate-100 dark:active:bg-slate-800 transition-colors";
 
   const openWork = (e: BedPlantTimelineEvent) => setOpenEvent(e);
+
+  const openPhotoGallery = (ph: BedPlantPhoto) => {
+    const index = sortedPhotos.findIndex((p) => p.id === ph.id);
+    setGallery({
+      plantName,
+      photos: sortedPhotos,
+      index: index < 0 ? 0 : index,
+    });
+  };
 
   return (
       <div className="space-y-8">
@@ -176,7 +190,7 @@ export function PlantWorksList({
                 <li key={ph.id}>
                   <button
                     type="button"
-                    onClick={() => setLightboxPhoto(ph)}
+                    onClick={() => openPhotoGallery(ph)}
                     className="flex gap-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 items-center w-full text-left hover:bg-slate-50 dark:hover:bg-slate-800/90 active:bg-slate-100 dark:active:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
                   >
                     <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
@@ -196,7 +210,7 @@ export function PlantWorksList({
                         <p className="text-base text-slate-400 mt-1">Фото без описания анализа</p>
                       )}
                       <p className="text-sm text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
-                        Нажмите, чтобы открыть крупно
+                        Нажмите — подпись, публикация в галерее, комментарии
                       </p>
                     </div>
                     <ChevronRight className="w-6 h-6 shrink-0 text-slate-400" aria-hidden />
@@ -241,29 +255,7 @@ export function PlantWorksList({
           </section>
         ) : null}
 
-        <Dialog open={!!lightboxPhoto} onOpenChange={(open) => !open && setLightboxPhoto(null)}>
-          <DialogContent className="max-w-[min(95vw,56rem)] max-h-[90vh] overflow-y-auto gap-3 p-4 sm:p-6">
-            <DialogTitle className="text-base sm:text-lg font-semibold pr-8">
-              {lightboxPhoto ? `Снимок от ${formatRu(lightboxPhoto.takenAt)}` : "Фото"}
-            </DialogTitle>
-            {lightboxPhoto ? (
-              <>
-                <div className="flex justify-center items-start min-h-[140px] bg-slate-100 dark:bg-slate-800/80 rounded-xl p-2">
-                  <GardenPlantPhotoImg
-                    key={lightboxPhoto.id}
-                    photoId={lightboxPhoto.id}
-                    className="max-w-full max-h-[min(75vh,720px)] w-auto object-contain rounded-lg"
-                  />
-                </div>
-                {lightboxPhoto.analysisResult ? (
-                  <p className="text-base text-slate-700 dark:text-slate-200 leading-relaxed">
-                    {lightboxPhoto.analysisResult}
-                  </p>
-                ) : null}
-              </>
-            ) : null}
-          </DialogContent>
-        </Dialog>
+        <GardenPlantGalleryDialog gallery={gallery} setGallery={setGallery} />
 
         <WorkDetailModal
           open={!!openEvent}
