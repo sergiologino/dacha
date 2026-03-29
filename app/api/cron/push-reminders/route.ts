@@ -36,6 +36,15 @@ export async function GET(request: NextRequest) {
   const tomorrowKey = tomorrowStart.toISOString().slice(0, 10);
 
   const allUserIds = new Set([...todayByUser.keys(), ...tomorrowByUser.keys()]);
+  const premiumRows =
+    allUserIds.size > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: [...allUserIds] }, isPremium: true },
+          select: { id: true },
+        })
+      : [];
+  const premiumIds = new Set(premiumRows.map((r) => r.id));
+
   let totalSent = 0;
   let totalFailed = 0;
   let totalSkippedDuplicates = 0;
@@ -43,6 +52,7 @@ export async function GET(request: NextRequest) {
   let totalStaleDeleted = 0;
 
   for (const userId of allUserIds) {
+    if (!premiumIds.has(userId)) continue;
     const todayEvents = todayByUser.get(userId) ?? [];
     const tomorrowEvents = tomorrowByUser.get(userId) ?? [];
     if (todayEvents.length === 0 && tomorrowEvents.length === 0) continue;

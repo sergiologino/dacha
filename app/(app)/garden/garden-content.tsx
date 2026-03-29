@@ -582,7 +582,8 @@ export default function GardenContent() {
             if (
               typeof Notification !== "undefined" &&
               Notification.permission !== "granted" &&
-              !getNotificationPromptSeen()
+              !getNotificationPromptSeen() &&
+              isPremium === true
             ) {
               setShowNotificationPrompt(true);
             }
@@ -592,6 +593,8 @@ export default function GardenContent() {
       <NotificationPromptModal
         open={showNotificationPrompt}
         onClose={() => setShowNotificationPrompt(false)}
+        isPremium={isPremium === true}
+        onNeedPremium={() => setShowPaywall(true)}
       />
       {plannedWorkModal && (
         <PlannedWorkModal

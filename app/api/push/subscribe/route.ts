@@ -9,6 +9,16 @@ export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  if (!user.isPremium) {
+    return NextResponse.json(
+      {
+        error:
+          "Напоминания о работах на участке доступны с подпиской Премиум. Оформите подписку в приложении.",
+      },
+      { status: 403 }
+    );
+  }
+
   if (!isPushConfigured()) {
     return NextResponse.json(
       { error: "Push notifications not configured" },

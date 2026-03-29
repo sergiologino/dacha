@@ -13,7 +13,28 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return output;
 }
 
-export type PushState = "unsupported" | "loading" | "subscribed" | "denied" | "error" | "not-supported";
+const SW_READY_MS = 15000;
+
+async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
+  try {
+    return await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("sw-ready-timeout")), SW_READY_MS);
+      }),
+    ]);
+  } catch {
+    return (await navigator.serviceWorker.getRegistration()) ?? null;
+  }
+}
+
+export type PushState =
+  | "unsupported"
+  | "loading"
+  | "subscribed"
+  | "denied"
+  /** Разрешение есть или ещё не спрашивали, подписки в браузере нет — можно включить */
+  | "idle";
 
 export function usePushSubscription() {
   const [state, setState] = useState<PushState>("loading");
@@ -33,6 +54,31 @@ export function usePushSubscription() {
     setMessage(null);
   }, [checkSupport]);
 
+  useEffect(() => {
+    if (state !== "loading" || !checkSupport()) return;
+    let mounted = true;
+    (async () => {
+      try {
+        const reg = await getServiceWorkerRegistration();
+        if (!mounted) return;
+        if (!reg) {
+          setState("idle");
+          return;
+        }
+        const sub = await reg.pushManager.getSubscription();
+        if (!mounted) return;
+        if (sub) setState("subscribed");
+        else if (Notification.permission === "denied") setState("denied");
+        else setState("idle");
+      } catch {
+        if (mounted) setState("idle");
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [state, checkSupport]);
+
   const subscribe = useCallback(async () => {
     if (!checkSupport()) {
       setState("unsupported");
@@ -49,7 +95,7 @@ export function usePushSubscription() {
       }
       const keyRes = await fetch("/api/push/vapid-public");
       if (!keyRes.ok) {
-        setState("error");
+        setState("idle");
         setMessage(
           "Push на этом сервере не включён: в окружении нет ключей VAPID. " +
             "Владельцу сайта: выполнить «npx web-push generate-vapid-keys», " +
@@ -60,7 +106,7 @@ export function usePushSubscription() {
       }
       const { publicKey } = await keyRes.json();
       if (!publicKey) {
-        setState("error");
+        setState("idle");
         setMessage("Нет ключа подписки");
         return;
       }
@@ -74,14 +120,23 @@ export function usePushSubscription() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subscription: sub.toJSON() }),
       });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error || "Ошибка подписки");
+        await sub.unsubscribe().catch(() => {});
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : res.status === 403
+              ? "Доступно с подпиской Премиум."
+              : "Ошибка подписки"
+        );
       }
       setState("subscribed");
-      setMessage("Уведомления включены. Напоминания по работам активны, а погодные предупреждения можно настроить в профиле ниже.");
+      setMessage(
+        "Уведомления включены. Напоминания по запланированным работам будут приходить на это устройство."
+      );
     } catch (err) {
-      setState("error");
+      setState(Notification.permission === "denied" ? "denied" : "idle");
       setMessage(err instanceof Error ? err.message : "Ошибка подписки");
     }
   }, [checkSupport]);
@@ -100,10 +155,10 @@ export function usePushSubscription() {
         });
         await sub.unsubscribe();
       }
-      setState("denied");
+      setState(Notification.permission === "denied" ? "denied" : "idle");
       setMessage("Уведомления отключены");
     } catch {
-      setState("error");
+      setState("idle");
       setMessage("Не удалось отключить");
     }
   }, [checkSupport]);
@@ -111,38 +166,15 @@ export function usePushSubscription() {
   const checkExisting = useCallback(async () => {
     if (!checkSupport()) return;
     try {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
+      const reg = await getServiceWorkerRegistration();
+      const sub = reg ? await reg.pushManager.getSubscription() : null;
       if (sub) setState("subscribed");
       else if (Notification.permission === "denied") setState("denied");
-      else setState("error");
+      else setState("idle");
     } catch {
-      setState("error");
+      setState("idle");
     }
   }, [checkSupport]);
-
-  useEffect(() => {
-    if (state !== "loading" || !checkSupport()) return;
-    let mounted = true;
-    (async () => {
-      try {
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (!reg) {
-          if (mounted) setState("not-supported");
-          return;
-        }
-        const sub = await reg.pushManager.getSubscription();
-        if (mounted) {
-          if (sub) setState("subscribed");
-          else if (Notification.permission === "denied") setState("denied");
-          else setState("error");
-        }
-      } catch {
-        if (mounted) setState("error");
-      }
-    })();
-    return () => { mounted = false; };
-  }, [state, checkSupport]);
 
   return {
     state,

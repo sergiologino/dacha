@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3, BookOpen, CloudSun } from "lucide-react";
 import { clearFeatureOnboardingSeen } from "@/components/feature-onboarding";
+import { SubscribeModal } from "@/components/subscribe-modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +89,7 @@ export default function SettingsPage() {
   );
   const [weatherHasLocation, setWeatherHasLocation] = useState(false);
   const [weatherSaving, setWeatherSaving] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
   const push = usePushSubscription();
 
   const fetchUsers = () => {
@@ -228,6 +230,10 @@ export default function SettingsPage() {
   };
 
   const saveWeatherSettings = async () => {
+    if (!isPremium) {
+      setShowPaywall(true);
+      return;
+    }
     setWeatherSaving(true);
     try {
       const res = await fetch("/api/user/weather-settings", {
@@ -621,12 +627,24 @@ export default function SettingsPage() {
         <h2 className="font-semibold mb-3 flex items-center gap-2">
           <Bell className="w-5 h-5 text-emerald-600" />
           Уведомления
+          {!isPremium && (
+            <Badge variant="outline" className="ml-1 text-amber-700 border-amber-300 dark:text-amber-400 dark:border-amber-700">
+              Премиум
+            </Badge>
+          )}
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-          Напоминания о работах на сегодня и завтра: и из календаря ухода, и добавленных вами вручную. Работают на телефоне и компьютере.
+          Напоминания о работах на сегодня и завтра: и из календаря ухода, и добавленных вами вручную. Работают на телефоне и компьютере. Доступно с подпиской Премиум.
         </p>
         {(() => {
           const pushLoading = push.state === "loading";
+          const handleEnablePush = () => {
+            if (!isPremium) {
+              setShowPaywall(true);
+              return;
+            }
+            void push.subscribe();
+          };
           return (
             <>
               {!push.isSupported ? (
@@ -650,7 +668,8 @@ export default function SettingsPage() {
               ) : null}
               {push.isSupported && push.state !== "subscribed" && push.state !== "denied" && (
                 <Button
-                  onClick={push.subscribe}
+                  type="button"
+                  onClick={handleEnablePush}
                   disabled={pushLoading}
                   className="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700"
                 >
@@ -667,19 +686,30 @@ export default function SettingsPage() {
       </Card>
 
       <Card className="p-6 mb-6">
-        <h2 className="font-semibold mb-3 flex items-center gap-2">
+        <h2 className="font-semibold mb-3 flex items-center gap-2 flex-wrap">
           <CloudSun className="w-5 h-5 text-emerald-600" />
           Погодные предупреждения
+          {!isPremium && (
+            <Badge variant="outline" className="text-amber-700 border-amber-300 dark:text-amber-400 dark:border-amber-700">
+              Премиум
+            </Badge>
+          )}
         </h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-          Пуши при заметных изменениях погоды: заморозки, сильный ветер, дождь, снег и жара. Проверка идёт по вашему местоположению.
+          Пуши при заметных изменениях погоды: заморозки, сильный ветер, дождь, снег и жара. Проверка идёт по вашему местоположению. Доступно с подпиской Премиум.
         </p>
 
         <label className="flex items-start gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 mb-4">
           <input
             type="checkbox"
             checked={weatherPushEnabled}
-            onChange={(e) => setWeatherPushEnabled(e.target.checked)}
+            onChange={(e) => {
+              if (!isPremium) {
+                setShowPaywall(true);
+                return;
+              }
+              setWeatherPushEnabled(e.target.checked);
+            }}
             disabled={weatherSaving || !weatherHasLocation}
             className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-600"
           />
@@ -697,7 +727,13 @@ export default function SettingsPage() {
           <span className="text-slate-500">Интервал проверки погоды</span>
           <select
             value={String(weatherCheckIntervalMinutes)}
-            onChange={(e) => setWeatherCheckIntervalMinutes(Number(e.target.value))}
+            onChange={(e) => {
+              if (!isPremium) {
+                setShowPaywall(true);
+                return;
+              }
+              setWeatherCheckIntervalMinutes(Number(e.target.value));
+            }}
             disabled={weatherSaving || !weatherHasLocation}
             className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-sm"
           >
@@ -715,7 +751,13 @@ export default function SettingsPage() {
 
         <Button
           type="button"
-          onClick={saveWeatherSettings}
+          onClick={() => {
+            if (!isPremium) {
+              setShowPaywall(true);
+              return;
+            }
+            void saveWeatherSettings();
+          }}
           disabled={weatherSaving || !weatherHasLocation}
           className="w-full h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700"
         >
@@ -724,9 +766,11 @@ export default function SettingsPage() {
         </Button>
 
         <p className="text-xs text-slate-400 mt-3">
-          Для работы нужны включённые push-уведомления выше и сохранённое местоположение. По умолчанию проверка выполняется раз в час.
+          Для работы нужны включённые push-уведомления выше, подписка Премиум и сохранённое местоположение. По умолчанию проверка выполняется раз в час.
         </p>
       </Card>
+
+      <SubscribeModal open={showPaywall} onOpenChange={setShowPaywall} />
 
       <Button
         variant="outline"
