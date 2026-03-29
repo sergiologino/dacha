@@ -25,7 +25,7 @@ export async function PATCH(
   }
 
   const body = await request.json().catch(() => ({}));
-  const { title, description, scheduledDate, dateTo, isAction, type } = body;
+  const { title, description, scheduledDate, dateTo, isAction, type, doneAt } = body;
 
   const data: {
     title?: string;
@@ -34,6 +34,7 @@ export async function PATCH(
     dateTo?: Date | null;
     isAction?: boolean;
     type?: string;
+    doneAt?: Date | null;
   } = {};
 
   if (title !== undefined) {
@@ -57,6 +58,15 @@ export async function PATCH(
   }
   if (typeof isAction === "boolean") data.isAction = isAction;
   if (type !== undefined && VALID_TYPES.has(String(type))) data.type = String(type);
+  if (doneAt !== undefined) {
+    if (doneAt === null) {
+      data.doneAt = null;
+    } else {
+      const d = new Date(doneAt);
+      if (Number.isNaN(d.getTime())) return NextResponse.json({ error: "Invalid doneAt" }, { status: 400 });
+      data.doneAt = d;
+    }
+  }
 
   const updated = await prisma.plantTimelineEvent.update({
     where: { id: eventId },
