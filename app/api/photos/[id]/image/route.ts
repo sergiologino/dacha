@@ -45,26 +45,32 @@ function redirectToPublicUploads(uploadPath: string, request: NextRequest): Next
 }
 
 /**
- * Отдаёт байты фото владельцу по id (сессия в cookie).
- * Нужен, потому что <img src="/uploads/..."> в проде часто ломается: standalone, прокси, кэш, не тот cwd.
+ * Отдаёт байты фото по id: владелец (сессия) или любой посетитель для опубликованного в галерее
+ * (isPublic + publishedAt). Так гостевая /gallery и превью в соцсетях не зависят от статики /uploads.
  */
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser();
-  if (!user) {
-    return new NextResponse(null, { status: 401 });
-  }
 
   const { id } = await context.params;
   const row = await prisma.photo.findUnique({
     where: { id },
-    select: { url: true, userId: true, plantId: true, bedId: true },
+    select: {
+      url: true,
+      userId: true,
+      plantId: true,
+      bedId: true,
+      isPublic: true,
+      publishedAt: true,
+    },
   });
 
   if (!row?.url?.trim()) {
     return new NextResponse(null, { status: 404 });
   }
 
-  if (!(await userOwnsPhotoRow(user.id, row))) {
+  const publishedInGallery = row.isPublic && row.publishedAt != null;
+  const ownerOk = user ? await userOwnsPhotoRow(user.id, row) : false;
+  if (!ownerOk && !publishedInGallery) {
     return new NextResponse(null, { status: 404 });
   }
 
@@ -84,7 +90,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         status: 200,
         headers: {
           "Content-Type": contentType,
-          "Cache-Control": "private, max-age=3600",
+          "Cache-Control": publishedInGallery ? "public, max-age=600" : "private, max-age=3600",
         },
       });
     } catch {
@@ -115,7 +121,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         status: 200,
         headers: {
           "Content-Type": mime,
-          "Cache-Control": "private, max-age=240",
+          "Cache-Control": publishedInGallery ? "public, max-age=600" : "private, max-age=240",
         },
       });
     } catch (err) {

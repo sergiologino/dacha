@@ -9,7 +9,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { GalleryShareButton } from "@/components/gallery-share-button";
-import { getGalleryPhotoUrl, type GalleryComment, type GalleryPhoto } from "@/lib/gallery";
+import {
+  galleryPhotoImageSrc,
+  getGalleryPhotoUrl,
+  type GalleryComment,
+  type GalleryPhoto,
+} from "@/lib/gallery";
 
 export function GalleryPostClient({ photoId }: { photoId: string }) {
   const { status } = useSession();
@@ -130,7 +135,7 @@ export function GalleryPostClient({ photoId }: { photoId: string }) {
     <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
       <Card className="overflow-hidden">
         <img
-          src={item.url}
+          src={galleryPhotoImageSrc(item.id)}
           alt={item.caption || item.plantName || "Фото из галереи"}
           className="w-full max-h-[75vh] object-contain bg-black/5"
         />
