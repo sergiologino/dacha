@@ -21,7 +21,14 @@ export async function GET(
 
   const { id } = await context.params;
   const photo = await prisma.photo.findFirst({
-    where: { id, userId: user.id },
+    where: {
+      id,
+      OR: [
+        { userId: user.id },
+        { plant: { userId: user.id } },
+        { bed: { userId: user.id } },
+      ],
+    },
     select: { url: true },
   });
 
@@ -29,7 +36,11 @@ export async function GET(
     return new NextResponse(null, { status: 404 });
   }
 
-  const { url } = photo;
+  let { url } = photo;
+  if (!url.startsWith("data:") && !url.startsWith("http://") && !url.startsWith("https://")) {
+    url = url.replace(/^\/+/, "");
+    if (url.startsWith("uploads/")) url = `/${url}`;
+  }
 
   if (url.startsWith("data:")) {
     const marker = ";base64,";

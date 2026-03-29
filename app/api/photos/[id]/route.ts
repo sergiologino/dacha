@@ -17,7 +17,11 @@ export async function PATCH(
   const photo = await prisma.photo.findFirst({
     where: {
       id,
-      userId: user.id,
+      OR: [
+        { userId: user.id },
+        { plant: { userId: user.id } },
+        { bed: { userId: user.id } },
+      ],
     },
     select: {
       id: true,
