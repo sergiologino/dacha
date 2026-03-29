@@ -74,7 +74,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${inter.className} antialiased overflow-x-hidden`}>
         <Providers>{children}</Providers>
         <YandexMetrika />
         <GoogleAnalytics />

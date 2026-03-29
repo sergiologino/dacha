@@ -4,6 +4,38 @@
 
 ---
 
+## 2026-03-29 — Фото на грядке: не появляется даже рамка
+
+- **Причина**: в `POST /api/photos` стоял **`await analyzePhotoForTimeline`** до `return` ответа — при долгом или зависшем AI клиент не получал JSON, **mutation `onSuccess` не вызывался**, в кэше не появлялось фото, блок с миниатюрами (`plant.photos.length`) не монтировался.
+- **Исправление**: анализ запускается **в фоне** (`void analyzePhotoForTimeline(...).catch(...)`), ответ **`201` сразу** после `photo.create`. Убран повторный **`invalidateQueries(['beds'])`** после загрузки (гонка с `setQueryData`). Если кэш грядок пуст — только тогда **`invalidateQueries`**.
+
+---
+
+## 2026-03-29 — «Участок пустой» до ~30 с после входа; фото не появляются
+
+- **Пустой участок**: `useBeds` / `usePlants` запускались до готовности NextAuth → часто **401**, запрос в **ошибке** без авто-повтора до **refetchOnWindowFocus** (~десятки секунд). **Исправление**: `enabled: status === "authenticated"` на `/garden` и `/calendar`. Убрано условие спиннера `!(beds.length === 0 && hasSeededRef)` — оно скрывало загрузку во время демо-сида и давало пустой экран. При ошибке `seed-demo-garden` сбрасывается `hasSeededRef` для повторной попытки.
+- **Фото**: `sharp` переведён на **dynamic import** (падение импорта не валит route). В `next.config` — **`serverExternalPackages: ['sharp']`**; в **Docker runner** — **`libc6-compat`** (как в deps). После успешной загрузки фото снова **`invalidateQueries(['beds'])`** в дополнение к `setQueryData`. Клиент: защита от **пустого файла** после сжатия; слишком маленький JPEG после canvas → откат к исходному файлу.
+- Файлы: `lib/hooks/use-beds.ts`, `use-plants.ts`, `garden-content.tsx`, `calendar/page.tsx`, `app/api/photos/route.ts`, `next.config.ts`, `Dockerfile`, `lib/compress-image.ts`.
+
+---
+
+## 2026-03-28 — Фото на грядке: миниатюра и полноэкран пустые (причина и фикс)
+
+- **Причина**: (1) **Service Worker** отдавал `/uploads/*` **cache-first** — для нового файла возможен пустой/битый кэш или гонка; (2) с **камеры** часто приходят **HEIC** и др. форматы — файл сохранялся с расширением `.jpg`, но содержимое не декодировалось в `<img>` в части браузеров → рамка без картинки.
+- **Исправление**: SW **не перехватывает** `/uploads/`; bump кэша **`dacha-ai-v3`**. На сервере **`POST /api/photos`**: нормализация через **sharp** (rotate по EXIF, resize max 1920, выход **JPEG**) — в БД и на диск уходит всегда отображаемый JPEG при успехе sharp. На клиенте **`compressImageFileForUpload`**: **всегда** прогон через canvas в **JPEG**, max сторона **1600**; при ошибке декода — исходный файл (спасает серверный sharp).
+- См. также предыдущую запись этого дня про мобильный layout и кэш грядок.
+
+---
+
+## 2026-03-28 — Мобильный UI: ширина экрана, фото на грядке, сразу видны новые грядки/растения
+
+- **Горизонтальный скролл**: `body` и shell приложения с `overflow-x-hidden` / `max-w-[100vw]`; шапка — `min-w-0`, меньший кегль бренда на узких экранах, отступы; компактный виджет погоды с `truncate` и ограничением ширины блока локации.
+- **Фото растения**: сжатие файла перед `POST /api/photos` (`compressImageFileForUpload`, как на `/camera`); цель съёмки через `ref`, чтобы после выбора из галереи не терялся `plantId`; кэш грядок без перетирания оптимистичного обновления (убраны лишние `refetch` после загрузки); превью и полноэкранная галерея с `resolvePhotoUrl` (абсолютный origin для `/uploads`) и явной высотой области изображения.
+- **Новые грядки/растения на мобильных**: список грядок больше не обёрнут в `StaggerContainer`/`whileInView` с `once: true` — добавленные карточки не оставались с `opacity: 0` до перезагрузки страницы.
+- **API**: `export const dynamic = "force-dynamic"` для `/api/beds`, `/api/plants`, `POST /api/photos`; ответ `POST /api/beds` с тем же `include`, что и список (растения + фото + таймлайн); клиентские `fetch` для грядок/растений с `cache: "no-store"`; мутации создания грядки/растения: `invalidateQueries` в `onSettled`.
+
+---
+
 ## 2026-03-27 — Деплой: `proxy.ts`, Next 16.2.1, `npm audit` 0
 
 - **Next.js**: конвенция `middleware.ts` переименована в **`proxy.ts`**, экспорт `{ auth as proxy }` (см. [migration](https://nextjs.org/docs/messages/middleware-to-proxy)); тот же `config.matcher`.

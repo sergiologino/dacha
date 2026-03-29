@@ -1,4 +1,4 @@
-const CACHE_NAME = "dacha-ai-v2";
+const CACHE_NAME = "dacha-ai-v3";
 
 const STATIC_ASSETS = [
   "/manifest.json",
@@ -75,6 +75,8 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/")) return;
   if (url.pathname.startsWith("/_next/")) return;
+  // Не кэшируем user uploads: cache-first давал пустые/устаревшие ответы для новых файлов.
+  if (url.pathname.startsWith("/uploads/")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -110,8 +112,7 @@ self.addEventListener("fetch", (event) => {
     request.destination === "style" ||
     request.destination === "font" ||
     url.pathname === "/manifest.json" ||
-    url.pathname.startsWith("/icons/") ||
-    url.pathname.startsWith("/uploads/");
+    url.pathname.startsWith("/icons/");
 
   if (!isCacheableAsset) return;
 

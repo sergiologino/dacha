@@ -44,14 +44,14 @@ export function AppHeader() {
   };
 
   return (
-    <header className="max-w-5xl mx-auto pt-4 px-4 flex justify-between items-center">
-      <Link href="/garden" className="flex items-center gap-3">
-        <Sprout className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
-        <span className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-amber-600 bg-clip-text text-transparent">
+    <header className="max-w-5xl mx-auto pt-4 px-3 sm:px-4 flex justify-between items-center gap-2 min-w-0">
+      <Link href="/garden" className="flex items-center gap-1.5 sm:gap-3 min-w-0 shrink">
+        <Sprout className="w-7 h-7 sm:w-8 sm:h-8 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+        <span className="text-lg sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-amber-600 bg-clip-text text-transparent truncate">
           Любимая Дача
         </span>
       </Link>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
         <Button
           variant="ghost"
           size="icon"
@@ -71,10 +71,11 @@ export function AppHeader() {
             variant="outline"
             size="sm"
             asChild
-            className="flex items-center gap-1 border-emerald-600 text-emerald-600"
+            className="flex items-center gap-0.5 sm:gap-1 border-emerald-600 text-emerald-600 px-2 sm:px-3"
           >
             <Link href="/subscribe">
-              <Crown className="w-4 h-4" /> Премиум
+              <Crown className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Премиум</span>
             </Link>
           </Button>
         )}

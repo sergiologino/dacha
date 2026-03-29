@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { compressImageFileForUpload } from "@/lib/compress-image";
 
 export interface BedPhoto {
   id: string;
@@ -56,7 +57,7 @@ export interface Bed {
 }
 
 async function fetchBeds(): Promise<Bed[]> {
-  const res = await fetch("/api/beds");
+  const res = await fetch("/api/beds", { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch beds");
   return res.json();
 }
@@ -105,36 +106,61 @@ async function uploadPlantPhoto({
   bedId,
   takenAt,
 }: UploadPlantPhotoParams): Promise<BedPlantPhoto> {
+  const fileToSend = await compressImageFileForUpload(file);
+  if (!fileToSend?.size) {
+    throw new Error("Пустой файл изображения — попробуйте другое фото");
+  }
   const formData = new FormData();
-  formData.set("file", file);
+  formData.set("file", fileToSend);
   formData.set("plantId", plantId);
   formData.set("bedId", bedId);
   if (takenAt) formData.set("takenAt", takenAt);
   const res = await fetch("/api/photos", {
     method: "POST",
     body: formData,
+    credentials: "same-origin",
   });
-  const data = await res.json().catch(() => ({}));
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok) {
-    throw new Error((data as { error?: string }).error || "Failed to upload photo");
+    throw new Error(typeof data.error === "string" ? data.error : "Failed to upload photo");
+  }
+  const url = typeof data.url === "string" ? data.url : "";
+  if (!url) {
+    throw new Error("Сервер не вернул адрес фото");
   }
   return {
     id: String(data.id),
-    url: String(data.url),
+    url,
     takenAt:
       typeof data.takenAt === "string"
         ? data.takenAt
         : data.takenAt != null
-          ? new Date(data.takenAt).toISOString()
+          ? new Date(data.takenAt as string | number | Date).toISOString()
           : new Date().toISOString(),
-    analysisResult: data.analysisResult ?? undefined,
-    analysisStatus: data.analysisStatus ?? undefined,
-    analyzedAt: data.analyzedAt != null ? new Date(data.analyzedAt).toISOString() : undefined,
+    caption: typeof data.caption === "string" ? data.caption : null,
+    isPublic: typeof data.isPublic === "boolean" ? data.isPublic : undefined,
+    publishedAt:
+      data.publishedAt != null
+        ? new Date(data.publishedAt as string | number | Date).toISOString()
+        : null,
+    analysisResult: typeof data.analysisResult === "string" ? data.analysisResult : undefined,
+    analysisStatus: typeof data.analysisStatus === "string" ? data.analysisStatus : undefined,
+    analyzedAt:
+      data.analyzedAt != null
+        ? new Date(data.analyzedAt as string | number | Date).toISOString()
+        : undefined,
   } as BedPlantPhoto;
 }
 
-export function useBeds() {
-  return useQuery({ queryKey: ["beds"], queryFn: fetchBeds });
+export function useBeds(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  return useQuery({
+    queryKey: ["beds"],
+    queryFn: fetchBeds,
+    enabled,
+    // Не наследовать глобальные 60s: фото/растения должны сразу подтягиваться с сервера после мутаций
+    staleTime: 0,
+  });
 }
 
 function normalizeBed(bed: Bed): Bed {
@@ -155,7 +181,9 @@ export function useCreateBed() {
     onSuccess: (newBed) => {
       const bed = normalizeBed(newBed);
       qc.setQueryData<Bed[]>(["beds"], (old) => (old ? [bed, ...old] : [bed]));
-      qc.invalidateQueries({ queryKey: ["beds"] });
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["beds"] });
     },
   });
 }
@@ -189,22 +217,25 @@ export function useUploadPlantPhoto() {
     onSuccess: async (data, variables) => {
       const { plantId, bedId } = variables;
       const newPhoto: BedPlantPhoto = data;
+      // Как до регрессии (feb 2026): сразу показываем фото из ответа мутации; иначе при гонке refetch
+      // с запросом, начатым до коммита фото в БД, полоса превью остаётся пустой.
       qc.setQueryData<Bed[]>(["beds"], (old) => {
         if (!old) return old;
         return old.map((bed) => {
           if (bed.id !== bedId) return bed;
           return {
             ...bed,
-            plants: bed.plants.map((plant) => {
+            plants: (bed.plants ?? []).map((plant) => {
               if (plant.id !== plantId) return plant;
-              const photos = [newPhoto, ...(plant.photos ?? [])];
-              return { ...plant, photos };
+              const existing = plant.photos ?? [];
+              const withoutDup = existing.filter((p) => p.id !== newPhoto.id);
+              return { ...plant, photos: [newPhoto, ...withoutDup] };
             }),
           };
         });
       });
+      await qc.invalidateQueries({ queryKey: ["beds"] });
       toast.success("Фото добавлено");
-      await qc.refetchQueries({ queryKey: ["beds"] });
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Не удалось загрузить фото");

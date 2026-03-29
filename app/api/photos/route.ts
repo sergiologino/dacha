@@ -6,7 +6,39 @@ import { getAuthUser } from "@/lib/get-user";
 import { randomUUID } from "crypto";
 import { analyzePhotoForTimeline } from "@/lib/analyze-photo-timeline";
 
+export const dynamic = "force-dynamic";
+
 const UPLOAD_DIR = "public/uploads";
+
+/** JPEG, ориентация EXIF. Dynamic import — при падении sharp в контейнере не роняем весь route. */
+async function normalizePlantImageBuffer(input: Buffer): Promise<Buffer | null> {
+  const sharpMod = (await import("sharp")).default;
+  const pipeline = (instance: import("sharp").Sharp) =>
+    instance
+      .resize({
+        width: 1920,
+        height: 1920,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 86, mozjpeg: true })
+      .toBuffer();
+
+  const tries: (() => Promise<Buffer>)[] = [
+    () => pipeline(sharpMod(input, { failOn: "none" }).rotate()),
+    // без rotate: часть снимков падает только на auto-orient
+    () => pipeline(sharpMod(input, { failOn: "none" })),
+  ];
+
+  for (const run of tries) {
+    try {
+      return await run();
+    } catch (e) {
+      console.warn("Plant photo sharp normalize attempt failed:", e);
+    }
+  }
+  return null;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,14 +63,24 @@ export async function POST(request: NextRequest) {
     const bed = await prisma.bed.findFirst({ where: { id: bedId, userId: user.id } });
     if (!bed) return NextResponse.json({ error: "Bed not found" }, { status: 404 });
 
-    const ext = path.extname(file.name || "") || ".jpg";
-    const filename = `${randomUUID()}${ext}`;
     const dir = path.join(process.cwd(), UPLOAD_DIR);
     let url: string;
 
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const mimeType = file.type || "image/jpeg";
+    let buffer = Buffer.from(bytes);
+    const mimeFromClient = file.type || "image/jpeg";
+
+    const normalized = await normalizePlantImageBuffer(buffer);
+    let storedMime = "image/jpeg";
+    let filename: string;
+    if (normalized) {
+      buffer = Buffer.from(normalized);
+      filename = `${randomUUID()}.jpg`;
+    } else {
+      const ext = path.extname(file.name || "") || ".jpg";
+      filename = `${randomUUID()}${ext}`;
+      storedMime = mimeFromClient;
+    }
 
     try {
       await mkdir(dir, { recursive: true });
@@ -47,7 +89,7 @@ export async function POST(request: NextRequest) {
       url = `/uploads/${filename}`;
     } catch {
       const base64 = buffer.toString("base64");
-      url = `data:${mimeType};base64,${base64}`;
+      url = `data:${storedMime};base64,${base64}`;
     }
 
     const takenAt = takenAtStr ? new Date(takenAtStr) : new Date();
@@ -62,26 +104,33 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Анализ фото нейросетью для таймлайна (вердикт: норма / отклонения)
-    try {
-      await analyzePhotoForTimeline(
-        photo.id,
-        buffer.toString("base64"),
-        mimeType,
-        { name: plant.name, plantedDate: plant.plantedDate },
-        { type: bed.type },
-        takenAt,
-        user.id
-      );
-    } catch {
-      // не ломаем ответ: фото уже сохранено, анализ можно повторить позже
-    }
+    // Анализ таймлайна — только в фоне: не блокируем ответ (иначе клиент ждёт AI и onSuccess не срабатывает)
+    void analyzePhotoForTimeline(
+      photo.id,
+      buffer.toString("base64"),
+      storedMime,
+      { name: plant.name, plantedDate: plant.plantedDate },
+      { type: bed.type },
+      takenAt,
+      user.id
+    ).catch((err) => console.error("analyzePhotoForTimeline:", err));
 
-    const updated = await prisma.photo.findUnique({
-      where: { id: photo.id },
-    });
-
-    return NextResponse.json(updated ?? photo, { status: 201 });
+    const payload = {
+      id: photo.id,
+      url: photo.url,
+      plantId: photo.plantId,
+      bedId: photo.bedId,
+      userId: photo.userId,
+      caption: photo.caption,
+      isPublic: photo.isPublic,
+      publishedAt: photo.publishedAt?.toISOString() ?? null,
+      takenAt: photo.takenAt.toISOString(),
+      createdAt: photo.createdAt.toISOString(),
+      analysisResult: photo.analysisResult,
+      analysisStatus: photo.analysisStatus,
+      analyzedAt: photo.analyzedAt?.toISOString() ?? null,
+    };
+    return NextResponse.json(payload, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("Photos POST error:", err);

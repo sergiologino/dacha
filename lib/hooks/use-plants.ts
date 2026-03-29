@@ -14,7 +14,7 @@ export interface Plant {
 }
 
 async function fetchPlants(): Promise<Plant[]> {
-  const res = await fetch("/api/plants");
+  const res = await fetch("/api/plants", { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to fetch plants");
   return res.json();
 }
@@ -60,8 +60,13 @@ async function deletePlant(id: string): Promise<void> {
   if (!res.ok) throw new Error("Failed to delete plant");
 }
 
-export function usePlants() {
-  return useQuery({ queryKey: ["plants"], queryFn: fetchPlants });
+export function usePlants(options?: { enabled?: boolean }) {
+  const enabled = options?.enabled ?? true;
+  return useQuery({
+    queryKey: ["plants"],
+    queryFn: fetchPlants,
+    enabled,
+  });
 }
 
 function plantToBedPlant(plant: Plant): BedPlant {
@@ -101,8 +106,10 @@ export function useCreatePlant() {
           );
         });
       }
-      qc.invalidateQueries({ queryKey: ["plants"] });
-      qc.invalidateQueries({ queryKey: ["beds"] });
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ["plants"] });
+      void qc.invalidateQueries({ queryKey: ["beds"] });
     },
   });
 }
