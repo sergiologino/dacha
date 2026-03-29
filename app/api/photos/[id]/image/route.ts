@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { userOwnsPhotoRow } from "@/lib/photo-access";
+import { normalizeStoredPhotoUrl } from "@/lib/photo-image-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -12,15 +13,6 @@ function uploadsBaseDir(): string {
   const fromEnv = process.env.PHOTOS_UPLOAD_DIR?.trim();
   if (fromEnv) return path.resolve(fromEnv);
   return path.resolve(path.join(process.cwd(), "public", "uploads"));
-}
-
-function normalizeStoredUrl(raw: string): string {
-  let url = raw.trim();
-  if (!url.startsWith("data:") && !url.startsWith("http://") && !url.startsWith("https://")) {
-    url = url.replace(/^\/+/, "");
-    if (url.startsWith("uploads/")) url = `/${url}`;
-  }
-  return url;
 }
 
 /**
@@ -47,7 +39,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     return new NextResponse(null, { status: 404 });
   }
 
-  const url = normalizeStoredUrl(row.url);
+  const url = normalizeStoredPhotoUrl(row.url);
 
   if (url.startsWith("data:")) {
     const marker = ";base64,";
