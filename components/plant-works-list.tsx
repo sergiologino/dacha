@@ -8,8 +8,9 @@ import {
   GardenPlantGalleryDialog,
   type GardenGalleryState,
 } from "@/components/garden-plant-gallery-dialog";
-import type { BedPlantPhoto, BedPlantTimelineEvent } from "@/lib/hooks/use-beds";
-import { Camera, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useDeletePlantPhoto, type BedPlantPhoto, type BedPlantTimelineEvent } from "@/lib/hooks/use-beds";
+import { Camera, ChevronRight, Loader2, Trash2 } from "lucide-react";
 
 const FAR_FUTURE_DAYS = 21;
 
@@ -39,8 +40,10 @@ export function PlantWorksList({
   photos: BedPlantPhoto[];
 }) {
   const qc = useQueryClient();
+  const deletePlantPhoto = useDeletePlantPhoto();
   const [openEvent, setOpenEvent] = useState<BedPlantTimelineEvent | null>(null);
   const [gallery, setGallery] = useState<GardenGalleryState>(null);
+  const deletingPhotoId = deletePlantPhoto.isPending ? deletePlantPhoto.variables ?? null : null;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -187,11 +190,11 @@ export function PlantWorksList({
             </h2>
             <ul className="space-y-3">
               {sortedPhotos.map((ph) => (
-                <li key={ph.id}>
+                <li key={ph.id} className="flex gap-1 items-stretch rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-1 sm:p-2">
                   <button
                     type="button"
                     onClick={() => openPhotoGallery(ph)}
-                    className="flex gap-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 items-center w-full text-left hover:bg-slate-50 dark:hover:bg-slate-800/90 active:bg-slate-100 dark:active:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+                    className="flex gap-4 flex-1 min-w-0 items-center p-2 rounded-xl text-left hover:bg-slate-50 dark:hover:bg-slate-800/90 active:bg-slate-100 dark:active:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
                   >
                     <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0 bg-slate-100 dark:bg-slate-800">
                       <GardenPlantPhotoImg
@@ -213,8 +216,35 @@ export function PlantWorksList({
                         Нажмите — подпись, публикация в галерее, комментарии
                       </p>
                     </div>
-                    <ChevronRight className="w-6 h-6 shrink-0 text-slate-400" aria-hidden />
+                    <ChevronRight className="w-6 h-6 shrink-0 text-slate-400 self-center" aria-hidden />
                   </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 self-center h-10 w-10 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                    title="Удалить фото"
+                    aria-label="Удалить фото"
+                    disabled={deletingPhotoId === ph.id}
+                    onClick={() =>
+                      deletePlantPhoto.mutate(ph.id, {
+                        onSuccess: () => {
+                          setGallery((g) => {
+                            if (!g) return null;
+                            const next = g.photos.filter((p) => p.id !== ph.id);
+                            if (next.length === 0) return null;
+                            return { ...g, photos: next, index: Math.min(g.index, next.length - 1) };
+                          });
+                        },
+                      })
+                    }
+                  >
+                    {deletingPhotoId === ph.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                  </Button>
                 </li>
               ))}
             </ul>

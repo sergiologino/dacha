@@ -37,7 +37,15 @@ import { useOnboardingCheck } from "@/lib/hooks/use-onboarding-check";
 import { useUserLocation } from "@/lib/hooks/use-user-location";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlants, useCreatePlant, useUpdatePlant, useDeletePlant, type Plant } from "@/lib/hooks/use-plants";
-import { useBeds, useCreateBed, useUpdateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
+import {
+  useBeds,
+  useCreateBed,
+  useUpdateBed,
+  useDeleteBed,
+  useUploadPlantPhoto,
+  useDeletePlantPhoto,
+  type Bed,
+} from "@/lib/hooks/use-beds";
 import { PlantTimelineLabels, PlantTimelineBar, type PhotoCheck } from "@/components/plant-timeline";
 import { GardenHelpContent } from "@/components/garden-help-content";
 import { useCrops } from "@/lib/hooks/use-crops";
@@ -687,6 +695,7 @@ function BedCard({
   const [gallery, setGallery] = useState<GardenGalleryState>(null);
   const [regeneratingPlantId, setRegeneratingPlantId] = useState<string | null>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
+  const deletePlantPhoto = useDeletePlantPhoto();
 
   const searchHits = searchQuery.trim().length >= 3 ? searchCropsAndVarieties(cropsList as Parameters<typeof searchCropsAndVarieties>[0], searchQuery.trim()) : [];
   const categories = categoriesFromCrops(cropsList);
@@ -755,6 +764,21 @@ function BedCard({
       index: Math.min(index, plant.photos.length - 1),
     });
   };
+
+  const handleDeletePlantPhoto = (photoId: string) => {
+    deletePlantPhoto.mutate(photoId, {
+      onSuccess: () => {
+        setGallery((g) => {
+          if (!g) return null;
+          const photos = g.photos.filter((p) => p.id !== photoId);
+          if (photos.length === 0) return null;
+          return { ...g, photos, index: Math.min(g.index, photos.length - 1) };
+        });
+      },
+    });
+  };
+
+  const deletingPhotoId = deletePlantPhoto.isPending ? deletePlantPhoto.variables ?? null : null;
 
   return (
     <>
@@ -1116,19 +1140,45 @@ function BedCard({
                               /** takenAt desc: idx 0 — самое новое; выше z-index, чтобы перекрывало старые */
                               const stackZ = 10 + (n - idx);
                               return (
-                                <button
+                                <div
                                   key={ph.id}
-                                  type="button"
-                                  onClick={() => openGallery(plant, idx)}
-                                  className="absolute top-0 w-9 h-9 rounded-lg overflow-hidden border-2 border-white dark:border-slate-700 shadow -translate-x-1/2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                  className="absolute top-0 w-9 h-9 -translate-x-1/2"
                                   style={{ left: scaleLeftPct(offset), zIndex: stackZ }}
-                                  title={new Date(ph.takenAt).toLocaleDateString("ru-RU")}
                                 >
-                                  <GardenPlantPhotoImg
-                                    photoId={ph.id}
-                                    className="w-full h-full object-cover bg-slate-200/80 dark:bg-slate-700/80"
-                                  />
-                                </button>
+                                  <div className="relative w-9 h-9">
+                                    <button
+                                      type="button"
+                                      onClick={() => openGallery(plant, idx)}
+                                      className="absolute inset-0 rounded-lg overflow-hidden border-2 border-white dark:border-slate-700 shadow focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                      title={new Date(ph.takenAt).toLocaleDateString("ru-RU")}
+                                    >
+                                      <GardenPlantPhotoImg
+                                        photoId={ph.id}
+                                        className="w-full h-full object-cover bg-slate-200/80 dark:bg-slate-700/80"
+                                      />
+                                    </button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="absolute -right-1.5 -top-1.5 z-10 h-5 w-5 min-h-5 min-w-5 rounded-full border border-slate-200 dark:border-slate-600 bg-white/95 dark:bg-slate-900/95 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 shadow-sm"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleDeletePlantPhoto(ph.id);
+                                      }}
+                                      disabled={deletingPhotoId === ph.id}
+                                      title="Удалить фото"
+                                      aria-label="Удалить фото"
+                                    >
+                                      {deletingPhotoId === ph.id ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="w-3 h-3" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
                               );
                             })}
                           </div>

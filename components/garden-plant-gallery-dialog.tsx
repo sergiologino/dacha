@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Loader2, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,7 +15,7 @@ import {
 import { GardenPlantPhotoImg } from "@/components/garden-plant-photo";
 import { GalleryShareButton } from "@/components/gallery-share-button";
 import { getGalleryPhotoUrl } from "@/lib/gallery";
-import type { BedPlantPhoto } from "@/lib/hooks/use-beds";
+import { useDeletePlantPhoto, type BedPlantPhoto } from "@/lib/hooks/use-beds";
 
 export type GardenGalleryState =
   | {
@@ -33,8 +33,12 @@ export function GardenPlantGalleryDialog({
   setGallery: React.Dispatch<React.SetStateAction<GardenGalleryState>>;
 }) {
   const qc = useQueryClient();
+  const deletePlantPhoto = useDeletePlantPhoto();
   const [galleryCaption, setGalleryCaption] = useState("");
   const [gallerySaving, setGallerySaving] = useState(false);
+  const deletingGalleryPhotoId = deletePlantPhoto.isPending
+    ? deletePlantPhoto.variables ?? null
+    : null;
 
   const closeGallery = () => setGallery(null);
 
@@ -158,15 +162,49 @@ export function GardenPlantGalleryDialog({
                 {" — фото "}
                 {gallery.index + 1} из {gallery.photos.length}
               </DialogTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:bg-white/20 rounded-full"
-                onClick={closeGallery}
-                aria-label="Закрыть"
-              >
-                <X className="w-5 h-5" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-red-300 hover:text-red-200 hover:bg-white/15 rounded-full"
+                  title="Удалить фото"
+                  aria-label="Удалить фото"
+                  disabled={
+                    gallerySaving ||
+                    deletingGalleryPhotoId === gallery.photos[gallery.index]?.id
+                  }
+                  onClick={() => {
+                    const id = gallery.photos[gallery.index]?.id;
+                    if (!id) return;
+                    deletePlantPhoto.mutate(id, {
+                      onSuccess: () => {
+                        setGallery((g) => {
+                          if (!g) return null;
+                          const photos = g.photos.filter((p) => p.id !== id);
+                          if (photos.length === 0) return null;
+                          const index = Math.min(g.index, photos.length - 1);
+                          return { ...g, photos, index };
+                        });
+                      },
+                    });
+                  }}
+                >
+                  {deletingGalleryPhotoId === gallery.photos[gallery.index]?.id ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-5 h-5" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-white hover:bg-white/20 rounded-full"
+                  onClick={closeGallery}
+                  aria-label="Закрыть"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
             </div>
             <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative min-h-[40vh] overflow-y-auto">
               <GardenPlantPhotoImg
