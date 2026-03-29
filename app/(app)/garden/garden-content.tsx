@@ -578,40 +578,21 @@ function toDateInputValue(iso: string) {
 }
 
 /**
- * URL для <img>: абсолютный origin для путей приложения, правка относительных `uploads/...`,
- * cache-bust по id фото (пустой кэш/CDN или старый SW).
+ * Картинка грядки: только через API (читает файл с диска / data URL из БД, проверяет владельца).
+ * Прямой /uploads/… в проде часто даёт пустой <img> при standalone/прокси.
  */
-function resolvePhotoUrl(url: string, photoId?: string): string {
-  if (typeof window === "undefined") return url;
-  const raw = typeof url === "string" ? url.trim() : "";
-  if (!raw) return raw;
-  if (raw.startsWith("data:")) return raw;
-  let href: string;
-  if (raw.startsWith("http://") || raw.startsWith("https://")) {
-    href = raw;
-  } else {
-    const path = raw.startsWith("/") ? raw : `/${raw.replace(/^\/+/, "")}`;
-    href = `${window.location.origin}${path}`;
-  }
-  if (!photoId || href.startsWith("data:")) return href;
-  const sep = href.includes("?") ? "&" : "?";
-  return `${href}${sep}v=${encodeURIComponent(photoId)}`;
-}
-
-/** Превью с повтором без cache-bust (редкий nginx/прокси не отдаёт файл при ?v=). */
 function GardenPlantPhotoImg({
-  url,
   photoId,
   className,
   loading = "eager",
 }: {
-  url: string;
   photoId: string;
   className?: string;
   loading?: "eager" | "lazy";
 }) {
-  const [stripBust, setStripBust] = useState(false);
-  const src = resolvePhotoUrl(url, stripBust ? undefined : photoId);
+  const [retry, setRetry] = useState(0);
+  const qs = retry > 0 ? `?r=${retry}` : "";
+  const src = `/api/photos/${photoId}/image${qs}`;
   return (
     <img
       src={src}
@@ -619,9 +600,7 @@ function GardenPlantPhotoImg({
       className={className}
       loading={loading}
       decoding="async"
-      onError={() => {
-        if (!stripBust) setStripBust(true);
-      }}
+      onError={() => setRetry((n) => (n < 2 ? n + 1 : n))}
     />
   );
 }
@@ -1119,7 +1098,6 @@ function BedCard({
                                   title={new Date(ph.takenAt).toLocaleDateString("ru-RU")}
                                 >
                                   <GardenPlantPhotoImg
-                                    url={ph.url}
                                     photoId={ph.id}
                                     className="w-full h-full object-cover bg-slate-200/80 dark:bg-slate-700/80"
                                   />
@@ -1443,7 +1421,6 @@ function BedCard({
             <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative min-h-[40vh]">
               <GardenPlantPhotoImg
                 key={gallery.photos[gallery.index].id}
-                url={gallery.photos[gallery.index].url}
                 photoId={gallery.photos[gallery.index].id}
                 className="max-w-full max-h-[70vh] w-auto object-contain bg-black"
               />
