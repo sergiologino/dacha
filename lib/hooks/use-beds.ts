@@ -210,6 +210,39 @@ export function useDeleteBed() {
   });
 }
 
+async function deletePlantPhoto(photoId: string): Promise<void> {
+  const res = await fetch(`/api/photos/${photoId}`, { method: "DELETE" });
+  const body = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) {
+    throw new Error(body.error || "Не удалось удалить фото");
+  }
+}
+
+export function useDeletePlantPhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deletePlantPhoto,
+    onSuccess: (_, photoId) => {
+      qc.setQueryData<Bed[]>(["beds"], (old) => {
+        if (!old) return old;
+        return old.map((bed) => ({
+          ...bed,
+          plants: (bed.plants ?? []).map((plant) => ({
+            ...plant,
+            photos: (plant.photos ?? []).filter((p) => p.id !== photoId),
+          })),
+        }));
+      });
+      void qc.invalidateQueries({ queryKey: ["beds"] });
+      void qc.invalidateQueries({ queryKey: ["gallery-feed"] });
+      toast.success("Фото удалено");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Не удалось удалить фото");
+    },
+  });
+}
+
 export function useUploadPlantPhoto() {
   const qc = useQueryClient();
   return useMutation({

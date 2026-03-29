@@ -36,7 +36,7 @@ export async function GET() {
     );
 
     return NextResponse.json({
-      weatherPushEnabled: row.weatherPushEnabled,
+      weatherPushEnabled: user.isPremium && row.weatherPushEnabled,
       weatherCheckIntervalMinutes: interval,
       hasLocation: row.latitude != null && row.longitude != null,
       minIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MIN,
@@ -65,6 +65,16 @@ export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!user.isPremium) {
+    return NextResponse.json(
+      {
+        error:
+          "Погодные предупреждения доступны с подпиской Премиум. Оформите подписку в приложении.",
+      },
+      { status: 403 }
+    );
   }
 
   const body = await request.json().catch(() => ({}));

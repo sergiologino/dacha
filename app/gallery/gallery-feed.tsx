@@ -9,7 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { GalleryShareButton } from "@/components/gallery-share-button";
-import { getGalleryPhotoUrl, type GalleryPhoto } from "@/lib/gallery";
+import {
+  galleryPhotoImageSrc,
+  getGalleryPhotoUrl,
+  type GalleryPhoto,
+} from "@/lib/gallery";
 
 export function GalleryFeed() {
   const { status } = useSession();
@@ -99,7 +103,7 @@ export function GalleryFeed() {
           <Card key={item.id} className="overflow-hidden flex flex-col">
             <Link href={`/gallery/${item.id}`} className="block">
               <img
-                src={item.url}
+                src={galleryPhotoImageSrc(item.id)}
                 alt={item.caption || item.plantName || "Фото из галереи"}
                 className="w-full aspect-[4/5] object-cover"
               />

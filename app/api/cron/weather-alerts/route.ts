@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const candidates = await prisma.user.findMany({
     where: {
+      isPremium: true,
       weatherPushEnabled: true,
       latitude: { not: null },
       longitude: { not: null },

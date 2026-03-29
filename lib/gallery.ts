@@ -40,3 +40,12 @@ export function getPublicAppUrl(): string {
 export function getGalleryPhotoUrl(photoId: string): string {
   return `${getPublicAppUrl()}/gallery/${photoId}`;
 }
+
+/** Пиксели для <img> и OG: обход недоступной в проде статики `/uploads` для гостей. */
+export function galleryPhotoImageSrc(photoId: string): string {
+  return `/api/photos/${photoId}/image`;
+}
+
+export function galleryPhotoImageAbsoluteUrl(photoId: string): string {
+  return `${getPublicAppUrl()}/api/photos/${photoId}/image`;
+}

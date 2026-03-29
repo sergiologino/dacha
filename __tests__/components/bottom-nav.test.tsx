@@ -17,13 +17,14 @@ vi.mock("framer-motion", () => ({
 }));
 
 describe("BottomNav", () => {
-  it("renders all navigation items (5 items, Факты moved to guide page)", () => {
+  it("renders all navigation items (incl. gallery, Факты moved to guide page)", () => {
     render(<BottomNav />);
     expect(screen.getByText("Главная")).toBeInTheDocument();
     expect(screen.getByText("Календарь")).toBeInTheDocument();
+    expect(screen.getByText("Галерея")).toBeInTheDocument();
     expect(screen.getByText("Нейроэксперт")).toBeInTheDocument();
     expect(screen.getByText("Справочник")).toBeInTheDocument();
-    expect(screen.getByText("Камера")).toBeInTheDocument();
+    expect(screen.getByText("Анализ")).toBeInTheDocument();
     expect(screen.queryByText("Факты")).not.toBeInTheDocument();
   });
 
@@ -39,7 +40,8 @@ describe("BottomNav", () => {
     expect(screen.getByText("Календарь").closest("a")).toHaveAttribute("href", "/calendar");
     expect(screen.getByText("Нейроэксперт").closest("a")).toHaveAttribute("href", "/chat");
     expect(screen.getByText("Справочник").closest("a")).toHaveAttribute("href", "/guide");
-    expect(screen.getByText("Камера").closest("a")).toHaveAttribute("href", "/camera");
+    expect(screen.getByText("Галерея").closest("a")).toHaveAttribute("href", "/gallery");
+    expect(screen.getByText("Анализ").closest("a")).toHaveAttribute("href", "/camera");
   });
 
   it("shows active indicator on current route", () => {

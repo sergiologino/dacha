@@ -8,7 +8,9 @@ import { analyzePhotoForTimeline } from "@/lib/analyze-photo-timeline";
 
 export const dynamic = "force-dynamic";
 
-const UPLOAD_DIR = "public/uploads";
+const UPLOAD_DIR = process.env.PHOTOS_UPLOAD_DIR?.trim()
+  ? path.resolve(process.env.PHOTOS_UPLOAD_DIR.trim())
+  : path.join(process.cwd(), "public", "uploads");
 
 /** JPEG, ориентация EXIF. Dynamic import — при падении sharp в контейнере не роняем весь route. */
 async function normalizePlantImageBuffer(input: Buffer): Promise<Buffer | null> {
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
     const bed = await prisma.bed.findFirst({ where: { id: bedId, userId: user.id } });
     if (!bed) return NextResponse.json({ error: "Bed not found" }, { status: 404 });
 
-    const dir = path.join(process.cwd(), UPLOAD_DIR);
+    const dir = UPLOAD_DIR;
     let url: string;
 
     const bytes = await file.arrayBuffer();

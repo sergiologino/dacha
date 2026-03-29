@@ -12,7 +12,7 @@ const navItems = [
   { href: "/gallery", icon: Images, label: "Галерея" },
   { href: "/chat", icon: MessageCircle, label: "Нейроэксперт" },
   { href: "/guide", icon: BookOpen, label: "Справочник" },
-  { href: "/camera", icon: Camera, label: "Камера" },
+  { href: "/camera", icon: Camera, label: "Анализ" },
 ];
 
 export function BottomNav() {

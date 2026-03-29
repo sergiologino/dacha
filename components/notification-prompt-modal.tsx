@@ -20,9 +20,17 @@ function isMobile(): boolean {
 export type NotificationPromptModalProps = {
   open: boolean;
   onClose: () => void;
+  /** Напоминания по работам — только Премиум; иначе показываем оплату */
+  isPremium?: boolean;
+  onNeedPremium?: () => void;
 };
 
-export function NotificationPromptModal({ open, onClose }: NotificationPromptModalProps) {
+export function NotificationPromptModal({
+  open,
+  onClose,
+  isPremium = true,
+  onNeedPremium,
+}: NotificationPromptModalProps) {
   const [permission, setPermission] = useState<NotificationPermission | null>(null);
   const [mounted, setMounted] = useState(false);
   const push = usePushSubscription();
@@ -37,6 +45,11 @@ export function NotificationPromptModal({ open, onClose }: NotificationPromptMod
   }, [open, mounted]);
 
   const handleAllow = async () => {
+    if (!isPremium) {
+      onNeedPremium?.();
+      onClose();
+      return;
+    }
     await push.subscribe();
     if (typeof Notification !== "undefined") setPermission(Notification.permission);
   };
@@ -57,7 +70,7 @@ export function NotificationPromptModal({ open, onClose }: NotificationPromptMod
 
   const mobile = mounted && isMobile();
   const denied = permission === "denied";
-  const canRequest = permission === "default" && push.isSupported;
+  const canRequest = permission === "default" && push.isSupported && isPremium;
 
   if (!open) return null;
 
@@ -79,6 +92,12 @@ export function NotificationPromptModal({ open, onClose }: NotificationPromptMod
               Включайте уведомления, чтобы получать напоминания о плановых работах на грядках (полив, подкормка и т.д.) на сегодня и завтра.
             </p>
 
+            {!isPremium && permission === "default" && push.isSupported && (
+              <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                Напоминания о работах на грядках доступны с подпиской Премиум. Нажмите кнопку ниже, чтобы перейти к оформлению.
+              </p>
+            )}
+
             {canRequest && (
               <>
                 <Button
@@ -96,6 +115,19 @@ export function NotificationPromptModal({ open, onClose }: NotificationPromptMod
                   <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">{push.message}</p>
                 )}
               </>
+            )}
+
+            {!isPremium && permission === "default" && push.isSupported && (
+              <Button
+                type="button"
+                onClick={() => {
+                  onNeedPremium?.();
+                  onClose();
+                }}
+                className="w-full rounded-2xl bg-amber-600 hover:bg-amber-700 mb-3"
+              >
+                Оформить Премиум
+              </Button>
             )}
 
             {denied && (

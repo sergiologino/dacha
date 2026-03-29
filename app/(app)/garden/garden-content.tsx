@@ -14,11 +14,9 @@ import {
   MapPin,
   ChevronDown,
   ChevronUp,
-  ChevronLeft,
   ChevronRight,
   Camera,
   Image as ImageIcon,
-  X,
   Search,
   HelpCircle,
   Pencil,
@@ -39,7 +37,15 @@ import { useOnboardingCheck } from "@/lib/hooks/use-onboarding-check";
 import { useUserLocation } from "@/lib/hooks/use-user-location";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlants, useCreatePlant, useUpdatePlant, useDeletePlant, type Plant } from "@/lib/hooks/use-plants";
-import { useBeds, useCreateBed, useUpdateBed, useDeleteBed, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
+import {
+  useBeds,
+  useCreateBed,
+  useUpdateBed,
+  useDeleteBed,
+  useUploadPlantPhoto,
+  useDeletePlantPhoto,
+  type Bed,
+} from "@/lib/hooks/use-beds";
 import { PlantTimelineLabels, PlantTimelineBar, type PhotoCheck } from "@/components/plant-timeline";
 import { GardenHelpContent } from "@/components/garden-help-content";
 import { useCrops } from "@/lib/hooks/use-crops";
@@ -49,22 +55,13 @@ import type { CropWithSource } from "@/lib/crops-merge";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { PlannedWorkModal, type PlannedWorkEvent } from "@/components/planned-work-modal";
 import { NotificationPromptModal, getNotificationPromptSeen } from "@/components/notification-prompt-modal";
-import { GalleryShareButton } from "@/components/gallery-share-button";
-import { getGalleryPhotoUrl } from "@/lib/gallery";
-
-const bedTypeLabels: Record<string, string> = {
-  open: "Открытый грунт",
-  greenhouse: "Теплица",
-  raised: "Высокая грядка",
-  seedling_home: "Рассада дома",
-};
-
-const bedTypeEmoji: Record<string, string> = {
-  open: "🌿",
-  greenhouse: "🏠",
-  raised: "📦",
-  seedling_home: "🪴",
-};
+import {
+  GardenPlantGalleryDialog,
+  type GardenGalleryState,
+} from "@/components/garden-plant-gallery-dialog";
+import { GardenPlantPhotoImg } from "@/components/garden-plant-photo";
+import { bedTypeEmoji, bedTypeLabels } from "@/lib/garden-labels";
+import { useIsMobile } from "@/lib/hooks/use-is-mobile";
 
 const FREE_BED_LIMIT = 2;
 const FREE_PLANT_LIMIT = 3;
@@ -130,6 +127,25 @@ export default function GardenContent() {
   const hasSeededRef = useRef(false);
   const hasSuggestedOnboardingRef = useRef(false);
   const [loadingFallback, setLoadingFallback] = useState(false);
+  const isMobile = useIsMobile();
+  const [desktopGardenView, setDesktopGardenView] = useState<"graph" | "list">("graph");
+
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("garden-desktop-view");
+      if (v === "list" || v === "graph") setDesktopGardenView(v);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("garden-desktop-view", desktopGardenView);
+    } catch {
+      /* ignore */
+    }
+  }, [desktopGardenView]);
 
   const plantsQuery = usePlants({ enabled: status === "authenticated" });
   const plants = plantsQuery.data ?? [];
@@ -178,6 +194,8 @@ export default function GardenContent() {
     });
     return n;
   })();
+
+  const bedInteractionMode = isMobile || desktopGardenView === "list" ? "navigate" : "graph";
 
   useEffect(() => {
     fetch("/api/user/premium")
@@ -337,6 +355,28 @@ export default function GardenContent() {
         </p>
       )}
 
+      <div className="hidden md:flex flex-wrap items-center gap-3 mb-5 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+        <span className="text-base font-semibold text-slate-800 dark:text-slate-200">Вид участка:</span>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant={desktopGardenView === "graph" ? "default" : "outline"}
+            className="h-11 px-4 rounded-xl text-base"
+            onClick={() => setDesktopGardenView("graph")}
+          >
+            График на грядке
+          </Button>
+          <Button
+            type="button"
+            variant={desktopGardenView === "list" ? "default" : "outline"}
+            className="h-11 px-4 rounded-xl text-base"
+            onClick={() => setDesktopGardenView("list")}
+          >
+            Список работ (как на телефоне)
+          </Button>
+        </div>
+      </div>
+
       {/* Модалка помощи — контент на фронте, без задержек */}
       <Dialog open={showHelp} onOpenChange={setShowHelp}>
         <DialogContent
@@ -494,6 +534,7 @@ export default function GardenContent() {
                   uploadingPhotoPlantId={
                     uploadPhoto.isPending ? uploadPhoto.variables?.plantId ?? null : null
                   }
+                  interactionMode={bedInteractionMode}
                 />
               </div>
             ))}
@@ -541,7 +582,8 @@ export default function GardenContent() {
             if (
               typeof Notification !== "undefined" &&
               Notification.permission !== "granted" &&
-              !getNotificationPromptSeen()
+              !getNotificationPromptSeen() &&
+              isPremium === true
             ) {
               setShowNotificationPrompt(true);
             }
@@ -551,6 +593,8 @@ export default function GardenContent() {
       <NotificationPromptModal
         open={showNotificationPrompt}
         onClose={() => setShowNotificationPrompt(false)}
+        isPremium={isPremium === true}
+        onNeedPremium={() => setShowPaywall(true)}
       />
       {plannedWorkModal && (
         <PlannedWorkModal
@@ -575,34 +619,6 @@ export default function GardenContent() {
 
 function toDateInputValue(iso: string) {
   return iso.slice(0, 10);
-}
-
-/**
- * Картинка грядки: только через API (читает файл с диска / data URL из БД, проверяет владельца).
- * Прямой /uploads/… в проде часто даёт пустой <img> при standalone/прокси.
- */
-function GardenPlantPhotoImg({
-  photoId,
-  className,
-  loading = "eager",
-}: {
-  photoId: string;
-  className?: string;
-  loading?: "eager" | "lazy";
-}) {
-  const [retry, setRetry] = useState(0);
-  const qs = retry > 0 ? `?r=${retry}` : "";
-  const src = `/api/photos/${photoId}/image${qs}`;
-  return (
-    <img
-      src={src}
-      alt=""
-      className={className}
-      loading={loading}
-      decoding="async"
-      onError={() => setRetry((n) => (n < 2 ? n + 1 : n))}
-    />
-  );
 }
 
 const categoriesFromCrops = (cropsList: { category: string }[]) =>
@@ -630,6 +646,7 @@ function BedCard({
   addingPlant,
   updatingPlant,
   uploadingPhotoPlantId,
+  interactionMode,
 }: {
   bed: Bed;
   crops: { id: number; name: string; slug: string; category: string; varieties?: { name: string }[] }[];
@@ -656,9 +673,10 @@ function BedCard({
   addingPlant: boolean;
   updatingPlant: boolean;
   uploadingPhotoPlantId: string | null;
+  interactionMode: "graph" | "navigate";
 }) {
-  const qc = useQueryClient();
-  const [expanded, setExpanded] = useState(false);
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const expanded = interactionMode === "graph" && internalExpanded;
   const [editingBedName, setEditingBedName] = useState(false);
   const [editingBedNameValue, setEditingBedNameValue] = useState(bed.name);
   useEffect(() => {
@@ -677,24 +695,10 @@ function BedCard({
   const photoCameraInputRef = useRef<HTMLInputElement>(null);
   const photoGalleryInputRef = useRef<HTMLInputElement>(null);
   const photoTargetRef = useRef<{ plantId: string; bedId: string } | null>(null);
-  const [gallery, setGallery] = useState<{
-    plantName: string;
-    photos: {
-      id: string;
-      url: string;
-      takenAt: string;
-      caption?: string | null;
-      isPublic?: boolean;
-      publishedAt?: string | null;
-      analysisResult?: string | null;
-      analysisStatus?: string | null;
-    }[];
-    index: number;
-  } | null>(null);
-  const [galleryCaption, setGalleryCaption] = useState("");
-  const [gallerySaving, setGallerySaving] = useState(false);
+  const [gallery, setGallery] = useState<GardenGalleryState>(null);
   const [regeneratingPlantId, setRegeneratingPlantId] = useState<string | null>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
+  const deletePlantPhoto = useDeletePlantPhoto();
 
   const searchHits = searchQuery.trim().length >= 3 ? searchCropsAndVarieties(cropsList as Parameters<typeof searchCropsAndVarieties>[0], searchQuery.trim()) : [];
   const categories = categoriesFromCrops(cropsList);
@@ -764,184 +768,234 @@ function BedCard({
     });
   };
 
-  const closeGallery = () => setGallery(null);
-
-  useEffect(() => {
-    const currentPhoto = gallery?.photos[gallery.index];
-    setGalleryCaption(currentPhoto?.caption ?? "");
-  }, [gallery?.index, gallery?.photos]);
-
-  const galleryPrev = () => {
-    if (!gallery) return;
-    setGallery((g) =>
-      g ? { ...g, index: g.index > 0 ? g.index - 1 : g.photos.length - 1 } : null
-    );
+  const handleDeletePlantPhoto = (photoId: string) => {
+    deletePlantPhoto.mutate(photoId, {
+      onSuccess: () => {
+        setGallery((g) => {
+          if (!g) return null;
+          const photos = g.photos.filter((p) => p.id !== photoId);
+          if (photos.length === 0) return null;
+          return { ...g, photos, index: Math.min(g.index, photos.length - 1) };
+        });
+      },
+    });
   };
 
-  const galleryNext = () => {
-    if (!gallery) return;
-    setGallery((g) =>
-      g ? { ...g, index: g.index < g.photos.length - 1 ? g.index + 1 : 0 } : null
-    );
-  };
-
-  const updateGalleryPhoto = (photoId: string, patch: {
-    caption?: string | null;
-    isPublic?: boolean;
-    publishedAt?: string | null;
-  }) => {
-    setGallery((current) =>
-      current
-        ? {
-            ...current,
-            photos: current.photos.map((photo) =>
-              photo.id === photoId ? { ...photo, ...patch } : photo
-            ),
-          }
-        : current
-    );
-  };
-
-  const saveGalleryPhoto = async (isPublic: boolean) => {
-    const currentPhoto = gallery?.photos[gallery.index];
-    if (!currentPhoto) return;
-
-    setGallerySaving(true);
-    try {
-      const res = await fetch(`/api/photos/${currentPhoto.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          caption: galleryCaption.trim() || null,
-          isPublic,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Не удалось обновить публикацию");
-      }
-
-      updateGalleryPhoto(currentPhoto.id, {
-        caption: data.caption ?? null,
-        isPublic: !!data.isPublic,
-        publishedAt: data.publishedAt ?? null,
-      });
-      await qc.invalidateQueries({ queryKey: ["beds"] });
-      await qc.invalidateQueries({ queryKey: ["gallery-feed"] });
-      toast.success(
-        data.isPublic
-          ? "Фото опубликовано в галерее"
-          : "Фото снято с публикации"
-      );
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Не удалось обновить публикацию"
-      );
-    } finally {
-      setGallerySaving(false);
-    }
-  };
+  const deletingPhotoId = deletePlantPhoto.isPending ? deletePlantPhoto.variables ?? null : null;
 
   return (
     <>
     <Card className="overflow-hidden hover:shadow-md transition-shadow">
-      {/* Header тАФ clickable */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full p-5 flex items-center justify-between text-left"
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">{bedTypeEmoji[bed.type] || "🌱"}</span>
-          <div
-            className="min-w-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 flex-wrap">
-              {editingBedName ? (
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    value={editingBedNameValue}
-                    onChange={(e) => setEditingBedNameValue(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        const v = editingBedNameValue.trim();
-                        if (v) onUpdateBed(bed.id, { name: v });
-                        setEditingBedName(false);
-                      }
-                      if (e.key === "Escape") {
-                        setEditingBedNameValue(bed.name);
-                        setEditingBedName(false);
-                      }
-                    }}
-                    onBlur={() => {
+      {interactionMode === "navigate" && editingBedName ? (
+        <div className="w-full p-5 flex items-center justify-between text-left gap-3 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <span className="text-2xl shrink-0">{bedTypeEmoji[bed.type] || "🌱"}</span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <input
+                  type="text"
+                  value={editingBedNameValue}
+                  onChange={(e) => setEditingBedNameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
                       const v = editingBedNameValue.trim();
-                      if (v && v !== bed.name) onUpdateBed(bed.id, { name: v });
+                      if (v) onUpdateBed(bed.id, { name: v });
+                      setEditingBedName(false);
+                    }
+                    if (e.key === "Escape") {
                       setEditingBedNameValue(bed.name);
                       setEditingBedName(false);
+                    }
+                  }}
+                  onBlur={() => {
+                    const v = editingBedNameValue.trim();
+                    if (v && v !== bed.name) onUpdateBed(bed.id, { name: v });
+                    setEditingBedNameValue(bed.name);
+                    setEditingBedName(false);
+                  }}
+                  autoFocus
+                  className="px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 font-semibold text-base min-w-[120px] max-w-full"
+                  aria-label="Название грядки"
+                />
+                {updatingBed ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-600 shrink-0" />
+                ) : (
+                  <Check
+                    className="w-4 h-4 text-emerald-600 cursor-pointer shrink-0"
+                    onClick={() => {
+                      const v = editingBedNameValue.trim();
+                      if (v) onUpdateBed(bed.id, { name: v });
+                      setEditingBedName(false);
                     }}
-                    autoFocus
-                    className="px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 font-semibold text-base min-w-[120px] max-w-full"
-                    aria-label="Название грядки"
+                    aria-label="Сохранить"
                   />
-                  {updatingBed ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-                  ) : (
-                    <Check
-                      className="w-4 h-4 text-emerald-600 cursor-pointer"
-                      onClick={() => {
-                        const v = editingBedNameValue.trim();
-                        if (v) onUpdateBed(bed.id, { name: v });
-                        setEditingBedName(false);
-                      }}
-                      aria-label="Сохранить"
-                    />
-                  )}
-                </div>
-              ) : (
-                <>
-                  <h3 className="font-semibold">{bed.name}</h3>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setEditingBedNameValue(bed.name);
-                      setEditingBedName(true);
-                    }}
-                    className="p-1 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
-                    aria-label="Изменить название грядки"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                </>
-              )}
-              {bed.number && (
-                <Badge variant="secondary" className="text-xs">
-                  #{bed.number}
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-3 text-sm text-slate-500 mt-0.5">
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3 h-3" />
-                {bedTypeLabels[bed.type] || bed.type}
-              </span>
-              <span className="flex items-center gap-1">
-                <Sprout className="w-3 h-3" />
-                {bed.plants.length} растени{bed.plants.length === 1 ? "е" : bed.plants.length < 5 ? "я" : "й"}
-              </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-sm text-slate-500 mt-0.5">
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  {bedTypeLabels[bed.type] || bed.type}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Sprout className="w-3 h-3" />
+                  {bed.plants.length} растени{bed.plants.length === 1 ? "е" : bed.plants.length < 5 ? "я" : "й"}
+                </span>
+              </div>
             </div>
           </div>
         </div>
-        {expanded ? (
-          <ChevronUp className="w-5 h-5 text-slate-400" />
-        ) : (
-          <ChevronDown className="w-5 h-5 text-slate-400" />
-        )}
-      </button>
+      ) : interactionMode === "navigate" ? (
+        <Link
+          href={`/garden/bed/${bed.id}`}
+          className="w-full p-5 flex items-center justify-between text-left gap-3 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/25 transition-colors min-h-[4.5rem]"
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <span className="text-2xl shrink-0">{bedTypeEmoji[bed.type] || "🌱"}</span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-semibold text-lg">{bed.name}</h3>
+                {bed.number && (
+                  <Badge variant="secondary" className="text-xs">
+                    #{bed.number}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-sm text-slate-500 mt-0.5">
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-4 h-4 shrink-0" />
+                  {bedTypeLabels[bed.type] || bed.type}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Sprout className="w-4 h-4 shrink-0" />
+                  {bed.plants.length} растени{bed.plants.length === 1 ? "е" : bed.plants.length < 5 ? "я" : "й"}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setEditingBedNameValue(bed.name);
+                setEditingBedName(true);
+              }}
+              className="p-2.5 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-emerald-100/80 dark:hover:bg-emerald-900/40"
+              aria-label="Изменить название грядки"
+            >
+              <Pencil className="w-5 h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                onDelete();
+              }}
+              className="p-2.5 rounded-xl text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+              aria-label="Удалить грядку"
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+            <ChevronRight className="w-6 h-6 text-emerald-600 shrink-0" aria-hidden />
+          </div>
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setInternalExpanded(!internalExpanded)}
+          className="w-full p-5 flex items-center justify-between text-left"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{bedTypeEmoji[bed.type] || "🌱"}</span>
+            <div
+              className="min-w-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                {editingBedName ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={editingBedNameValue}
+                      onChange={(e) => setEditingBedNameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const v = editingBedNameValue.trim();
+                          if (v) onUpdateBed(bed.id, { name: v });
+                          setEditingBedName(false);
+                        }
+                        if (e.key === "Escape") {
+                          setEditingBedNameValue(bed.name);
+                          setEditingBedName(false);
+                        }
+                      }}
+                      onBlur={() => {
+                        const v = editingBedNameValue.trim();
+                        if (v && v !== bed.name) onUpdateBed(bed.id, { name: v });
+                        setEditingBedNameValue(bed.name);
+                        setEditingBedName(false);
+                      }}
+                      autoFocus
+                      className="px-2 py-0.5 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 font-semibold text-base min-w-[120px] max-w-full"
+                      aria-label="Название грядки"
+                    />
+                    {updatingBed ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                    ) : (
+                      <Check
+                        className="w-4 h-4 text-emerald-600 cursor-pointer"
+                        onClick={() => {
+                          const v = editingBedNameValue.trim();
+                          if (v) onUpdateBed(bed.id, { name: v });
+                          setEditingBedName(false);
+                        }}
+                        aria-label="Сохранить"
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <h3 className="font-semibold">{bed.name}</h3>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setEditingBedNameValue(bed.name);
+                        setEditingBedName(true);
+                      }}
+                      className="p-1 rounded-md text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                      aria-label="Изменить название грядки"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                )}
+                {bed.number && (
+                  <Badge variant="secondary" className="text-xs">
+                    #{bed.number}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-sm text-slate-500 mt-0.5">
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  {bedTypeLabels[bed.type] || bed.type}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Sprout className="w-3 h-3" />
+                  {bed.plants.length} растени{bed.plants.length === 1 ? "е" : bed.plants.length < 5 ? "я" : "й"}
+                </span>
+              </div>
+            </div>
+          </div>
+          {internalExpanded ? (
+            <ChevronUp className="w-5 h-5 text-slate-400" />
+          ) : (
+            <ChevronDown className="w-5 h-5 text-slate-400" />
+          )}
+        </button>
+      )}
 
       {/* Expanded content */}
       {expanded && (
@@ -1089,19 +1143,45 @@ function BedCard({
                               /** takenAt desc: idx 0 — самое новое; выше z-index, чтобы перекрывало старые */
                               const stackZ = 10 + (n - idx);
                               return (
-                                <button
+                                <div
                                   key={ph.id}
-                                  type="button"
-                                  onClick={() => openGallery(plant, idx)}
-                                  className="absolute top-0 w-9 h-9 rounded-lg overflow-hidden border-2 border-white dark:border-slate-700 shadow -translate-x-1/2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                  className="absolute top-0 w-9 h-9 -translate-x-1/2"
                                   style={{ left: scaleLeftPct(offset), zIndex: stackZ }}
-                                  title={new Date(ph.takenAt).toLocaleDateString("ru-RU")}
                                 >
-                                  <GardenPlantPhotoImg
-                                    photoId={ph.id}
-                                    className="w-full h-full object-cover bg-slate-200/80 dark:bg-slate-700/80"
-                                  />
-                                </button>
+                                  <div className="relative w-9 h-9">
+                                    <button
+                                      type="button"
+                                      onClick={() => openGallery(plant, idx)}
+                                      className="absolute inset-0 rounded-lg overflow-hidden border-2 border-white dark:border-slate-700 shadow focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                      title={new Date(ph.takenAt).toLocaleDateString("ru-RU")}
+                                    >
+                                      <GardenPlantPhotoImg
+                                        photoId={ph.id}
+                                        className="w-full h-full object-cover bg-slate-200/80 dark:bg-slate-700/80"
+                                      />
+                                    </button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="absolute -right-1.5 -top-1.5 z-10 h-5 w-5 min-h-5 min-w-5 rounded-full border border-slate-200 dark:border-slate-600 bg-white/95 dark:bg-slate-900/95 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 shadow-sm"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleDeletePlantPhoto(ph.id);
+                                      }}
+                                      disabled={deletingPhotoId === ph.id}
+                                      title="Удалить фото"
+                                      aria-label="Удалить фото"
+                                    >
+                                      {deletingPhotoId === ph.id ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="w-3 h-3" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
                               );
                             })}
                           </div>
@@ -1388,162 +1468,19 @@ function BedCard({
           </div>
         </div>
       )}
+      {interactionMode === "navigate" && (
+        <div className="border-t border-slate-100 dark:border-slate-800">
+          <Link
+            href={`/garden/bed/${bed.id}#add-plant`}
+            className="block w-full px-5 py-4 text-center text-lg font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50/80 dark:hover:bg-emerald-950/40 transition-colors"
+          >
+            + Добавить растение на грядку
+          </Link>
+        </div>
+      )}
     </Card>
 
-    {/* Галерея фото растения — полноэкранная на мобильном */}
-    <Dialog open={!!gallery} onOpenChange={(open) => !open && closeGallery()}>
-      <DialogContent
-        showCloseButton={false}
-        className="inset-0 w-full h-full max-w-none translate-x-0 translate-y-0 rounded-none border-0 bg-black/95 p-0 gap-0 flex flex-col sm:inset-[5%] sm:h-[90%] sm:max-w-4xl sm:mx-auto sm:rounded-2xl sm:border sm:border-slate-700"
-      >
-        {gallery && (
-          <>
-            <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/50 sm:rounded-t-2xl">
-              <DialogTitle className="text-white font-semibold text-base">
-                {gallery.plantName}
-                {gallery.photos[gallery.index]?.takenAt && (
-                  <span className="text-white/80 font-normal ml-1">
-                    — {new Date(gallery.photos[gallery.index].takenAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })}
-                  </span>
-                )}
-                {" — фото "}{gallery.index + 1} из {gallery.photos.length}
-              </DialogTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:bg-white/20 rounded-full"
-                onClick={closeGallery}
-                aria-label="Закрыть"
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-            <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative min-h-[40vh]">
-              <GardenPlantPhotoImg
-                key={gallery.photos[gallery.index].id}
-                photoId={gallery.photos[gallery.index].id}
-                className="max-w-full max-h-[70vh] w-auto object-contain bg-black"
-              />
-              {gallery.photos[gallery.index]?.analysisResult && (
-                <div className="w-full flex-shrink-0 px-4 py-2 bg-black/60 text-white text-sm sm:rounded-b-2xl">
-                  <p className="font-medium">
-                    {gallery.photos[gallery.index].analysisStatus === "problem" ? "Отклонения: " : "Вердикт: "}
-                  </p>
-                  <p className="mt-0.5">{gallery.photos[gallery.index].analysisResult}</p>
-                </div>
-              )}
-              <div className="w-full flex-shrink-0 px-4 py-3 bg-black/65 text-white text-sm space-y-3">
-                <textarea
-                  value={galleryCaption}
-                  onChange={(e) => setGalleryCaption(e.target.value)}
-                  rows={2}
-                  maxLength={280}
-                  placeholder="Подпись к публикации: что выросло, чем гордитесь, какой результат."
-                  className="w-full rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-sm placeholder:text-white/50"
-                />
-                <div className="flex flex-wrap gap-2 items-center">
-                  {gallery.photos[gallery.index]?.isPublic ? (
-                    <>
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => saveGalleryPhoto(true)}
-                        disabled={gallerySaving}
-                        className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
-                      >
-                        {gallerySaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                        Обновить публикацию
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => saveGalleryPhoto(false)}
-                        disabled={gallerySaving}
-                        className="rounded-xl border-white/20 bg-white/5 text-white hover:bg-white/10"
-                      >
-                        Снять с публикации
-                      </Button>
-                      <Button
-                        asChild
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="rounded-xl border-white/20 bg-white/5 text-white hover:bg-white/10"
-                      >
-                        <Link href={`/gallery/${gallery.photos[gallery.index].id}`}>
-                          Открыть пост
-                        </Link>
-                      </Button>
-                      <GalleryShareButton
-                        url={getGalleryPhotoUrl(gallery.photos[gallery.index].id)}
-                        title={galleryCaption || gallery.plantName}
-                        variant="outline"
-                        size="sm"
-                      />
-                    </>
-                  ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => saveGalleryPhoto(true)}
-                      disabled={gallerySaving}
-                      className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      {gallerySaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                      Опубликовать в галерее
-                    </Button>
-                  )}
-                </div>
-                <p className="text-xs text-white/70">
-                  Опубликованные фото попадут в общую галерею дачников, где их можно лайкать, комментировать и отправлять по ссылке.
-                </p>
-              </div>
-              {gallery.photos.length > 1 && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute left-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 text-white hover:bg-black/70"
-                    onClick={galleryPrev}
-                    aria-label="Предыдущее фото"
-                  >
-                    <ChevronLeft className="w-6 h-6" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 text-white hover:bg-black/70"
-                    onClick={galleryNext}
-                    aria-label="Следующее фото"
-                  >
-                    <ChevronRight className="w-6 h-6" />
-                  </Button>
-                </>
-              )}
-            </div>
-            {gallery.photos.length > 1 && (
-              <div className="flex justify-center gap-1.5 py-3 flex-shrink-0 bg-black/50 sm:rounded-b-2xl">
-                {gallery.photos.map((_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setGallery((g) => (g ? { ...g, index: i } : null))}
-                    className={[
-                      "w-2 h-2 rounded-full transition-colors",
-                      i === gallery.index
-                        ? "bg-emerald-400"
-                        : "bg-white/40 hover:bg-white/60",
-                    ].join(" ")}
-                    aria-label={`Фото ${i + 1}`}
-                  />
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+    <GardenPlantGalleryDialog gallery={gallery} setGallery={setGallery} />
     </>
   );
 }

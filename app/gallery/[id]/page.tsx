@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
+import { galleryPhotoImageAbsoluteUrl } from "@/lib/gallery";
 import { GalleryPostClient } from "./gallery-post-client";
 
 export async function generateMetadata({
@@ -51,7 +52,7 @@ export async function generateMetadata({
       type: "article",
       images: photo.url.startsWith("data:")
         ? undefined
-        : [{ url: photo.url, alt: title }],
+        : [{ url: galleryPhotoImageAbsoluteUrl(id), alt: title }],
     },
   };
 }
