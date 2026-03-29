@@ -6,6 +6,7 @@ import { crops as staticCrops } from "@/lib/data/crops";
 import { prisma } from "@/lib/prisma";
 import { getMergedCrops, type CropWithSource } from "@/lib/crops-merge";
 import { absoluteUrl } from "@/lib/seo";
+import { GuideWeeklyHacksSection } from "@/components/guide-weekly-hacks";
 import { GuideSearch } from "./guide-search";
 import { GuideAccordion } from "./guide-accordion";
 
@@ -92,21 +93,27 @@ export default async function GuidePage() {
           </Link>
         </div>
 
+        <GuideWeeklyHacksSection />
+
         <GuideSearch crops={crops} />
 
         <GuideAccordion crops={crops} />
 
-        <div className="mt-10 pt-6 border-t border-slate-200 dark:border-slate-700">
+        <div className="mt-10 pt-6 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <Link
-            href="/facts"
+            href="/guide/lifehacks"
             className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium"
           >
             <Sparkles className="w-5 h-5 flex-shrink-0" />
-            Интересные факты для дачников
+            Все лайфхаки и народные приёмы
           </Link>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Короткие факты о растениях, сезонных работах и природе
-          </p>
+          <Link
+            href="/facts"
+            className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-300 text-sm font-medium"
+          >
+            <Sparkles className="w-4 h-4 flex-shrink-0" />
+            Интересные факты
+          </Link>
         </div>
       </div>
     </div>
