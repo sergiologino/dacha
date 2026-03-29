@@ -16,6 +16,35 @@ function uploadsBaseDir(): string {
 }
 
 /**
+ * После неудачного readFile отдаём тот же файл как статику /uploads/…
+ * Нельзя использовать request.nextUrl.origin в Docker с HOSTNAME=0.0.0.0 — браузер
+ * получит redirect на http://0.0.0.0:3000/... (net::ERR_ADDRESS_INVALID).
+ */
+function redirectToPublicUploads(uploadPath: string, request: NextRequest): NextResponse {
+  const xfHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const xfProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  if (xfHost) {
+    const proto = xfProto === "http" ? "http" : "https";
+    return NextResponse.redirect(`${proto}://${xfHost}${uploadPath}`, 307);
+  }
+  const host = request.headers.get("host")?.split(",")[0]?.trim() ?? "";
+  const hostname = host.split(":")[0];
+  const badLoopback =
+    !host ||
+    hostname === "0.0.0.0" ||
+    hostname === "127.0.0.1" ||
+    hostname === "localhost";
+  if (!badLoopback) {
+    const proto = request.nextUrl.protocol === "https:" ? "https" : "http";
+    return NextResponse.redirect(`${proto}://${host}${uploadPath}`, 307);
+  }
+  return new NextResponse(null, {
+    status: 307,
+    headers: { Location: uploadPath },
+  });
+}
+
+/**
  * Отдаёт байты фото владельцу по id (сессия в cookie).
  * Нужен, потому что <img src="/uploads/..."> в проде часто ломается: standalone, прокси, кэш, не тот cwd.
  */
@@ -97,7 +126,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         uploadDir: baseDir,
         message: err instanceof Error ? err.message : String(err),
       });
-      return NextResponse.redirect(new URL(url, request.nextUrl.origin), 307);
+      return redirectToPublicUploads(url, request);
     }
   }
 

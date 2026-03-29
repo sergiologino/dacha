@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { GardenPlantPhotoImg } from "@/components/garden-plant-photo";
@@ -134,6 +135,9 @@ export function GardenPlantGalleryDialog({
         showCloseButton={false}
         className="inset-0 w-full h-full max-w-none translate-x-0 translate-y-0 rounded-none border-0 bg-black/95 p-0 gap-0 flex flex-col sm:inset-[5%] sm:h-[90%] sm:max-w-4xl sm:mx-auto sm:rounded-2xl sm:border sm:border-slate-700"
       >
+        <DialogDescription className="sr-only">
+          Просмотр фотографий растения. Листайте стрелками или свайпом.
+        </DialogDescription>
         {gallery ? (
           <>
             <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 bg-black/50 sm:rounded-t-2xl">
