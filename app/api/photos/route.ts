@@ -12,6 +12,12 @@ const UPLOAD_DIR = process.env.PHOTOS_UPLOAD_DIR?.trim()
   ? path.resolve(process.env.PHOTOS_UPLOAD_DIR.trim())
   : path.join(process.cwd(), "public", "uploads");
 
+/** Без постоянного тома файлы исчезают при редеплое; тогда в БД хранится data URL (тяжелее, но надёжно). */
+function plantPhotosStoredInline(): boolean {
+  const v = process.env.PLANT_PHOTOS_INLINE?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "yes";
+}
+
 /** JPEG, ориентация EXIF. Dynamic import — при падении sharp в контейнере не роняем весь route. */
 async function normalizePlantImageBuffer(input: Buffer): Promise<Buffer | null> {
   const sharpMod = (await import("sharp")).default;
@@ -84,14 +90,18 @@ export async function POST(request: NextRequest) {
       storedMime = mimeFromClient;
     }
 
-    try {
-      await mkdir(dir, { recursive: true });
-      const filepath = path.join(dir, filename);
-      await writeFile(filepath, buffer);
-      url = `/uploads/${filename}`;
-    } catch {
-      const base64 = buffer.toString("base64");
-      url = `data:${storedMime};base64,${base64}`;
+    if (plantPhotosStoredInline()) {
+      url = `data:${storedMime};base64,${buffer.toString("base64")}`;
+    } else {
+      try {
+        await mkdir(dir, { recursive: true });
+        const filepath = path.join(dir, filename);
+        await writeFile(filepath, buffer);
+        url = `/uploads/${filename}`;
+      } catch {
+        const base64 = buffer.toString("base64");
+        url = `data:${storedMime};base64,${base64}`;
+      }
     }
 
     const takenAt = takenAtStr ? new Date(takenAtStr) : new Date();

@@ -15,6 +15,33 @@ const bedInclude = {
   photos: { orderBy: { createdAt: "desc" as const }, take: 4 },
 };
 
+/** После удаления растения Prisma раньше обнулял plantId у фото — они пропадали с UI. Каскад это исправляет для новых данных; для уже «осиротевших» на грядке с одной культурой подмешиваем их в её photos. */
+async function attachOrphanBedPhotosToSinglePlantBeds(
+  userId: string,
+  beds: Awaited<ReturnType<typeof prisma.bed.findMany<{ include: typeof bedInclude }>>>
+) {
+  for (const bed of beds) {
+    const plants = bed.plants;
+    if (plants.length !== 1) continue;
+    const only = plants[0];
+    if (!only) continue;
+
+    const orphans = await prisma.photo.findMany({
+      where: { userId, bedId: bed.id, plantId: null },
+      orderBy: { takenAt: "desc" },
+    });
+    if (orphans.length === 0) continue;
+
+    const existingIds = new Set((only.photos ?? []).map((p) => p.id));
+    const merged = [
+      ...orphans.filter((o) => !existingIds.has(o.id)),
+      ...(only.photos ?? []),
+    ].sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime());
+
+    only.photos = merged;
+  }
+}
+
 export async function GET() {
   try {
     const user = await getAuthUser();
@@ -25,6 +52,8 @@ export async function GET() {
       include: bedInclude,
       orderBy: { createdAt: "desc" },
     });
+
+    await attachOrphanBedPhotosToSinglePlantBeds(user.id, beds);
 
     return NextResponse.json(beds);
   } catch (err) {

@@ -1,54 +1,19 @@
 import { readFile } from "fs/promises";
 import path from "path";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { userOwnsPhotoRow } from "@/lib/photo-access";
 import { normalizeStoredPhotoUrl } from "@/lib/photo-image-utils";
+import { uploadsDirOnDisk } from "@/lib/photo-storage";
 
 export const dynamic = "force-dynamic";
-
-/** Каталог файлов на диске: по умолчанию `public/uploads`, или абсолютный путь (том в Docker). */
-function uploadsBaseDir(): string {
-  const fromEnv = process.env.PHOTOS_UPLOAD_DIR?.trim();
-  if (fromEnv) return path.resolve(fromEnv);
-  return path.resolve(path.join(process.cwd(), "public", "uploads"));
-}
-
-/**
- * После неудачного readFile отдаём тот же файл как статику /uploads/…
- * Нельзя использовать request.nextUrl.origin в Docker с HOSTNAME=0.0.0.0 — браузер
- * получит redirect на http://0.0.0.0:3000/... (net::ERR_ADDRESS_INVALID).
- */
-function redirectToPublicUploads(uploadPath: string, request: NextRequest): NextResponse {
-  const xfHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const xfProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
-  if (xfHost) {
-    const proto = xfProto === "http" ? "http" : "https";
-    return NextResponse.redirect(`${proto}://${xfHost}${uploadPath}`, 307);
-  }
-  const host = request.headers.get("host")?.split(",")[0]?.trim() ?? "";
-  const hostname = host.split(":")[0];
-  const badLoopback =
-    !host ||
-    hostname === "0.0.0.0" ||
-    hostname === "127.0.0.1" ||
-    hostname === "localhost";
-  if (!badLoopback) {
-    const proto = request.nextUrl.protocol === "https:" ? "https" : "http";
-    return NextResponse.redirect(`${proto}://${host}${uploadPath}`, 307);
-  }
-  return new NextResponse(null, {
-    status: 307,
-    headers: { Location: uploadPath },
-  });
-}
 
 /**
  * Отдаёт байты фото по id: владелец (сессия) или любой посетитель для опубликованного в галерее
  * (isPublic + publishedAt). Так гостевая /gallery и превью в соцсетях не зависят от статики /uploads.
  */
-export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getAuthUser();
 
   const { id } = await context.params;
@@ -105,7 +70,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       return new NextResponse(null, { status: 403 });
     }
     const filename = parts[1]!;
-    const baseDir = uploadsBaseDir();
+    const baseDir = uploadsDirOnDisk();
     const filepath = path.resolve(path.join(baseDir, filename));
     const rel = path.relative(baseDir, filepath);
     if (rel.startsWith("..") || path.isAbsolute(rel)) {
@@ -125,14 +90,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
         },
       });
     } catch (err) {
-      console.warn("[photos/image] readFile failed, try static redirect", {
+      console.warn("[photos/image] readFile failed (файл не на диске — задайте том или PLANT_PHOTOS_INLINE=1)", {
         id,
         filepath,
         cwd: process.cwd(),
         uploadDir: baseDir,
         message: err instanceof Error ? err.message : String(err),
       });
-      return redirectToPublicUploads(url, request);
+      return new NextResponse(null, { status: 404 });
     }
   }
 

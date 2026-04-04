@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { generateTimelineForPlant } from "@/lib/timeline-generate";
+import { tryRemoveStoredFile } from "@/lib/photo-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -138,6 +139,14 @@ export async function DELETE(request: NextRequest) {
 
     const plant = await prisma.plant.findFirst({ where: { id, userId: user.id } });
     if (!plant) return NextResponse.json({ error: "Plant not found" }, { status: 404 });
+
+    const photoRows = await prisma.photo.findMany({
+      where: { plantId: id },
+      select: { url: true },
+    });
+    for (const { url } of photoRows) {
+      await tryRemoveStoredFile(url);
+    }
 
     await prisma.plant.delete({ where: { id } });
 
