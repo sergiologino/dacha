@@ -22,7 +22,7 @@ ENV DATABASE_URL=${DATABASE_URL}
 RUN npm config set fetch-timeout 120000 && \
     npm config set fetch-retries 5 && \
     npm config set fetch-retry-mintimeout 20000 && \
-    npm ci --ignore-scripts --fetch-timeout=120000
+    npm ci --ignore-scripts --fetch-timeout=120000 --include=dev
 RUN npm rebuild sharp
 RUN npx prisma generate
 
