@@ -14,6 +14,7 @@ import { useCrops } from "@/lib/hooks/use-crops";
 import { crops as staticCrops } from "@/lib/data/crops";
 import type { CropWithSource } from "@/lib/crops-merge";
 import { bedTypeEmoji, bedTypeLabels } from "@/lib/garden-labels";
+import { LEGACY_FREE_PLANT_LIMIT } from "@/lib/user-access";
 
 export function BedPageClient({ bedId }: { bedId: string }) {
   const { status } = useSession();
@@ -26,6 +27,7 @@ export function BedPageClient({ bedId }: { bedId: string }) {
     cropsList ?? staticCrops.map((c) => ({ ...c, addedByCommunity: false }));
   const totalPlants = beds.reduce((n, b) => n + (b.plants?.length ?? 0), 0);
   const [hasFullAccess, setHasFullAccess] = useState<boolean | null>(null);
+  const [isLegacyFreeTier, setIsLegacyFreeTier] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
@@ -35,11 +37,19 @@ export function BedPageClient({ bedId }: { bedId: string }) {
   useEffect(() => {
     fetch("/api/user/premium")
       .then((r) => r.json())
-      .then((d: { hasFullAccess?: boolean; isPremium?: boolean }) =>
-        setHasFullAccess(Boolean(d.hasFullAccess ?? d.isPremium))
-      )
-      .catch(() => setHasFullAccess(false));
+      .then((d: { hasFullAccess?: boolean; isPremium?: boolean; isLegacyFreeTier?: boolean }) => {
+        setHasFullAccess(Boolean(d.hasFullAccess ?? d.isPremium));
+        setIsLegacyFreeTier(Boolean(d.isLegacyFreeTier));
+      })
+      .catch(() => {
+        setHasFullAccess(false);
+        setIsLegacyFreeTier(false);
+      });
   }, []);
+
+  const blockAddPlant =
+    hasFullAccess === false &&
+    !(isLegacyFreeTier === true && totalPlants < LEGACY_FREE_PLANT_LIMIT);
 
   useEffect(() => {
     if (!bed || typeof window === "undefined") return;
@@ -161,6 +171,7 @@ export function BedPageClient({ bedId }: { bedId: string }) {
             bedId={bed.id}
             crops={crops}
             hasFullAccess={hasFullAccess}
+            blockAddPlant={blockAddPlant}
             onShowPaywall={() => setShowPaywall(true)}
           />
         </Card>

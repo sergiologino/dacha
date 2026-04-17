@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { generateTimelineForPlant } from "@/lib/timeline-generate";
-import { hasFullAccess } from "@/lib/user-access";
+import { hasFullAccess, isLegacyFreeTierUser } from "@/lib/user-access";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +20,29 @@ export async function POST(
   });
   if (!plant) return NextResponse.json({ error: "Plant not found" }, { status: 404 });
 
-  if (!hasFullAccess(user)) {
+  if (hasFullAccess(user)) {
+    // ok
+  } else if (isLegacyFreeTierUser(user)) {
+    const otherTimelinePlant = await prisma.plantTimelineEvent.findFirst({
+      where: {
+        plant: {
+          userId: user.id,
+          id: { not: plantId },
+        },
+      },
+      select: { id: true },
+    });
+    if (otherTimelinePlant) {
+      return NextResponse.json(
+        {
+          error:
+            "Лимит бесплатной версии: таймлайн ухода доступен только для одного растения. Оформите Премиум, чтобы разблокировать таймлайн для всех растений.",
+          code: "LIMIT_TIMELINE_FREE",
+        },
+        { status: 402 }
+      );
+    }
+  } else {
     return NextResponse.json(
       {
         error:

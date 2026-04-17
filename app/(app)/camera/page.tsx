@@ -22,7 +22,8 @@ export default function CameraPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyses, setAnalyses] = useState<AnalysisItem[]>([]);
-  const [hasFullAccess, setHasFullAccess] = useState(false);
+  /** -1 без лимита; 0 нельзя; >0 остаток (бесплатный legacy). */
+  const [freeLeft, setFreeLeft] = useState<number | null>(null);
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [sharedOk, setSharedOk] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export default function CameraPage() {
       .then((data) => {
         if (data.analyses) setAnalyses(data.analyses);
         if (typeof data.freeLeft === "number") {
-          setHasFullAccess(data.freeLeft === -1);
+          setFreeLeft(data.freeLeft);
         }
       })
       .catch(() => {})
@@ -66,10 +67,13 @@ export default function CameraPage() {
     }
   };
 
+  const canAnalyze =
+    freeLeft !== null && (freeLeft === -1 || freeLeft > 0);
+
   const analyzeImage = async () => {
     if (!selectedImage) return;
 
-    if (!hasFullAccess) {
+    if (!canAnalyze) {
       setShowSubscribeModal(true);
       return;
     }
@@ -97,6 +101,8 @@ export default function CameraPage() {
       };
 
       setAnalyses((prev) => [newAnalysis, ...prev]);
+      const quota = await fetch("/api/ai/analyze").then((r) => r.json());
+      if (typeof quota.freeLeft === "number") setFreeLeft(quota.freeLeft);
     } catch {
       alert("Ошибка анализа. Проверьте интернет-соединение.");
     } finally {
@@ -141,9 +147,14 @@ export default function CameraPage() {
     <>
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Фото-анализ болезней</h1>
-        {!hasFullAccess && (
+        {freeLeft !== null && freeLeft === 0 && (
           <p className="text-sm text-amber-800 dark:text-amber-200">
-            Пробный период закончился — оформите Премиум для анализа фото.
+            Лимит исчерпан — оформите Премиум для безлимитного анализа фото.
+          </p>
+        )}
+        {freeLeft !== null && freeLeft > 0 && freeLeft !== -1 && (
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Бесплатных анализов в этом месяце осталось: {freeLeft}
           </p>
         )}
 

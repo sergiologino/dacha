@@ -35,6 +35,7 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
     cropsList ?? staticCrops.map((c) => ({ ...c, addedByCommunity: false }));
 
   const [hasFullAccess, setHasFullAccess] = useState<boolean | null>(null);
+  const [isLegacyFreeTier, setIsLegacyFreeTier] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [plannedWorkModal, setPlannedWorkModal] = useState<{
     open: boolean;
@@ -53,11 +54,18 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
   useEffect(() => {
     fetch("/api/user/premium")
       .then((r) => r.json())
-      .then((d: { hasFullAccess?: boolean; isPremium?: boolean }) =>
-        setHasFullAccess(Boolean(d.hasFullAccess ?? d.isPremium))
-      )
-      .catch(() => setHasFullAccess(false));
+      .then((d: { hasFullAccess?: boolean; isPremium?: boolean; isLegacyFreeTier?: boolean }) => {
+        setHasFullAccess(Boolean(d.hasFullAccess ?? d.isPremium));
+        setIsLegacyFreeTier(Boolean(d.isLegacyFreeTier));
+      })
+      .catch(() => {
+        setHasFullAccess(false);
+        setIsLegacyFreeTier(false);
+      });
   }, []);
+
+  const blockPremiumOnlyFeature =
+    hasFullAccess === false && isLegacyFreeTier !== true;
 
   const crop = plant?.cropSlug ? crops.find((c) => c.slug === plant.cropSlug) : null;
   const heroUrl = crop ? getCropDisplayImageUrl(crop) : undefined;
@@ -188,7 +196,7 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
             type="button"
             className="h-12 text-base rounded-xl bg-emerald-600 hover:bg-emerald-700"
             onClick={() => {
-              if (hasFullAccess === false) {
+              if (blockPremiumOnlyFeature) {
                 setShowPaywall(true);
                 return;
               }
@@ -207,9 +215,9 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
             type="button"
             variant="secondary"
             className="h-12 text-base rounded-xl"
-            disabled={hasFullAccess === false}
+            disabled={blockPremiumOnlyFeature}
             onClick={async () => {
-              if (hasFullAccess === false) {
+              if (blockPremiumOnlyFeature) {
                 setShowPaywall(true);
                 return;
               }

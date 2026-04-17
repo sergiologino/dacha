@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
-import { hasFullAccess } from "@/lib/user-access";
+import {
+  hasFullAccess,
+  isLegacyFreeTierUser,
+  LEGACY_FREE_CHAT_LIMIT,
+} from "@/lib/user-access";
 import { getPromptByKey } from "@/lib/get-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 
@@ -118,7 +122,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!hasFullAccess(user)) {
+  if (hasFullAccess(user)) {
+    // ok
+  } else if (isLegacyFreeTierUser(user)) {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthUserMessages = await prisma.chatMessage.count({
+      where: {
+        userId: user.id,
+        role: "user",
+        createdAt: { gte: monthStart },
+      },
+    });
+    if (thisMonthUserMessages >= LEGACY_FREE_CHAT_LIMIT) {
+      return NextResponse.json(
+        {
+          error:
+            "Лимит бесплатной версии: не более 5 запросов к чату в месяц. Оформите Премиум для безлимита.",
+          code: "LIMIT_CHAT_FREE",
+        },
+        { status: 402 }
+      );
+    }
+  } else {
     return NextResponse.json(
       {
         error:

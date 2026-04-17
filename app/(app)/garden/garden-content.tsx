@@ -65,6 +65,10 @@ import { useIsMobile } from "@/lib/hooks/use-is-mobile";
 import { GardenMobilePlantGrid } from "@/components/garden-mobile-plant-grid";
 import { bedPlantsSummary } from "@/lib/garden-display-helpers";
 import { AddPlantToBedForm } from "@/components/add-plant-to-bed-form";
+import {
+  LEGACY_FREE_BED_LIMIT,
+  LEGACY_FREE_PLANT_LIMIT,
+} from "@/lib/user-access";
 
 export default function GardenContent() {
   const router = useRouter();
@@ -112,6 +116,7 @@ export default function GardenContent() {
   const [showBedForm, setShowBedForm] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [hasFullAccess, setHasFullAccess] = useState<boolean | null>(null);
+  const [isLegacyFreeTier, setIsLegacyFreeTier] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showAddPlantDialog, setShowAddPlantDialog] = useState(false);
   const [plannedWorkModal, setPlannedWorkModal] = useState<{
@@ -176,13 +181,25 @@ export default function GardenContent() {
   useEffect(() => {
     fetch("/api/user/premium")
       .then((r) => r.json())
-      .then((data: { hasFullAccess?: boolean; isPremium?: boolean }) => {
+      .then((data: { hasFullAccess?: boolean; isPremium?: boolean; isLegacyFreeTier?: boolean }) => {
         setHasFullAccess(Boolean(data.hasFullAccess ?? data.isPremium));
+        setIsLegacyFreeTier(Boolean(data.isLegacyFreeTier));
       })
       .catch(() => {
         setHasFullAccess(false);
+        setIsLegacyFreeTier(false);
       });
   }, []);
+
+  const blockNewBed =
+    hasFullAccess === false &&
+    !(isLegacyFreeTier === true && totalBeds < LEGACY_FREE_BED_LIMIT);
+  const blockNewPlant =
+    hasFullAccess === false &&
+    !(isLegacyFreeTier === true && plants.length < LEGACY_FREE_PLANT_LIMIT);
+  /** Только премиум/триал: не legacy-бесплатный тариф. */
+  const blockPremiumOnlyFeature =
+    hasFullAccess === false && isLegacyFreeTier !== true;
 
   const showOnboardingParam = searchParams?.get?.("showOnboarding") === "1";
 
@@ -223,7 +240,7 @@ export default function GardenContent() {
 
   const addBed = () => {
     if (!newBedName) return;
-    if (hasFullAccess === false) {
+    if (blockNewBed) {
       setShowPaywall(true);
       return;
     }
@@ -307,7 +324,7 @@ export default function GardenContent() {
                 size="sm"
                 variant="secondary"
                 onClick={() => {
-                  if (hasFullAccess === false) {
+                  if (blockNewPlant) {
                     setShowPaywall(true);
                     return;
                   }
@@ -321,7 +338,7 @@ export default function GardenContent() {
             <Button
               size="sm"
               onClick={() => {
-                if (hasFullAccess === false) {
+                if (blockNewBed) {
                   setShowPaywall(true);
                   return;
                 }
@@ -477,6 +494,8 @@ export default function GardenContent() {
                   bed={bed}
                   crops={crops}
                   hasFullAccess={hasFullAccess}
+                  isLegacyFreeTier={isLegacyFreeTier}
+                  totalPlantCount={plants.length}
                   onShowPaywall={() => setShowPaywall(true)}
                   onUpdateBed={(id, data) => updateBed.mutate({ id, ...data })}
                   updatingBed={updateBed.isPending}
@@ -514,7 +533,7 @@ export default function GardenContent() {
                     })
                   }
                   onAddPlannedWork={(plant, bed) => {
-                    if (hasFullAccess === false) {
+                    if (blockPremiumOnlyFeature) {
                       setShowPaywall(true);
                       return;
                     }
@@ -597,6 +616,7 @@ export default function GardenContent() {
             bedsForSelection={beds.map((b) => ({ id: b.id, name: b.name }))}
             crops={crops}
             hasFullAccess={hasFullAccess}
+            blockAddPlant={blockNewPlant}
             onShowPaywall={() => {
               setShowAddPlantDialog(false);
               setShowPaywall(true);
@@ -647,6 +667,8 @@ function BedCard({
   bed,
   crops: cropsList,
   hasFullAccess,
+  isLegacyFreeTier,
+  totalPlantCount,
   onShowPaywall,
   onUpdateBed,
   updatingBed,
@@ -666,6 +688,8 @@ function BedCard({
   bed: Bed;
   crops: { id: number; name: string; slug: string; category: string; varieties?: { name: string }[] }[];
   hasFullAccess: boolean | null;
+  isLegacyFreeTier: boolean | null;
+  totalPlantCount: number;
   onShowPaywall?: () => void;
   onUpdateBed: (id: string, data: { name?: string; number?: string; type?: string }) => void;
   updatingBed: boolean;
@@ -710,6 +734,12 @@ function BedCard({
   const [regeneratingPlantId, setRegeneratingPlantId] = useState<string | null>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const deletePlantPhoto = useDeletePlantPhoto();
+
+  const blockNewPlantLocal =
+    hasFullAccess === false &&
+    !(isLegacyFreeTier === true && totalPlantCount < LEGACY_FREE_PLANT_LIMIT);
+  const blockPremiumOnlyUIFeature =
+    hasFullAccess === false && isLegacyFreeTier !== true;
 
   const searchHits = searchQuery.trim().length >= 3 ? searchCropsAndVarieties(cropsList as Parameters<typeof searchCropsAndVarieties>[0], searchQuery.trim()) : [];
   const categories = categoriesFromCrops(cropsList);
@@ -1254,7 +1284,7 @@ function BedCard({
                         disabled={regeneratingPlantId === plant.id}
                         onClick={async () => {
                           if (regeneratingPlantId === plant.id) return;
-                          if (hasFullAccess === false) {
+                          if (blockPremiumOnlyUIFeature) {
                             onShowPaywall?.();
                             return;
                           }
@@ -1448,7 +1478,7 @@ function BedCard({
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    if (hasFullAccess === false) {
+                    if (blockNewPlantLocal) {
                       onShowPaywall?.();
                       return;
                     }

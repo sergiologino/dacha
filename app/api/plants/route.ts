@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { generateTimelineForPlant } from "@/lib/timeline-generate";
-import { hasFullAccess } from "@/lib/user-access";
+import {
+  hasFullAccess,
+  isLegacyFreeTierUser,
+  LEGACY_FREE_PLANT_LIMIT,
+} from "@/lib/user-access";
 import { tryRemoveStoredFile } from "@/lib/photo-storage";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +39,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    if (!hasFullAccess(user)) {
+    if (hasFullAccess(user)) {
+      // ok
+    } else if (isLegacyFreeTierUser(user)) {
+      const plantCount = await prisma.plant.count({ where: { userId: user.id } });
+      if (plantCount >= LEGACY_FREE_PLANT_LIMIT) {
+        return NextResponse.json(
+          {
+            error:
+              "Лимит бесплатной версии: не более 3 растений. Оформите Премиум, чтобы добавить больше.",
+            code: "LIMIT_PLANTS_FREE",
+          },
+          { status: 402 }
+        );
+      }
+    } else {
       return NextResponse.json(
         {
           error:
@@ -61,9 +79,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    generateTimelineForPlant(plant.id).catch((err) =>
-      console.error("Timeline generation failed:", err)
-    );
+    if (hasFullAccess(user)) {
+      generateTimelineForPlant(plant.id).catch((err) =>
+        console.error("Timeline generation failed:", err)
+      );
+    } else if (isLegacyFreeTierUser(user)) {
+      const existingTimelinePlant = await prisma.plantTimelineEvent.findFirst({
+        where: { plant: { userId: user.id } },
+        select: { id: true },
+      });
+      if (!existingTimelinePlant) {
+        generateTimelineForPlant(plant.id).catch((err) =>
+          console.error("Timeline generation failed:", err)
+        );
+      }
+    }
 
     return NextResponse.json(plant, { status: 201 });
   } catch (err) {

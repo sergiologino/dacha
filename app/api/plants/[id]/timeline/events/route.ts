@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
-import { hasFullAccess } from "@/lib/user-access";
+import {
+  hasFullAccess,
+  isLegacyFreeTierUser,
+  LEGACY_FREE_PLANNED_WORKS_LIMIT,
+} from "@/lib/user-access";
 
 const VALID_TYPES = new Set([
   "sprout", "transplant", "water", "loosen", "light_temp", "feed", "pinch", "harvest", "other",
@@ -23,7 +27,26 @@ export async function POST(
   });
   if (!plant) return NextResponse.json({ error: "Plant not found" }, { status: 404 });
 
-  if (!hasFullAccess(user)) {
+  if (hasFullAccess(user)) {
+    // ok
+  } else if (isLegacyFreeTierUser(user)) {
+    const userCreatedCount = await prisma.plantTimelineEvent.count({
+      where: {
+        plant: { userId: user.id },
+        isUserCreated: true,
+      },
+    });
+    if (userCreatedCount >= LEGACY_FREE_PLANNED_WORKS_LIMIT) {
+      return NextResponse.json(
+        {
+          error:
+            "Лимит бесплатной версии: не более 5 добавленных вручную работ. Оформите Премиум, чтобы добавлять любое количество.",
+          code: "LIMIT_PLANNED_WORKS_FREE",
+        },
+        { status: 402 }
+      );
+    }
+  } else {
     return NextResponse.json(
       {
         error:

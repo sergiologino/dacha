@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
-import { hasFullAccess } from "@/lib/user-access";
+import {
+  hasFullAccess,
+  isLegacyFreeTierUser,
+  LEGACY_FREE_BED_LIMIT,
+} from "@/lib/user-access";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +78,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    if (!hasFullAccess(user)) {
+    if (hasFullAccess(user)) {
+      // без ограничений
+    } else if (isLegacyFreeTierUser(user)) {
+      const bedCount = await prisma.bed.count({ where: { userId: user.id } });
+      if (bedCount >= LEGACY_FREE_BED_LIMIT) {
+        return NextResponse.json(
+          {
+            error:
+              "Лимит бесплатной версии: не более 2 грядок. Оформите Премиум, чтобы добавить больше.",
+            code: "LIMIT_BEDS_FREE",
+          },
+          { status: 402 }
+        );
+      }
+    } else {
       return NextResponse.json(
         {
           error:

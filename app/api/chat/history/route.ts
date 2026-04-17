@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
-import { hasFullAccess } from "@/lib/user-access";
+import {
+  hasFullAccess,
+  isLegacyFreeTierUser,
+  LEGACY_FREE_CHAT_LIMIT,
+} from "@/lib/user-access";
 
 export async function GET() {
   const user = await getAuthUser();
@@ -15,8 +19,23 @@ export async function GET() {
     take: 100,
   });
 
-  /** -1 = без лимита; 0 = нет доступа к чату (нужна оплата). */
-  const freeLeft = hasFullAccess(user) ? -1 : 0;
+  let freeLeft: number;
+  if (hasFullAccess(user)) {
+    freeLeft = -1;
+  } else if (isLegacyFreeTierUser(user)) {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthUserMessages = await prisma.chatMessage.count({
+      where: {
+        userId: user.id,
+        role: "user",
+        createdAt: { gte: monthStart },
+      },
+    });
+    freeLeft = Math.max(0, LEGACY_FREE_CHAT_LIMIT - thisMonthUserMessages);
+  } else {
+    freeLeft = 0;
+  }
 
   return NextResponse.json({
     messages: messages.map((m) => ({

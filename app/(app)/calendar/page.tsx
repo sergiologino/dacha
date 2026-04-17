@@ -48,6 +48,7 @@ export default function CalendarPage() {
   const qc = useQueryClient();
   const [mode, setMode] = useState<CalendarMode>("tasks");
   const [hasFullAccess, setHasFullAccess] = useState<boolean | null>(null);
+  const [isLegacyFreeTier, setIsLegacyFreeTier] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [plannedWorkExpanded, setPlannedWorkExpanded] = useState(false);
   const [plannedWorkModal, setPlannedWorkModal] = useState<{
@@ -63,11 +64,18 @@ export default function CalendarPage() {
   useEffect(() => {
     fetch("/api/user/premium")
       .then((r) => r.json())
-      .then((data: { hasFullAccess?: boolean; isPremium?: boolean }) =>
-        setHasFullAccess(Boolean(data.hasFullAccess ?? data.isPremium))
-      )
-      .catch(() => setHasFullAccess(false));
+      .then((data: { hasFullAccess?: boolean; isPremium?: boolean; isLegacyFreeTier?: boolean }) => {
+        setHasFullAccess(Boolean(data.hasFullAccess ?? data.isPremium));
+        setIsLegacyFreeTier(Boolean(data.isLegacyFreeTier));
+      })
+      .catch(() => {
+        setHasFullAccess(false);
+        setIsLegacyFreeTier(false);
+      });
   }, []);
+
+  const blockPremiumOnlyCalendar =
+    hasFullAccess === false && isLegacyFreeTier !== true;
 
   const tasks = calendarTasks.filter((t) => t.month === selectedMonth);
   const currentYear = new Date().getFullYear();
@@ -253,7 +261,7 @@ export default function CalendarPage() {
                     size="sm"
                     className="text-emerald-700 border-emerald-300 dark:border-emerald-700 dark:text-emerald-300"
                     onClick={() => {
-                      if (hasFullAccess === false) {
+                      if (blockPremiumOnlyCalendar) {
                         setShowPaywall(true);
                         return;
                       }

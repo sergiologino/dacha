@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/get-user";
-import { hasFullAccess } from "@/lib/user-access";
+import {
+  hasFullAccess,
+  isLegacyFreeTierUser,
+  LEGACY_FREE_ANALYSIS_LIMIT,
+} from "@/lib/user-access";
 import { getPromptByKey } from "@/lib/get-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 import { prisma } from "@/lib/prisma";
@@ -39,7 +43,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 400 });
     }
 
-    if (!hasFullAccess(user)) {
+    if (hasFullAccess(user)) {
+      // ok
+    } else if (isLegacyFreeTierUser(user)) {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const thisMonthCount = await prisma.analysis.count({
+        where: {
+          userId: user.id,
+          createdAt: { gte: monthStart },
+        },
+      });
+      if (thisMonthCount >= LEGACY_FREE_ANALYSIS_LIMIT) {
+        return NextResponse.json(
+          {
+            error:
+              "Лимит бесплатной версии: не более 3 анализов фото в месяц. Оформите Премиум для безлимита.",
+            code: "LIMIT_ANALYSIS_FREE",
+          },
+          { status: 402 }
+        );
+      }
+    } else {
       return NextResponse.json(
         {
           error:
@@ -160,7 +185,22 @@ export async function GET() {
     take: 20,
   });
 
-  const freeLeft = hasFullAccess(user) ? -1 : 0;
+  let freeLeft: number;
+  if (hasFullAccess(user)) {
+    freeLeft = -1;
+  } else if (isLegacyFreeTierUser(user)) {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthCount = await prisma.analysis.count({
+      where: {
+        userId: user.id,
+        createdAt: { gte: monthStart },
+      },
+    });
+    freeLeft = Math.max(0, LEGACY_FREE_ANALYSIS_LIMIT - thisMonthCount);
+  } else {
+    freeLeft = 0;
+  }
 
   return NextResponse.json({
     analyses: analyses.map((a) => ({

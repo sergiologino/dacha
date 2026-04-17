@@ -21,6 +21,8 @@ type AddPlantToBedFormProps = {
   bedsForSelection?: { id: string; name: string }[];
   crops: CropWithSource[];
   hasFullAccess: boolean | null;
+  /** Если задано — блокировать добавление (например legacy-лимит растений). */
+  blockAddPlant?: boolean;
   onShowPaywall?: () => void;
   onPlantAdded?: () => void;
 };
@@ -30,6 +32,7 @@ export function AddPlantToBedForm({
   bedsForSelection,
   crops: cropsList,
   hasFullAccess,
+  blockAddPlant,
   onShowPaywall,
   onPlantAdded,
 }: AddPlantToBedFormProps) {
@@ -74,8 +77,10 @@ export function AddPlantToBedForm({
       (addMode === "category" && selectedCrop && displayFromCategory)) &&
     (!needsBedPick || !!resolvedBedId);
 
+  const paywallBlocked = blockAddPlant ?? hasFullAccess === false;
+
   const handleAddPlant = () => {
-    if (hasFullAccess === false) {
+    if (paywallBlocked) {
       onShowPaywall?.();
       return;
     }
@@ -311,7 +316,7 @@ export function AddPlantToBedForm({
           Добавить на грядку
         </Button>
       </div>
-      {hasFullAccess === false && (
+      {paywallBlocked && (
         <p className="text-base text-slate-500">
           Пробный период закончился — оформите Премиум, чтобы добавлять культуры.
         </p>
