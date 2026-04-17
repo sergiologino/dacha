@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { TRIAL_DAYS } from "@/lib/user-access";
 import { isPushConfigured, sendPushToUser } from "@/lib/push-server";
 import { buildWeatherAlerts, summarizeWeatherAlertsForPush } from "@/lib/weather-alerts";
 import { buildCropWeatherProfile } from "@/lib/crop-weather-context";
@@ -31,9 +32,12 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
+  const trialSince = new Date(now);
+  trialSince.setUTCDate(trialSince.getUTCDate() - TRIAL_DAYS);
+
   const candidates = await prisma.user.findMany({
     where: {
-      isPremium: true,
+      OR: [{ isPremium: true }, { createdAt: { gte: trialSince } }],
       weatherPushEnabled: true,
       latitude: { not: null },
       longitude: { not: null },

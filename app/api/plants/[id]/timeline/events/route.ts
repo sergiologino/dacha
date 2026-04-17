@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
+import { hasFullAccess } from "@/lib/user-access";
 
 const VALID_TYPES = new Set([
   "sprout", "transplant", "water", "loosen", "light_temp", "feed", "pinch", "harvest", "other",
@@ -22,24 +23,15 @@ export async function POST(
   });
   if (!plant) return NextResponse.json({ error: "Plant not found" }, { status: 404 });
 
-  // Бесплатный тариф: не более 5 пользовательских добавлений работ (isUserCreated)
-  if (!user.isPremium) {
-    const userCreatedCount = await prisma.plantTimelineEvent.count({
-      where: {
-        plant: { userId: user.id },
-        isUserCreated: true,
+  if (!hasFullAccess(user)) {
+    return NextResponse.json(
+      {
+        error:
+          "Пробный период закончился. Оформите подписку Премиум, чтобы планировать работы на грядках.",
+        code: "PAYMENT_REQUIRED",
       },
-    });
-    if (userCreatedCount >= 5) {
-      return NextResponse.json(
-        {
-          error:
-            "Лимит бесплатной версии: не более 5 добавленных вручную работ. Оформите Премиум, чтобы добавлять любое количество.",
-          code: "LIMIT_PLANNED_WORKS_FREE",
-        },
-        { status: 402 }
-      );
-    }
+      { status: 402 }
+    );
   }
 
   const body = await request.json().catch(() => ({}));

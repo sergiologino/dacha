@@ -106,6 +106,11 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
             </DialogTitle>
           </DialogHeader>
 
+          <p className="text-center text-sm text-slate-700 dark:text-slate-300 mt-3 px-2 leading-snug">
+            <strong>14 дней</strong> полного доступа после регистрации. Без отдельного бесплатного тарифа:
+            после окончания триала нужна подписка Премиум.
+          </p>
+
           <div className="flex items-center justify-center gap-2 mt-4 text-slate-600 dark:text-slate-400">
             <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             <span className="text-sm font-medium">

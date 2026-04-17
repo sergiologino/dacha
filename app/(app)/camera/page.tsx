@@ -22,8 +22,7 @@ export default function CameraPage() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyses, setAnalyses] = useState<AnalysisItem[]>([]);
-  const [freeLeft, setFreeLeft] = useState<number | null>(null);
-  const [isPremium, setIsPremium] = useState(false);
+  const [hasFullAccess, setHasFullAccess] = useState(false);
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [sharedOk, setSharedOk] = useState<string | null>(null);
@@ -41,11 +40,7 @@ export default function CameraPage() {
       .then((data) => {
         if (data.analyses) setAnalyses(data.analyses);
         if (typeof data.freeLeft === "number") {
-          if (data.freeLeft === -1) {
-            setIsPremium(true);
-          } else {
-            setFreeLeft(data.freeLeft);
-          }
+          setHasFullAccess(data.freeLeft === -1);
         }
       })
       .catch(() => {})
@@ -74,7 +69,7 @@ export default function CameraPage() {
   const analyzeImage = async () => {
     if (!selectedImage) return;
 
-    if (!isPremium && freeLeft !== null && freeLeft <= 0) {
+    if (!hasFullAccess) {
       setShowSubscribeModal(true);
       return;
     }
@@ -102,10 +97,6 @@ export default function CameraPage() {
       };
 
       setAnalyses((prev) => [newAnalysis, ...prev]);
-
-      if (!isPremium && freeLeft !== null) {
-        setFreeLeft(freeLeft - 1);
-      }
     } catch {
       alert("Ошибка анализа. Проверьте интернет-соединение.");
     } finally {
@@ -150,9 +141,9 @@ export default function CameraPage() {
     <>
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Фото-анализ болезней</h1>
-        {!isPremium && freeLeft !== null && (
-          <p className="text-sm text-emerald-600">
-            Бесплатно осталось: {freeLeft} из 3 анализов в месяц
+        {!hasFullAccess && (
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            Пробный период закончился — оформите Премиум для анализа фото.
           </p>
         )}
 

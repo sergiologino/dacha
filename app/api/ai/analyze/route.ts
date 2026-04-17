@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/get-user";
+import { hasFullAccess } from "@/lib/user-access";
 import { getPromptByKey } from "@/lib/get-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 import { prisma } from "@/lib/prisma";
@@ -36,6 +37,17 @@ export async function POST(request: NextRequest) {
     const user = await getAuthUser();
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 400 });
+    }
+
+    if (!hasFullAccess(user)) {
+      return NextResponse.json(
+        {
+          error:
+            "Пробный период закончился. Оформите подписку Премиум, чтобы анализировать фото растений.",
+          code: "PAYMENT_REQUIRED",
+        },
+        { status: 402 }
+      );
     }
 
     const visionBase = (await getPromptByKey("vision_system")) ?? VISION_PROMPT_FALLBACK;
@@ -136,8 +148,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-const FREE_ANALYSIS_LIMIT = 3;
-
 export async function GET() {
   const user = await getAuthUser();
   if (!user) {
@@ -150,20 +160,7 @@ export async function GET() {
     take: 20,
   });
 
-  let freeLeft = FREE_ANALYSIS_LIMIT;
-  if (!user.isPremium) {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const thisMonthCount = await prisma.analysis.count({
-      where: {
-        userId: user.id,
-        createdAt: { gte: monthStart },
-      },
-    });
-    freeLeft = Math.max(0, FREE_ANALYSIS_LIMIT - thisMonthCount);
-  } else {
-    freeLeft = -1; // unlimited
-  }
+  const freeLeft = hasFullAccess(user) ? -1 : 0;
 
   return NextResponse.json({
     analyses: analyses.map((a) => ({

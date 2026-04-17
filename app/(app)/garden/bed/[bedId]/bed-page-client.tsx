@@ -15,8 +15,6 @@ import { crops as staticCrops } from "@/lib/data/crops";
 import type { CropWithSource } from "@/lib/crops-merge";
 import { bedTypeEmoji, bedTypeLabels } from "@/lib/garden-labels";
 
-const FREE_PLANT_LIMIT = 3;
-
 export function BedPageClient({ bedId }: { bedId: string }) {
   const { status } = useSession();
   const router = useRouter();
@@ -27,7 +25,7 @@ export function BedPageClient({ bedId }: { bedId: string }) {
   const crops: CropWithSource[] =
     cropsList ?? staticCrops.map((c) => ({ ...c, addedByCommunity: false }));
   const totalPlants = beds.reduce((n, b) => n + (b.plants?.length ?? 0), 0);
-  const [isPremium, setIsPremium] = useState<boolean | null>(null);
+  const [hasFullAccess, setHasFullAccess] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
@@ -37,8 +35,10 @@ export function BedPageClient({ bedId }: { bedId: string }) {
   useEffect(() => {
     fetch("/api/user/premium")
       .then((r) => r.json())
-      .then((d) => setIsPremium(!!d.isPremium))
-      .catch(() => setIsPremium(false));
+      .then((d: { hasFullAccess?: boolean; isPremium?: boolean }) =>
+        setHasFullAccess(Boolean(d.hasFullAccess ?? d.isPremium))
+      )
+      .catch(() => setHasFullAccess(false));
   }, []);
 
   useEffect(() => {
@@ -160,9 +160,7 @@ export function BedPageClient({ bedId }: { bedId: string }) {
           <AddPlantToBedForm
             bedId={bed.id}
             crops={crops}
-            isPremium={isPremium}
-            totalPlants={totalPlants}
-            freePlantLimit={FREE_PLANT_LIMIT}
+            hasFullAccess={hasFullAccess}
             onShowPaywall={() => setShowPaywall(true)}
           />
         </Card>

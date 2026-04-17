@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
+import { hasFullAccess } from "@/lib/user-access";
 import {
   WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT,
   WEATHER_CHECK_INTERVAL_MINUTES_MAX,
@@ -36,7 +37,7 @@ export async function GET() {
     );
 
     return NextResponse.json({
-      weatherPushEnabled: user.isPremium && row.weatherPushEnabled,
+      weatherPushEnabled: hasFullAccess(user) && row.weatherPushEnabled,
       weatherCheckIntervalMinutes: interval,
       hasLocation: row.latitude != null && row.longitude != null,
       minIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MIN,
@@ -67,11 +68,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!user.isPremium) {
+  if (!hasFullAccess(user)) {
     return NextResponse.json(
       {
         error:
-          "Погодные предупреждения доступны с подпиской Премиум. Оформите подписку в приложении.",
+          "Погодные предупреждения доступны в пробном периоде или с подпиской Премиум. Оформите подписку в приложении.",
       },
       { status: 403 }
     );

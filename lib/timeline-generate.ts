@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { getPromptByKey } from "@/lib/get-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
+import {
+  buildWinterDormancyPromptAddendum,
+  filterWinterDormancyEvents,
+} from "@/lib/timeline-winter-context";
 
 const AI_URL = process.env.AI_INTEGRATION_URL;
 const AI_KEY = process.env.AI_INTEGRATION_API_KEY;
@@ -125,7 +129,13 @@ export async function generateTimelineForPlant(plantId: string): Promise<void> {
   const bedType = plant.bed?.type ?? "open";
   const bedLabel = BED_TYPE_LABELS[bedType] ?? bedType;
   const cultureName = plant.name;
-  const plantedDateIso = new Date(plant.plantedDate).toISOString().slice(0, 10);
+  const plantedAt = new Date(plant.plantedDate);
+  const plantedDateIso = plantedAt.toISOString().slice(0, 10);
+  const winterAddendum = buildWinterDormancyPromptAddendum(
+    plantedAt,
+    cultureName,
+    plant.cropSlug
+  );
   const region =
     bedType === "seedling_home"
       ? "рассада в помещении (дома), учитывай освещение и температуру в доме, без привязки к региону"
@@ -134,11 +144,12 @@ export async function generateTimelineForPlant(plantId: string): Promise<void> {
   const systemTemplate =
     (await getPromptByKey("timeline_system")) ??
     `Ты — агроном-консультант для дачников в России. Ответь СТРОГО в формате JSON: один массив объектов без markdown и без пояснений вне JSON. Растение уже растёт в указанной грядке (тип: {{bedLabel}}). Не включай пересадку в теплицу/в грунт, если грядка уже теплица, открытый грунт или высокая грядка. Пересадку — только если тип грядки «рассада дома». Для каждого события укажи: type, title, description, scheduledDate, dateTo?, isAction. Учитывай: культура "{{cultureName}}", дата посадки: {{plantedDateIso}}, местоположение: {{region}}.`;
-  const systemPrompt = systemTemplate
-    .replace("{{cultureName}}", cultureName)
-    .replace("{{bedLabel}}", bedLabel)
-    .replace("{{plantedDateIso}}", plantedDateIso)
-    .replace("{{region}}", region);
+  const systemPrompt =
+    systemTemplate
+      .replace("{{cultureName}}", cultureName)
+      .replace("{{bedLabel}}", bedLabel)
+      .replace("{{plantedDateIso}}", plantedDateIso)
+      .replace("{{region}}", region) + winterAddendum;
 
   const userPrompt =
     (await getPromptByKey("timeline_user")) ??
@@ -166,9 +177,14 @@ export async function generateTimelineForPlant(plantId: string): Promise<void> {
     });
 
     const rawEvents = extractJsonFromResponse(content);
-    const events = rawEvents
-      .map((raw, i) => parseEvent(raw, i))
-      .filter((e): e is NonNullable<typeof e> => e !== null);
+    const events = filterWinterDormancyEvents(
+      rawEvents
+        .map((raw, i) => parseEvent(raw, i))
+        .filter((e): e is NonNullable<typeof e> => e !== null),
+      plantedAt,
+      cultureName,
+      plant.cropSlug
+    );
 
     if (events.length === 0) return;
 

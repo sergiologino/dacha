@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { hasFullAccess } from "@/lib/user-access";
 import { isPushConfigured, sendPushToUser } from "@/lib/push-server";
 import {
   buildReminderDedupeKey,
@@ -36,14 +37,14 @@ export async function GET(request: NextRequest) {
   const tomorrowKey = tomorrowStart.toISOString().slice(0, 10);
 
   const allUserIds = new Set([...todayByUser.keys(), ...tomorrowByUser.keys()]);
-  const premiumRows =
+  const userRows =
     allUserIds.size > 0
       ? await prisma.user.findMany({
-          where: { id: { in: [...allUserIds] }, isPremium: true },
-          select: { id: true },
+          where: { id: { in: [...allUserIds] } },
+          select: { id: true, isPremium: true, createdAt: true },
         })
       : [];
-  const premiumIds = new Set(premiumRows.map((r) => r.id));
+  const eligibleIds = new Set(userRows.filter((u) => hasFullAccess(u)).map((r) => r.id));
 
   let totalSent = 0;
   let totalFailed = 0;
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
   let totalStaleDeleted = 0;
 
   for (const userId of allUserIds) {
-    if (!premiumIds.has(userId)) continue;
+    if (!eligibleIds.has(userId)) continue;
     const todayEvents = todayByUser.get(userId) ?? [];
     const tomorrowEvents = tomorrowByUser.get(userId) ?? [];
     if (todayEvents.length === 0 && tomorrowEvents.length === 0) continue;

@@ -132,7 +132,6 @@ export default function ChatPage() {
     clearChat,
     historyLoaded,
     freeLeft,
-    setFreeLeft,
   } = useChat();
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -141,8 +140,9 @@ export default function ChatPage() {
   const [sharingPair, setSharingPair] = useState<string | null>(null);
   const [sharedPair, setSharedPair] = useState<string | null>(null);
 
-  const isPremium = freeLeft === -1;
-  const reachedLimit = !isPremium && freeLeft !== null && freeLeft <= 0;
+  /** -1 = полный доступ (триал или Премиум), 0 = нужна оплата */
+  const hasFullAccess = freeLeft === -1;
+  const reachedLimit = !hasFullAccess && freeLeft !== null && freeLeft <= 0;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -162,10 +162,6 @@ export default function ChatPage() {
 
     setInput("");
     await sendMessage(text);
-
-    if (!isPremium && freeLeft !== null) {
-      setFreeLeft(freeLeft - 1);
-    }
 
     inputRef.current?.focus();
   };
@@ -208,9 +204,6 @@ export default function ChatPage() {
       return;
     }
     await sendMessage(q);
-    if (!isPremium && freeLeft !== null) {
-      setFreeLeft(freeLeft - 1);
-    }
   };
 
   if (!historyLoaded) {
@@ -236,9 +229,9 @@ export default function ChatPage() {
               </Button>
             )}
           </div>
-          {!isPremium && freeLeft !== null && (
-            <p className="text-xs text-slate-500 mb-2">
-              Бесплатно осталось: {freeLeft} из 5 запросов в месяц
+          {reachedLimit && (
+            <p className="text-xs text-amber-800 dark:text-amber-200 mb-2">
+              Пробный период закончился — оформите Премиум, чтобы пользоваться чатом.
             </p>
           )}
         </MotionDiv>

@@ -47,7 +47,7 @@ export default function CalendarPage() {
   const { data: beds } = useBeds({ enabled: status === "authenticated" });
   const qc = useQueryClient();
   const [mode, setMode] = useState<CalendarMode>("tasks");
-  const [isPremium, setIsPremium] = useState<boolean | null>(null);
+  const [hasFullAccess, setHasFullAccess] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [plannedWorkExpanded, setPlannedWorkExpanded] = useState(false);
   const [plannedWorkModal, setPlannedWorkModal] = useState<{
@@ -63,8 +63,10 @@ export default function CalendarPage() {
   useEffect(() => {
     fetch("/api/user/premium")
       .then((r) => r.json())
-      .then((data) => setIsPremium(!!data.isPremium))
-      .catch(() => setIsPremium(false));
+      .then((data: { hasFullAccess?: boolean; isPremium?: boolean }) =>
+        setHasFullAccess(Boolean(data.hasFullAccess ?? data.isPremium))
+      )
+      .catch(() => setHasFullAccess(false));
   }, []);
 
   const tasks = calendarTasks.filter((t) => t.month === selectedMonth);
@@ -107,19 +109,6 @@ export default function CalendarPage() {
     );
   }, [beds]);
 
-  const FREE_PLANNED_WORKS_LIMIT = 5;
-  const userCreatedPlannedCount = useMemo(() => {
-    let n = 0;
-    (beds ?? []).forEach((bed) => {
-      (bed.plants ?? []).forEach((p) => {
-        (p.timelineEvents ?? []).forEach((e: { isUserCreated?: boolean }) => {
-          if (e.isUserCreated) n++;
-        });
-      });
-    });
-    return n;
-  }, [beds]);
-
   const prevMonth = () =>
     setSelectedMonth((m) => (m === 1 ? 12 : m - 1));
   const nextMonth = () =>
@@ -130,14 +119,14 @@ export default function CalendarPage() {
   const cropSlugs = new Map(crops.map((c) => [c.name, c.slug]));
 
   const handleLunarClick = () => {
-    if (isPremium) {
+    if (hasFullAccess) {
       setMode("lunar");
     } else {
       setShowPaywall(true);
     }
   };
 
-  if (isPremium === null) {
+  if (hasFullAccess === null) {
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
@@ -170,19 +159,19 @@ export default function CalendarPage() {
             className={
               mode === "lunar"
                 ? "bg-indigo-600 hover:bg-indigo-700"
-                : isPremium
+                : hasFullAccess
                   ? ""
                   : "border-amber-300 text-amber-700 dark:text-amber-400"
             }
           >
             <Moon className="w-4 h-4 mr-1.5" />
             Лунный календарь
-            {!isPremium && <Crown className="w-3.5 h-3.5 ml-1 text-amber-500" />}
+            {!hasFullAccess && <Crown className="w-3.5 h-3.5 ml-1 text-amber-500" />}
           </Button>
         </div>
       </MotionDiv>
 
-      {mode === "lunar" && isPremium ? (
+      {mode === "lunar" && hasFullAccess ? (
         <MotionDiv variant="fadeUp" delay={0.1}>
           <LunarCalendar
             beds={beds}
@@ -258,21 +247,13 @@ export default function CalendarPage() {
                 <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 text-xs">
                   С грядок
                 </Badge>
-                {isPremium === false && (
-                  <span className="text-xs text-slate-500 ml-auto mr-2">
-                    Добавлено работ: {userCreatedPlannedCount}/{FREE_PLANNED_WORKS_LIMIT} бесплатно
-                  </span>
-                )}
                 {bedsForPick.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
                     className="text-emerald-700 border-emerald-300 dark:border-emerald-700 dark:text-emerald-300"
                     onClick={() => {
-                      if (
-                        isPremium === false &&
-                        userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT
-                      ) {
+                      if (hasFullAccess === false) {
                         setShowPaywall(true);
                         return;
                       }

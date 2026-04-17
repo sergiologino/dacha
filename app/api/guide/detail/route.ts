@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mergeVarieties } from "@/lib/crop-community";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
+import { hasFullAccess } from "@/lib/user-access";
 import { crops as staticCrops } from "@/lib/data/crops";
 import { getPromptByKey } from "@/lib/get-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
@@ -71,13 +72,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Crop not found" }, { status: 404 });
   }
 
-  let locationName: string | null = null;
-  try {
-    const user = await getAuthUser();
-    locationName = user?.locationName || null;
-  } catch {
-    // proceed without location
-  }
+  const user = await getAuthUser().catch(() => null);
+  const locationName = user?.locationName || null;
 
   try {
     const cached = await prisma.cropGuide.findUnique({
@@ -89,6 +85,23 @@ export async function GET(request: NextRequest) {
     }
   } catch {
     // DB unavailable — proceed to AI
+  }
+
+  if (!user) {
+    return NextResponse.json(
+      { error: "Войдите в аккаунт, чтобы сгенерировать подробное руководство." },
+      { status: 401 }
+    );
+  }
+  if (!hasFullAccess(user)) {
+    return NextResponse.json(
+      {
+        error:
+          "Пробный период закончился. Оформите Премиум для подробных руководств по культурам.",
+        code: "PAYMENT_REQUIRED",
+      },
+      { status: 402 }
+    );
   }
 
   if (!AI_URL || !AI_KEY) {

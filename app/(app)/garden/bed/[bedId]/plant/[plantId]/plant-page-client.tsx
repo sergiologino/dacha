@@ -17,9 +17,6 @@ import { getCropDisplayImageUrl } from "@/lib/crop-community";
 import { crops as staticCrops } from "@/lib/data/crops";
 import type { CropWithSource } from "@/lib/crops-merge";
 
-const FREE_PLANNED_WORKS_LIMIT = 5;
-const FREE_TIMELINE_LIMIT = 1;
-
 function toDateInputValue(iso: string) {
   return iso.slice(0, 10);
 }
@@ -37,7 +34,7 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
   const crops: CropWithSource[] =
     cropsList ?? staticCrops.map((c) => ({ ...c, addedByCommunity: false }));
 
-  const [isPremium, setIsPremium] = useState<boolean | null>(null);
+  const [hasFullAccess, setHasFullAccess] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [plannedWorkModal, setPlannedWorkModal] = useState<{
     open: boolean;
@@ -56,29 +53,11 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
   useEffect(() => {
     fetch("/api/user/premium")
       .then((r) => r.json())
-      .then((d) => setIsPremium(!!d.isPremium))
-      .catch(() => setIsPremium(false));
+      .then((d: { hasFullAccess?: boolean; isPremium?: boolean }) =>
+        setHasFullAccess(Boolean(d.hasFullAccess ?? d.isPremium))
+      )
+      .catch(() => setHasFullAccess(false));
   }, []);
-
-  const userCreatedPlannedCount = (() => {
-    let n = 0;
-    beds.forEach((b) => {
-      (b.plants ?? []).forEach((p) => {
-        (p.timelineEvents ?? []).forEach((e) => {
-          if ((e as { isUserCreated?: boolean }).isUserCreated) n++;
-        });
-      });
-    });
-    return n;
-  })();
-
-  const timelinePlantIds = new Set<string>();
-  beds.forEach((b) => {
-    (b.plants ?? []).forEach((p) => {
-      if ((p.timelineEvents?.length ?? 0) > 0) timelinePlantIds.add(p.id);
-    });
-  });
-  const timelinePlantsCount = timelinePlantIds.size;
 
   const crop = plant?.cropSlug ? crops.find((c) => c.slug === plant.cropSlug) : null;
   const heroUrl = crop ? getCropDisplayImageUrl(crop) : undefined;
@@ -209,7 +188,7 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
             type="button"
             className="h-12 text-base rounded-xl bg-emerald-600 hover:bg-emerald-700"
             onClick={() => {
-              if (isPremium === false && userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT) {
+              if (hasFullAccess === false) {
                 setShowPaywall(true);
                 return;
               }
@@ -228,8 +207,12 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
             type="button"
             variant="secondary"
             className="h-12 text-base rounded-xl"
-            disabled={isPremium === false && timelinePlantsCount >= FREE_TIMELINE_LIMIT}
+            disabled={hasFullAccess === false}
             onClick={async () => {
+              if (hasFullAccess === false) {
+                setShowPaywall(true);
+                return;
+              }
               const res = await fetch(`/api/plants/${plant.id}/timeline/generate`, { method: "POST" });
               if (!res.ok) return;
               void qc.invalidateQueries({ queryKey: ["beds"] });

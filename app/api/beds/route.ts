@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
+import { hasFullAccess } from "@/lib/user-access";
 
 export const dynamic = "force-dynamic";
 
@@ -73,20 +74,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    // Free plan: limit to 2 beds per user
-    if (!user.isPremium) {
-      const bedCount = await prisma.bed.count({
-        where: { userId: user.id },
-      });
-      if (bedCount >= 2) {
-        return NextResponse.json(
-          {
-            error: "Лимит бесплатной версии: не более 2 грядок. Оформите Премиум, чтобы добавить больше.",
-            code: "LIMIT_BEDS_FREE",
-          },
-          { status: 402 }
-        );
-      }
+    if (!hasFullAccess(user)) {
+      return NextResponse.json(
+        {
+          error:
+            "Пробный период закончился. Оформите подписку Премиум, чтобы добавлять грядки и пользоваться приложением.",
+          code: "PAYMENT_REQUIRED",
+        },
+        { status: 402 }
+      );
     }
 
     const bed = await prisma.bed.create({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
+import { hasFullAccess, isTrialActive, trialEndDate } from "@/lib/user-access";
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase());
 
@@ -37,8 +38,13 @@ export async function GET() {
 
     const isAdmin = !!user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
+    const full = hasFullAccess(user);
     return NextResponse.json({
       isPremium: user.isPremium,
+      /** Полный функционал: оплаченный Премиум или 14 дней с регистрации. */
+      hasFullAccess: full,
+      trialActive: isTrialActive(user),
+      trialEndsAt: user.isPremium ? null : trialEndDate(user.createdAt).toISOString(),
       isAdmin,
     });
   } catch (err) {

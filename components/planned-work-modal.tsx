@@ -47,7 +47,7 @@ type PlannedWorkModalProps = {
   onSuccess: () => void;
   /** Для добавления из календаря: список грядок/растений для выбора; если передан и plantId пустой — показываем выбор растения */
   bedsForPick?: BedPlantOption[];
-  /** При лимите бесплатного тарифа (402 LIMIT_PLANNED_WORKS_FREE) — показать paywall */
+  /** При 402 (например истёкший триал, код PAYMENT_REQUIRED) — показать paywall */
   onShowPaywall?: () => void;
 };
 
@@ -141,10 +141,17 @@ export function PlannedWorkModal({
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          if (res.status === 402 && (data as { code?: string }).code === "LIMIT_PLANNED_WORKS_FREE") {
+          if (
+            res.status === 402 &&
+            ((data as { code?: string }).code === "PAYMENT_REQUIRED" ||
+              (data as { code?: string }).code === "LIMIT_PLANNED_WORKS_FREE")
+          ) {
             onShowPaywall?.();
             onOpenChange(false);
-            toast.error("Лимит: не более 5 добавленных работ на бесплатном тарифе");
+            toast.error(
+              (data as { error?: string }).error ||
+                "Нужна подписка Премиум"
+            );
             setSaving(false);
             return;
           }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/get-user";
 import { prisma } from "@/lib/prisma";
+import { hasFullAccess } from "@/lib/user-access";
 import { isPushConfigured } from "@/lib/push-server";
 
 export const dynamic = "force-dynamic";
@@ -9,11 +10,11 @@ export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  if (!user.isPremium) {
+  if (!hasFullAccess(user)) {
     return NextResponse.json(
       {
         error:
-          "Напоминания о работах на участке доступны с подпиской Премиум. Оформите подписку в приложении.",
+          "Напоминания о работах на участке доступны в пробном периоде или с подпиской Премиум. Оформите подписку в приложении.",
       },
       { status: 403 }
     );

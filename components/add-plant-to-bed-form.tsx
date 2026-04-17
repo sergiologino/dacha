@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Loader2, Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,23 +16,32 @@ const categoriesFromCrops = (cropsList: { category: string }[]) =>
   [...new Set(cropsList.map((c) => c.category))].sort();
 
 type AddPlantToBedFormProps = {
-  bedId: string;
+  /** Если не задан — выбор грядки из списка (шаг после культуры). */
+  bedId?: string;
+  bedsForSelection?: { id: string; name: string }[];
   crops: CropWithSource[];
-  isPremium: boolean | null;
-  totalPlants: number;
-  freePlantLimit: number;
+  hasFullAccess: boolean | null;
   onShowPaywall?: () => void;
+  onPlantAdded?: () => void;
 };
 
 export function AddPlantToBedForm({
-  bedId,
+  bedId: fixedBedId,
+  bedsForSelection,
   crops: cropsList,
-  isPremium,
-  totalPlants,
-  freePlantLimit,
+  hasFullAccess,
   onShowPaywall,
+  onPlantAdded,
 }: AddPlantToBedFormProps) {
   const createPlant = useCreatePlant();
+  const [selectedBedId, setSelectedBedId] = useState(() => bedsForSelection?.[0]?.id ?? "");
+
+  useEffect(() => {
+    if (fixedBedId || !bedsForSelection?.length) return;
+    if (!bedsForSelection.some((b) => b.id === selectedBedId)) {
+      setSelectedBedId(bedsForSelection[0].id);
+    }
+  }, [bedsForSelection, fixedBedId, selectedBedId]);
   const [addMode, setAddMode] = useState<"search" | "category">("search");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHit, setSelectedHit] = useState<CropSearchHit | null>(null);
@@ -58,12 +67,15 @@ export function AddPlantToBedForm({
         ? selectedCrop.name
         : "";
 
+  const resolvedBedId = fixedBedId ?? selectedBedId;
+  const needsBedPick = !fixedBedId;
   const canAdd =
-    (addMode === "search" && selectedHit) ||
-    (addMode === "category" && selectedCrop && displayFromCategory);
+    ((addMode === "search" && selectedHit) ||
+      (addMode === "category" && selectedCrop && displayFromCategory)) &&
+    (!needsBedPick || !!resolvedBedId);
 
   const handleAddPlant = () => {
-    if (isPremium === false && totalPlants >= freePlantLimit) {
+    if (hasFullAccess === false) {
       onShowPaywall?.();
       return;
     }
@@ -78,11 +90,12 @@ export function AddPlantToBedForm({
             } as CropSearchHit)
           : null;
     if (!hit?.displayName?.trim()) return;
+    if (needsBedPick && !resolvedBedId) return;
     const plantedDate = newPlantDate ? `${newPlantDate}T12:00:00.000Z` : undefined;
     createPlant.mutate(
       {
         name: hit.displayName.trim(),
-        bedId,
+        bedId: resolvedBedId,
         plantedDate,
         cropSlug: hit.crop.slug,
       },
@@ -95,6 +108,7 @@ export function AddPlantToBedForm({
           setSelectedCropId("");
           setSelectedVarietyName("");
           setNewPlantDate(toDateInputValue(new Date().toISOString()));
+          onPlantAdded?.();
         },
         onError: (err) => {
           toast.error(err instanceof Error ? err.message : "Не удалось добавить");
@@ -241,6 +255,32 @@ export function AddPlantToBedForm({
         </div>
       )}
 
+      {needsBedPick && (
+        <div>
+          <label className="sr-only" htmlFor="add-plant-bed">
+            Грядка
+          </label>
+          {bedsForSelection && bedsForSelection.length > 0 ? (
+            <select
+              id="add-plant-bed"
+              value={selectedBedId}
+              onChange={(e) => setSelectedBedId(e.target.value)}
+              className="w-full px-4 py-3 text-lg rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 min-h-[3rem]"
+            >
+              {bedsForSelection.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="text-base text-amber-700 dark:text-amber-400">
+              Сначала создайте грядку на странице «Мой участок».
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-wrap">
         <label className="sr-only" htmlFor="add-plant-date">
           Дата посадки
@@ -256,7 +296,11 @@ export function AddPlantToBedForm({
         <Button
           type="button"
           onClick={handleAddPlant}
-          disabled={createPlant.isPending || !canAdd}
+          disabled={
+            createPlant.isPending ||
+            !canAdd ||
+            (needsBedPick && (!bedsForSelection || bedsForSelection.length === 0))
+          }
           className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-lg min-h-[3rem] px-6"
         >
           {createPlant.isPending ? (
@@ -267,9 +311,9 @@ export function AddPlantToBedForm({
           Добавить на грядку
         </Button>
       </div>
-      {isPremium === false && (
+      {hasFullAccess === false && (
         <p className="text-base text-slate-500">
-          Всего растений на участке: {totalPlants} из {freePlantLimit} бесплатно
+          Пробный период закончился — оформите Премиум, чтобы добавлять культуры.
         </p>
       )}
     </div>

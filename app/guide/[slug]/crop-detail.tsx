@@ -34,13 +34,15 @@ export function CropDetailContent({ crop }: Props) {
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [expandedVariety, setExpandedVariety] = useState<string | null>(null);
-  const [isPremium, setIsPremium] = useState(false);
+  const [hasFullAccess, setHasFullAccess] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
     fetch("/api/user/premium")
       .then((r) => r.json())
-      .then((data) => setIsPremium(!!data.isPremium))
+      .then((data: { hasFullAccess?: boolean; isPremium?: boolean }) =>
+        setHasFullAccess(Boolean(data.hasFullAccess ?? data.isPremium))
+      )
       .catch(() => {});
   }, []);
 
@@ -264,7 +266,7 @@ export function CropDetailContent({ crop }: Props) {
                   Полная инструкция: подготовка, посадка, уход, болезни,
                   хранение, лайфхаки. Генерируется AI-агрономом.
                 </p>
-                {!detailContent && !isPremium && (
+                {!detailContent && !hasFullAccess && (
                   <Button
                     onClick={() => setShowPaywall(true)}
                     className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
@@ -273,7 +275,7 @@ export function CropDetailContent({ crop }: Props) {
                     Доступно в Премиум
                   </Button>
                 )}
-                {!detailContent && isPremium && (
+                {!detailContent && hasFullAccess && (
                   <Button
                     onClick={loadDetail}
                     disabled={isLoadingDetail}

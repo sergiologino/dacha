@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
+import { hasFullAccess } from "@/lib/user-access";
 import { getPromptByKey } from "@/lib/get-prompt";
 import { logAiCall } from "@/lib/log-ai-call";
 
@@ -115,6 +116,17 @@ export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!hasFullAccess(user)) {
+    return NextResponse.json(
+      {
+        error:
+          "Пробный период закончился. Оформите подписку Премиум, чтобы пользоваться чатом с агрономом.",
+        code: "PAYMENT_REQUIRED",
+      },
+      { status: 402 }
+    );
   }
 
   try {

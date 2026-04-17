@@ -62,11 +62,9 @@ import {
 import { GardenPlantPhotoImg } from "@/components/garden-plant-photo";
 import { bedTypeEmoji, bedTypeLabels } from "@/lib/garden-labels";
 import { useIsMobile } from "@/lib/hooks/use-is-mobile";
-
-const FREE_BED_LIMIT = 2;
-const FREE_PLANT_LIMIT = 3;
-const FREE_TIMELINE_LIMIT = 1;
-const FREE_PLANNED_WORKS_LIMIT = 5;
+import { GardenMobilePlantGrid } from "@/components/garden-mobile-plant-grid";
+import { bedPlantsSummary } from "@/lib/garden-display-helpers";
+import { AddPlantToBedForm } from "@/components/add-plant-to-bed-form";
 
 export default function GardenContent() {
   const router = useRouter();
@@ -113,8 +111,9 @@ export default function GardenContent() {
   const [newBedType, setNewBedType] = useState("open");
   const [showBedForm, setShowBedForm] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [isPremium, setIsPremium] = useState<boolean | null>(null);
+  const [hasFullAccess, setHasFullAccess] = useState<boolean | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showAddPlantDialog, setShowAddPlantDialog] = useState(false);
   const [plannedWorkModal, setPlannedWorkModal] = useState<{
     open: boolean;
     mode: "add" | "edit";
@@ -172,36 +171,17 @@ export default function GardenContent() {
   const unassignedPlants = plants.filter((p) => !p.bedId);
 
   const totalBeds = beds.length;
-  const totalPlants = plants.length;
-  const timelinePlantIds = new Set<string>();
-  beds.forEach((bed) => {
-    (bed.plants ?? []).forEach((p) => {
-      if ((p.timelineEvents?.length ?? 0) > 0) {
-        timelinePlantIds.add(p.id);
-      }
-    });
-  });
-  const timelinePlantsCount = timelinePlantIds.size;
-
-  const userCreatedPlannedCount = (() => {
-    let n = 0;
-    beds.forEach((bed) => {
-      (bed.plants ?? []).forEach((p) => {
-        (p.timelineEvents ?? []).forEach((e) => {
-          if ((e as { isUserCreated?: boolean }).isUserCreated) n++;
-        });
-      });
-    });
-    return n;
-  })();
-
   const bedInteractionMode = isMobile || desktopGardenView === "list" ? "navigate" : "graph";
 
   useEffect(() => {
     fetch("/api/user/premium")
       .then((r) => r.json())
-      .then((data) => setIsPremium(!!data.isPremium))
-      .catch(() => setIsPremium(false));
+      .then((data: { hasFullAccess?: boolean; isPremium?: boolean }) => {
+        setHasFullAccess(Boolean(data.hasFullAccess ?? data.isPremium));
+      })
+      .catch(() => {
+        setHasFullAccess(false);
+      });
   }, []);
 
   const showOnboardingParam = searchParams?.get?.("showOnboarding") === "1";
@@ -243,7 +223,7 @@ export default function GardenContent() {
 
   const addBed = () => {
     if (!newBedName) return;
-    if (isPremium === false && totalBeds >= FREE_BED_LIMIT) {
+    if (hasFullAccess === false) {
       setShowPaywall(true);
       return;
     }
@@ -322,10 +302,26 @@ export default function GardenContent() {
               <HelpCircle className="w-4 h-4 mr-1.5" />
               Помощь
             </Button>
+            {isMobile && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  if (hasFullAccess === false) {
+                    setShowPaywall(true);
+                    return;
+                  }
+                  setShowAddPlantDialog(true);
+                }}
+                className="rounded-2xl border border-emerald-200 dark:border-emerald-800"
+              >
+                <Plus className="w-4 h-4 mr-1" /> Культура
+              </Button>
+            )}
             <Button
               size="sm"
               onClick={() => {
-                if (isPremium === false && totalBeds >= FREE_BED_LIMIT) {
+                if (hasFullAccess === false) {
                   setShowPaywall(true);
                   return;
                 }
@@ -336,24 +332,8 @@ export default function GardenContent() {
               <Plus className="w-4 h-4 mr-1" /> Новая грядка
             </Button>
           </div>
-          {isPremium === false && (
-            <>
-              <p className="text-[11px] text-slate-400">
-                Грядки: {totalBeds}/{FREE_BED_LIMIT} бесплатно
-              </p>
-              <p className="text-[11px] text-slate-400">
-                Добавлено работ: {userCreatedPlannedCount}/{FREE_PLANNED_WORKS_LIMIT} бесплатно
-              </p>
-            </>
-          )}
         </div>
       </div>
-
-      {isPremium === false && (
-        <p className="text-xs text-slate-500 mb-3">
-          Бесплатный тариф: до 2 грядок, 3 растений и 1 таймлайна ухода. Премиум снимает ограничения.
-        </p>
-      )}
 
       <div className="hidden md:flex flex-wrap items-center gap-3 mb-5 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
         <span className="text-base font-semibold text-slate-800 dark:text-slate-200">Вид участка:</span>
@@ -455,7 +435,30 @@ export default function GardenContent() {
         </MotionDiv>
       )}
 
-      {/* Beds list — без StaggerContainer/whileInView: новые грядки сразу видны на мобильных */}
+      {/* Мобильный вид — кубики культур; грядки отдельным списком ссылок */}
+      {isMobile && (beds.length > 0 || unassignedPlants.length > 0) && (
+        <>
+          <GardenMobilePlantGrid beds={beds} unassignedPlants={unassignedPlants} />
+          {beds.length > 0 && (
+            <div className="mb-6 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 bg-slate-50/80 dark:bg-slate-900/40">
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Грядки</p>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                {beds.map((b) => (
+                  <Link
+                    key={b.id}
+                    href={`/garden/bed/${b.id}`}
+                    className="text-emerald-700 dark:text-emerald-400 hover:underline"
+                  >
+                    {b.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Beds list — десктоп и планшет: раскрывающиеся карточки грядок */}
       <div className="space-y-4 max-w-full min-w-0">
         {beds.length === 0 && unassignedPlants.length === 0 ? (
           <Card className="p-12 text-center">
@@ -467,16 +470,13 @@ export default function GardenContent() {
           </Card>
         ) : (
           <>
-            {beds.map((bed: Bed) => (
+            {!isMobile &&
+              beds.map((bed: Bed) => (
               <div key={bed.id}>
                 <BedCard
                   bed={bed}
                   crops={crops}
-                  isPremium={isPremium}
-                  totalPlants={totalPlants}
-                  freePlantLimit={FREE_PLANT_LIMIT}
-                  timelinePlantsCount={timelinePlantsCount}
-                  freeTimelineLimit={FREE_TIMELINE_LIMIT}
+                  hasFullAccess={hasFullAccess}
                   onShowPaywall={() => setShowPaywall(true)}
                   onUpdateBed={(id, data) => updateBed.mutate({ id, ...data })}
                   updatingBed={updateBed.isPending}
@@ -514,10 +514,7 @@ export default function GardenContent() {
                     })
                   }
                   onAddPlannedWork={(plant, bed) => {
-                    if (
-                      isPremium === false &&
-                      userCreatedPlannedCount >= FREE_PLANNED_WORKS_LIMIT
-                    ) {
+                    if (hasFullAccess === false) {
                       setShowPaywall(true);
                       return;
                     }
@@ -540,7 +537,7 @@ export default function GardenContent() {
             ))}
 
             {/* Unassigned plants */}
-            {unassignedPlants.length > 0 && (
+            {!isMobile && unassignedPlants.length > 0 && (
                 <Card className="p-5 border-dashed border-2 border-slate-200 dark:border-slate-700">
                   <h3 className="font-semibold text-slate-500 mb-3 flex items-center gap-2">
                     <Sprout className="w-4 h-4" /> Растения без грядки
@@ -583,17 +580,39 @@ export default function GardenContent() {
               typeof Notification !== "undefined" &&
               Notification.permission !== "granted" &&
               !getNotificationPromptSeen() &&
-              isPremium === true
+              hasFullAccess === true
             ) {
               setShowNotificationPrompt(true);
             }
           }, 400);
         }}
       />
+      <Dialog open={showAddPlantDialog} onOpenChange={setShowAddPlantDialog}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" showCloseButton>
+          <DialogTitle className="text-lg">Добавить культуру</DialogTitle>
+          <p className="text-sm text-slate-500 mb-2">
+            Сначала выберите культуру и сорт, затем грядку и дату посадки.
+          </p>
+          <AddPlantToBedForm
+            bedsForSelection={beds.map((b) => ({ id: b.id, name: b.name }))}
+            crops={crops}
+            hasFullAccess={hasFullAccess}
+            onShowPaywall={() => {
+              setShowAddPlantDialog(false);
+              setShowPaywall(true);
+            }}
+            onPlantAdded={() => {
+              setShowAddPlantDialog(false);
+              void qc.invalidateQueries({ queryKey: ["beds"] });
+              void qc.invalidateQueries({ queryKey: ["plants"] });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
       <NotificationPromptModal
         open={showNotificationPrompt}
         onClose={() => setShowNotificationPrompt(false)}
-        isPremium={isPremium === true}
+        isPremium={hasFullAccess === true}
         onNeedPremium={() => setShowPaywall(true)}
       />
       {plannedWorkModal && (
@@ -627,11 +646,7 @@ const categoriesFromCrops = (cropsList: { category: string }[]) =>
 function BedCard({
   bed,
   crops: cropsList,
-  isPremium,
-  totalPlants,
-  freePlantLimit,
-  timelinePlantsCount,
-  freeTimelineLimit,
+  hasFullAccess,
   onShowPaywall,
   onUpdateBed,
   updatingBed,
@@ -650,11 +665,7 @@ function BedCard({
 }: {
   bed: Bed;
   crops: { id: number; name: string; slug: string; category: string; varieties?: { name: string }[] }[];
-  isPremium: boolean | null;
-  totalPlants: number;
-  freePlantLimit: number;
-  timelinePlantsCount: number;
-  freeTimelineLimit: number;
+  hasFullAccess: boolean | null;
   onShowPaywall?: () => void;
   onUpdateBed: (id: string, data: { name?: string; number?: string; type?: string }) => void;
   updatingBed: boolean;
@@ -836,9 +847,11 @@ function BedCard({
                   <MapPin className="w-3 h-3" />
                   {bedTypeLabels[bed.type] || bed.type}
                 </span>
-                <span className="flex items-center gap-1">
-                  <Sprout className="w-3 h-3" />
-                  {bed.plants.length} растени{bed.plants.length === 1 ? "е" : bed.plants.length < 5 ? "я" : "й"}
+                <span className="flex items-start gap-1.5 min-w-0">
+                  <Sprout className="w-3 h-3 shrink-0 mt-0.5" />
+                  <span className="text-sm leading-snug line-clamp-3 break-words text-slate-600 dark:text-slate-400">
+                    {bedPlantsSummary(bed.plants)}
+                  </span>
                 </span>
               </div>
             </div>
@@ -865,9 +878,11 @@ function BedCard({
                   <MapPin className="w-4 h-4 shrink-0" />
                   {bedTypeLabels[bed.type] || bed.type}
                 </span>
-                <span className="flex items-center gap-1">
-                  <Sprout className="w-4 h-4 shrink-0" />
-                  {bed.plants.length} растени{bed.plants.length === 1 ? "е" : bed.plants.length < 5 ? "я" : "й"}
+                <span className="flex items-start gap-1.5 min-w-0">
+                  <Sprout className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="text-sm leading-snug line-clamp-3 break-words text-slate-600 dark:text-slate-400">
+                    {bedPlantsSummary(bed.plants)}
+                  </span>
                 </span>
               </div>
             </div>
@@ -982,9 +997,11 @@ function BedCard({
                   <MapPin className="w-3 h-3" />
                   {bedTypeLabels[bed.type] || bed.type}
                 </span>
-                <span className="flex items-center gap-1">
-                  <Sprout className="w-3 h-3" />
-                  {bed.plants.length} растени{bed.plants.length === 1 ? "е" : bed.plants.length < 5 ? "я" : "й"}
+                <span className="flex items-start gap-1.5 min-w-0">
+                  <Sprout className="w-3 h-3 shrink-0 mt-0.5" />
+                  <span className="text-sm leading-snug line-clamp-3 break-words text-slate-600 dark:text-slate-400">
+                    {bedPlantsSummary(bed.plants)}
+                  </span>
                 </span>
               </div>
             </div>
@@ -1237,10 +1254,7 @@ function BedCard({
                         disabled={regeneratingPlantId === plant.id}
                         onClick={async () => {
                           if (regeneratingPlantId === plant.id) return;
-                          if (
-                            isPremium === false &&
-                            timelinePlantsCount >= freeTimelineLimit
-                          ) {
+                          if (hasFullAccess === false) {
                             onShowPaywall?.();
                             return;
                           }
@@ -1270,11 +1284,6 @@ function BedCard({
                           >
                             + Добавить плановую работу
                           </button>
-                        </p>
-                      )}
-                      {isPremium === false && (
-                        <p className="text-[11px] text-slate-400">
-                          Таймлайн: {timelinePlantsCount}/{freeTimelineLimit} растений бесплатно
                         </p>
                       )}
                     </div>
@@ -1439,7 +1448,7 @@ function BedCard({
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    if (isPremium === false && totalPlants >= freePlantLimit) {
+                    if (hasFullAccess === false) {
                       onShowPaywall?.();
                       return;
                     }
@@ -1458,11 +1467,6 @@ function BedCard({
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
-              {isPremium === false && (
-                <p className="text-[11px] text-slate-400 mt-1 sm:mt-0">
-                  Растения всего: {totalPlants}/{freePlantLimit} бесплатно
-                </p>
-              )}
             </div>
           )}
           </div>
