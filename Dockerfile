@@ -57,11 +57,11 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# sharp и др. native-модули в Alpine (standalone подтягивает sharp из node_modules)
+# sharp и др. native-модули в Alpine; postgresql-client — psql в entrypoint до migrate deploy
 RUN for i in 1 2 3 4 5; do \
-      apk add --no-cache libc6-compat && break; \
+      apk add --no-cache libc6-compat postgresql-client && break; \
       [ "$i" -eq 5 ] && exit 1; \
-      echo "apk add libc6-compat failed (try $i/5), sleep 12s"; \
+      echo "apk add libc6-compat postgresql-client failed (try $i/5), sleep 12s"; \
       sleep 12; \
     done
 
@@ -91,7 +91,8 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=5 \
+# migrate deploy при первом старте может занять заметное время — запас по start-period
+HEALTHCHECK --interval=10s --timeout=5s --start-period=120s --retries=5 \
   CMD node -e "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)throw 1}).catch(()=>process.exit(1))"
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
