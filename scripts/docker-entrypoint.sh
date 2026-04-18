@@ -38,6 +38,10 @@ WHERE ctid IN (
   WHERE rn > 1
 );
 
+-- P3009: запись об упавшей миграции (finished_at пустой) блокирует весь migrate deploy
+DELETE FROM "_prisma_migrations"
+WHERE finished_at IS NULL;
+
 UPDATE "_prisma_migrations"
 SET "applied_steps_count" = COALESCE("applied_steps_count", 0)
 WHERE "applied_steps_count" IS NULL;
