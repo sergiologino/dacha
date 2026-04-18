@@ -81,6 +81,20 @@ npx prisma migrate deploy
 
 Успешный вывод: `Applied X migration(s).`
 
+### Coolify: терминал контейнера **приложения** (не Postgres)
+
+Образ собирается как **Next.js standalone**: в рантайме до недавнего времени не было папки `prisma/` и CLI Prisma, поэтому `npx prisma` тянул **Prisma 7** с npm и падал на `prisma.config.ts` / отсутствии `dotenv`. В актуальном `Dockerfile` в образ добавляются `prisma/`, `prisma.config.ts` и пакеты `prisma@6.19.0`, `tsx`, `dotenv`.
+
+После **пересборки и деплоя** образа выполните в терминале **сервиса приложения**:
+
+```bash
+cd /app
+npx prisma migrate deploy
+npm run db:seed:guide
+```
+
+Используйте локальный CLI (`npx prisma` подхватит `node_modules` образа), не соглашайтесь на установку «новой» версии Prisma в интерактиве npx, если терминал снова спросит (после фикса Dockerfile этого быть не должно).
+
 ### Вариант B: через Docker (одноразовый контейнер)
 
 Если на сервере нет Node, можно запустить миграции из временного контейнера:

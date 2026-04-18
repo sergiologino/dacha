@@ -73,6 +73,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/lib/generated ./lib/generated
 
+# Миграции и сиды из терминала Coolify: в standalone нет prisma/ и CLI — добавляем.
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./
+
+USER root
+RUN npm install --no-save prisma@6.19.0 tsx@4.21.0 dotenv@17.3.1 && \
+    chown -R nextjs:nodejs /app/node_modules
 USER nextjs
 
 EXPOSE 3000
