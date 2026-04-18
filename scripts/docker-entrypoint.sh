@@ -2,8 +2,9 @@
 set -e
 cd /app
 
-# Prisma читает _prisma_migrations до выполнения SQL файлов. Битые NULL/дубли в этой
-# таблице дают «Failed to extract applied_steps_count» — чиним через psql до migrate deploy.
+# Prisma читает _prisma_migrations до SQL из prisma/migrations. Плюс Prisma вставляет
+# строку миграции только с (id, checksum, started_at, migration_name) — без applied_steps_count;
+# если колонка NOT NULL и без DEFAULT, INSERT падает (см. лог Postgres).
 repair_prisma_migrations_history() {
   [ -n "$DATABASE_URL" ] || return 0
 
@@ -11,13 +12,17 @@ repair_prisma_migrations_history() {
   [ "$cnt" = "1" ] || return 0
 
   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+ALTER TABLE "_prisma_migrations" ALTER COLUMN "applied_steps_count" SET DEFAULT 0;
+
 UPDATE "_prisma_migrations"
-SET "applied_steps_count" = COALESCE("applied_steps_count", 0)
-WHERE "applied_steps_count" IS NULL;
+SET "applied_steps_count" = COALESCE("applied_steps_count", 0);
 
 ALTER TABLE "_prisma_migrations"
-  ALTER COLUMN "applied_steps_count" DROP NOT NULL,
-  ALTER COLUMN "applied_steps_count" SET DEFAULT 0;
+  ALTER COLUMN "applied_steps_count" DROP NOT NULL;
+
+UPDATE "_prisma_migrations"
+SET "applied_steps_count" = 0
+WHERE "applied_steps_count" IS NULL;
 
 DELETE FROM "_prisma_migrations"
 WHERE ctid IN (
