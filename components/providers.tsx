@@ -8,7 +8,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { PwaInstallBanner } from "@/components/pwa-install-banner";
 import { OfflineSyncBridge } from "@/components/offline-sync-bridge";
-import { SyncStatusBar } from "@/components/sync-status-bar";
 import { useState } from "react";
 import {
   createGardenQueryPersister,
@@ -51,7 +50,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         >
           {children}
           <OfflineSyncBridge />
-          <SyncStatusBar />
           <Toaster position="top-center" richColors />
           <ServiceWorkerRegister />
           <PwaInstallBanner />

@@ -36,10 +36,9 @@ export default async function GuideLifehacksPage() {
       </p>
 
       {hacks.length === 0 ? (
-        <p className="text-slate-500">
-          Коллекция скоро появится. Выполните миграции и сид:{" "}
-          <code className="text-sm">npx prisma migrate deploy</code> и{" "}
-          <code className="text-sm">npx tsx prisma/seed-guide-content.ts</code>.
+        <p className="text-slate-600 dark:text-slate-400">
+          Коллекция пока пуста. Контент подставляется при старте приложения после миграций; обновите
+          страницу через минуту.
         </p>
       ) : (
         <LifehacksGrid hacks={hacks} />

@@ -8,7 +8,7 @@ import { useOutboxQueueStats } from "@/lib/hooks/use-outbox-pending-count";
 
 /**
  * Индикатор онлайн/офлайн и очереди outbox (только для авторизованных).
- * Сеть: зелёный «Онлайн» / красный «Офлайн»; во время фоновой проверки при живом браузере — остаётся зелёным (без вечного спиннера).
+ * Рендерится в шапке под названием приложения — не перекрывает нижнее меню.
  */
 export function SyncStatusBar() {
   const { status } = useSession();
@@ -21,7 +21,6 @@ export function SyncStatusBar() {
   const browserOffline = !isBrowserOnline;
   const serverUnreachable = reachability === "offline";
 
-  /** Красный: браузер без сети или ping /api/health не прошёл. */
   const showOffline = browserOffline || serverUnreachable;
 
   const statusLabel = browserOffline
@@ -32,7 +31,7 @@ export function SyncStatusBar() {
 
   return (
     <div
-      className="fixed bottom-0 inset-x-0 z-[100] pointer-events-none flex justify-center pb-[max(0.5rem,env(safe-area-inset-bottom))] print:hidden"
+      className="w-full flex justify-center mt-2 mb-1 pointer-events-none print:hidden"
       aria-live="polite"
     >
       <button
@@ -42,7 +41,7 @@ export function SyncStatusBar() {
           void Promise.resolve(recheck()).finally(() => setRecheckBusy(false));
         }}
         title="Проверить соединение с сервером"
-        className={`pointer-events-auto flex flex-wrap items-center justify-center gap-x-2 gap-y-1 max-w-[min(100%,28rem)] px-3 py-1.5 rounded-full text-xs font-medium shadow-lg border transition-colors ${
+        className={`pointer-events-auto flex flex-wrap items-center justify-center gap-x-2 gap-y-1 max-w-[min(100%,28rem)] px-3 py-1.5 rounded-full text-xs font-medium shadow-sm border transition-colors ${
           showOffline
             ? "bg-red-50 text-red-900 border-red-200 dark:bg-red-950/90 dark:text-red-100 dark:border-red-900"
             : "bg-emerald-50/95 text-emerald-900 border-emerald-200 dark:bg-emerald-950/90 dark:text-emerald-100 dark:border-emerald-800"

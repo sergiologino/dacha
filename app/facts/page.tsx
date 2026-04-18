@@ -23,11 +23,16 @@ export default async function FactsPage() {
 
   if (facts.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center text-slate-600">
-        <p className="mb-4">Факты скоро появятся после миграций и сида контента.</p>
-        <code className="text-sm block">
-          npx prisma migrate deploy && npx tsx prisma/seed-guide-content.ts
-        </code>
+      <div className="max-w-2xl mx-auto px-4 py-16 text-center text-slate-600 dark:text-slate-400">
+        <p className="mb-2">
+          Пока нет опубликованных фактов. Обычно контент подгружается при старте приложения
+          вместе с миграциями; попробуйте обновить страницу через минуту.
+        </p>
+        {process.env.NODE_ENV === "development" ? (
+          <code className="text-xs block mt-4 text-left whitespace-pre-wrap break-all bg-slate-100 dark:bg-slate-900 p-3 rounded-lg">
+            npm run db:seed:guide
+          </code>
+        ) : null}
       </div>
     );
   }

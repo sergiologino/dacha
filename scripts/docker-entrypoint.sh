@@ -51,4 +51,7 @@ SQL
 repair_prisma_migrations_history
 
 npx prisma migrate deploy
+# Идемпотентный upsert лайфхаков и фактов (пустые таблицы после migrate)
+npx tsx prisma/seed-guide-content.ts
+
 exec node server.js

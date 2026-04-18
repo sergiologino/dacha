@@ -81,8 +81,14 @@ export function GuideWeeklyHacksSection({ hacks }: Props) {
               Лайфхаки и народные приёмы
             </h2>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
-              Каждую неделю первая подборка меняется автоматически. Всего в коллекции — {hacks.length}{" "}
-              карточек; ниже можно открыть ещё по восемь штук.
+              {hacks.length === 0 ? (
+                <>Коллекция подгружается из базы при старте сервиса.</>
+              ) : (
+                <>
+                  Каждую неделю первая подборка меняется автоматически. Всего в коллекции — {hacks.length}{" "}
+                  карточек; ниже можно открыть ещё по восемь штук.
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -99,13 +105,20 @@ export function GuideWeeklyHacksSection({ hacks }: Props) {
       <p className="text-xs font-medium uppercase tracking-wide text-emerald-800/80 dark:text-emerald-300/90 mb-3">
         Подборка этой недели — первыми
       </p>
+      {ordered.length === 0 ? (
+        <p className="text-sm text-slate-600 dark:text-slate-400 py-4">
+          Подборка лайфхаков пока пуста. После деплоя контент подставляется автоматически — обновите
+          страницу чуть позже.
+        </p>
+      ) : (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {shown.map((hack) => (
           <HackCard key={hack.slug} hack={hack} />
         ))}
       </div>
+      )}
 
-      {canMore ? (
+      {ordered.length > 0 && canMore ? (
         <div className="mt-6 flex justify-center">
           <Button
             type="button"
