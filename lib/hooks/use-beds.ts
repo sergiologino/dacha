@@ -3,6 +3,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { compressImageFileForUpload } from "@/lib/compress-image";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
+import { newOfflineClientId } from "@/lib/offline/offline-id";
 
 export interface BedPhoto {
   id: string;
@@ -23,6 +26,8 @@ export interface BedPlantPhoto {
   analyzedAt?: string | null;
 }
 
+export type OfflineEntityMeta = { pendingOutboxId: string };
+
 export interface BedPlantTimelineEvent {
   id: string;
   type: string;
@@ -34,6 +39,7 @@ export interface BedPlantTimelineEvent {
   sortOrder: number;
   doneAt: string | null;
   isUserCreated?: boolean;
+  offlineMeta?: OfflineEntityMeta;
 }
 
 export interface BedPlant {
@@ -44,6 +50,7 @@ export interface BedPlant {
   cropSlug?: string | null;
   photos?: BedPlantPhoto[];
   timelineEvents?: BedPlantTimelineEvent[];
+  offlineMeta?: OfflineEntityMeta;
 }
 
 export interface Bed {
@@ -54,6 +61,7 @@ export interface Bed {
   createdAt: string;
   plants: BedPlant[];
   photos: BedPhoto[];
+  offlineMeta?: OfflineEntityMeta;
 }
 
 async function fetchBeds(): Promise<Bed[]> {
@@ -177,12 +185,43 @@ function normalizeBed(bed: Bed): Bed {
 export function useCreateBed() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: createBed,
+    mutationFn: async (data: { name: string; number?: string; type?: string }) => {
+      if (shouldQueueOfflineMutation()) {
+        const tempClientId = newOfflineClientId();
+        const outId = await enqueueOutbox({
+          action: "CREATE_BED",
+          payload: {
+            tempClientId,
+            name: data.name,
+            number: data.number,
+            type: data.type ?? "open",
+          },
+        });
+        if (!outId) throw new Error("Локальное хранилище недоступно");
+        const now = new Date().toISOString();
+        const bed: Bed = {
+          id: tempClientId,
+          name: data.name,
+          number: data.number ?? null,
+          type: data.type ?? "open",
+          createdAt: now,
+          plants: [],
+          photos: [],
+          offlineMeta: { pendingOutboxId: outId },
+        };
+        return bed;
+      }
+      return createBed(data);
+    },
     onSuccess: (newBed) => {
       const bed = normalizeBed(newBed);
       qc.setQueryData<Bed[]>(["beds"], (old) => (old ? [bed, ...old] : [bed]));
+      if (bed.offlineMeta) {
+        toast.message("Сохранено локально, синхронизируем при появлении сети");
+      }
     },
     onSettled: () => {
+      if (shouldQueueOfflineMutation()) return;
       void qc.invalidateQueries({ queryKey: ["beds"] });
     },
   });
@@ -191,12 +230,39 @@ export function useCreateBed() {
 export function useUpdateBed() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: updateBed,
+    mutationFn: async (data: { id: string; name?: string; number?: string; type?: string }) => {
+      if (shouldQueueOfflineMutation()) {
+        const old = qc.getQueryData<Bed[]>(["beds"])?.find((b) => b.id === data.id);
+        if (!old) throw new Error("Грядка не найдена в кэше");
+        const merged: Bed = {
+          ...old,
+          name: data.name !== undefined ? data.name : old.name,
+          number: data.number !== undefined ? data.number : old.number,
+          type: data.type !== undefined ? data.type : old.type,
+        };
+        const outId = await enqueueOutbox({
+          action: "UPDATE_BED",
+          payload: {
+            id: data.id,
+            name: merged.name,
+            number: merged.number,
+            type: merged.type,
+          },
+        });
+        if (!outId) throw new Error("Локальное хранилище недоступно");
+        return normalizeBed(merged);
+      }
+      return updateBed(data);
+    },
     onSuccess: (updatedBed) => {
       const bed = normalizeBed(updatedBed);
       qc.setQueryData<Bed[]>(["beds"], (old) =>
         old ? old.map((b) => (b.id === bed.id ? bed : b)) : [bed]
       );
+      if (shouldQueueOfflineMutation()) {
+        toast.message("Изменения сохранены локально, отправим при сети");
+        return;
+      }
       qc.invalidateQueries({ queryKey: ["beds"] });
     },
   });
@@ -205,8 +271,26 @@ export function useUpdateBed() {
 export function useDeleteBed() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: deleteBed,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["beds"] }),
+    mutationFn: async (id: string) => {
+      if (shouldQueueOfflineMutation()) {
+        const outId = await enqueueOutbox({
+          action: "DELETE_BED",
+          payload: { id },
+        });
+        if (!outId) throw new Error("Локальное хранилище недоступно");
+        return id;
+      }
+      await deleteBed(id);
+      return id;
+    },
+    onSuccess: (id) => {
+      qc.setQueryData<Bed[]>(["beds"], (old) => old?.filter((b) => b.id !== id));
+      if (shouldQueueOfflineMutation()) {
+        toast.message("Удаление сохранено локально, отправим при сети");
+        return;
+      }
+      void qc.invalidateQueries({ queryKey: ["beds"] });
+    },
   });
 }
 
@@ -267,7 +351,9 @@ export function useUploadPlantPhoto() {
           };
         });
       });
-      await qc.invalidateQueries({ queryKey: ["beds"] });
+      if (!shouldQueueOfflineMutation()) {
+        await qc.invalidateQueries({ queryKey: ["beds"] });
+      }
       toast.success("Фото добавлено");
     },
     onError: (err) => {

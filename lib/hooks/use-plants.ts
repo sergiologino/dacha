@@ -1,7 +1,11 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Bed, BedPlant } from "./use-beds";
+import { toast } from "sonner";
+import type { Bed, BedPlant, OfflineEntityMeta } from "./use-beds";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
+import { newOfflineClientId } from "@/lib/offline/offline-id";
 
 export interface Plant {
   id: string;
@@ -11,6 +15,7 @@ export interface Plant {
   plantedDate: string;
   status: string;
   cropSlug?: string | null;
+  offlineMeta?: OfflineEntityMeta;
 }
 
 async function fetchPlants(): Promise<Plant[]> {
@@ -79,13 +84,55 @@ function plantToBedPlant(plant: Plant): BedPlant {
     cropSlug: plant.cropSlug ?? null,
     photos: [],
     timelineEvents: [],
+    offlineMeta: plant.offlineMeta,
   };
 }
 
 export function useCreatePlant() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: createPlant,
+    mutationFn: async (variables: {
+      name: string;
+      bedId?: string;
+      plantedDate?: string;
+      cropSlug?: string;
+    }) => {
+      if (shouldQueueOfflineMutation()) {
+        const tempClientId = newOfflineClientId();
+        const beds = qc.getQueryData<Bed[]>(["beds"]);
+        const bed = variables.bedId ? beds?.find((b) => b.id === variables.bedId) : undefined;
+        const dependsOn = bed?.offlineMeta?.pendingOutboxId;
+        const outId = await enqueueOutbox({
+          action: "CREATE_PLANT",
+          payload: {
+            tempClientId,
+            name: variables.name,
+            bedId: variables.bedId,
+            plantedDate: variables.plantedDate,
+            cropSlug: variables.cropSlug,
+          },
+          dependsOn,
+        });
+        if (!outId) throw new Error("Локальное хранилище недоступно");
+        const plantedRaw = variables.plantedDate ?? new Date().toISOString();
+        const plantedDate =
+          typeof plantedRaw === "string" && plantedRaw.includes("T")
+            ? plantedRaw
+            : `${plantedRaw}T12:00:00.000Z`;
+        const plant: Plant = {
+          id: tempClientId,
+          name: variables.name,
+          bedId: variables.bedId ?? null,
+          notes: null,
+          status: "growing",
+          plantedDate,
+          cropSlug: variables.cropSlug ?? null,
+          offlineMeta: { pendingOutboxId: outId },
+        };
+        return plant;
+      }
+      return createPlant(variables);
+    },
     onSuccess: (newPlant, variables) => {
       const plantNorm: Plant = {
         ...newPlant,
@@ -106,8 +153,12 @@ export function useCreatePlant() {
           );
         });
       }
+      if (plantNorm.offlineMeta) {
+        toast.message("Растение сохранено локально, отправим при сети");
+      }
     },
     onSettled: () => {
+      if (shouldQueueOfflineMutation()) return;
       void qc.invalidateQueries({ queryKey: ["plants"] });
       void qc.invalidateQueries({ queryKey: ["beds"] });
     },
@@ -117,8 +168,59 @@ export function useCreatePlant() {
 export function useUpdatePlant() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: updatePlant,
-    onSuccess: () => {
+    mutationFn: async (data: {
+      id: string;
+      plantedDate?: string;
+      name?: string;
+      notes?: string;
+      status?: string;
+    }) => {
+      if (shouldQueueOfflineMutation()) {
+        const cur = qc.getQueryData<Plant[]>(["plants"])?.find((p) => p.id === data.id);
+        if (!cur) throw new Error("Растение не найдено в кэше");
+        const outId = await enqueueOutbox({
+          action: "UPDATE_PLANT",
+          payload: { ...data },
+        });
+        if (!outId) throw new Error("Локальное хранилище недоступно");
+        return {
+          ...cur,
+          ...data,
+          plantedDate:
+            data.plantedDate !== undefined
+              ? typeof data.plantedDate === "string"
+                ? data.plantedDate
+                : new Date(data.plantedDate).toISOString()
+              : cur.plantedDate,
+        } as Plant;
+      }
+      return updatePlant(data);
+    },
+    onSuccess: (plant) => {
+      const norm: Plant = {
+        ...plant,
+        plantedDate:
+          typeof plant.plantedDate === "string"
+            ? plant.plantedDate
+            : new Date(plant.plantedDate).toISOString(),
+      };
+      qc.setQueryData<Plant[]>(["plants"], (old) =>
+        old?.map((p) => (p.id === norm.id ? norm : p))
+      );
+      qc.setQueryData<Bed[]>(["beds"], (old) =>
+        old?.map((b) => ({
+          ...b,
+          plants: (b.plants ?? []).map((p) => {
+            if (p.id !== norm.id) return p;
+            const bp = plantToBedPlant(norm);
+            return { ...p, ...bp, timelineEvents: p.timelineEvents, photos: p.photos };
+          }),
+        }))
+      );
+      if (shouldQueueOfflineMutation()) {
+        toast.message("Изменения растения сохранены локально");
+        return;
+      }
       qc.invalidateQueries({ queryKey: ["plants"] });
       qc.invalidateQueries({ queryKey: ["beds"] });
     },
@@ -128,8 +230,30 @@ export function useUpdatePlant() {
 export function useDeletePlant() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: deletePlant,
-    onSuccess: () => {
+    mutationFn: async (id: string) => {
+      if (shouldQueueOfflineMutation()) {
+        const outId = await enqueueOutbox({
+          action: "DELETE_PLANT",
+          payload: { id },
+        });
+        if (!outId) throw new Error("Локальное хранилище недоступно");
+        return id;
+      }
+      await deletePlant(id);
+      return id;
+    },
+    onSuccess: (id) => {
+      qc.setQueryData<Plant[]>(["plants"], (old) => old?.filter((p) => p.id !== id));
+      qc.setQueryData<Bed[]>(["beds"], (old) =>
+        old?.map((b) => ({
+          ...b,
+          plants: (b.plants ?? []).filter((p) => p.id !== id),
+        }))
+      );
+      if (shouldQueueOfflineMutation()) {
+        toast.message("Удаление растения сохранено локально");
+        return;
+      }
       qc.invalidateQueries({ queryKey: ["plants"] });
       qc.invalidateQueries({ queryKey: ["beds"] });
     },

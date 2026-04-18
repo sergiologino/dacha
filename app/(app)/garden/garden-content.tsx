@@ -45,6 +45,7 @@ import {
   useUploadPlantPhoto,
   useDeletePlantPhoto,
   type Bed,
+  type OfflineEntityMeta,
 } from "@/lib/hooks/use-beds";
 import { PlantTimelineLabels, PlantTimelineBar, type PhotoCheck } from "@/components/plant-timeline";
 import { GardenHelpContent } from "@/components/garden-help-content";
@@ -54,6 +55,7 @@ import { searchCropsAndVarieties, type CropSearchHit } from "@/lib/crops-search"
 import type { CropWithSource } from "@/lib/crops-merge";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { PlannedWorkModal, type PlannedWorkEvent } from "@/components/planned-work-modal";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 import { NotificationPromptModal, getNotificationPromptSeen } from "@/components/notification-prompt-modal";
 import {
   GardenPlantGalleryDialog,
@@ -527,6 +529,7 @@ export default function GardenContent() {
                         dateTo: event.dateTo,
                         isAction: event.isAction,
                         type: event.type ?? "other",
+                        offlineMeta: event.offlineMeta,
                       },
                       plant: { id: plant.id, name: plant.name },
                       bed: { id: bed.id, name: bed.name },
@@ -646,7 +649,9 @@ export default function GardenContent() {
           plantName={plannedWorkModal.plant.name}
           event={plannedWorkModal.event}
           onSuccess={() => {
-            qc.invalidateQueries({ queryKey: ["beds"] });
+            if (!shouldQueueOfflineMutation()) {
+              void qc.invalidateQueries({ queryKey: ["beds"] });
+            }
             setPlannedWorkModal(null);
           }}
           onShowPaywall={() => setShowPaywall(true)}
@@ -700,7 +705,16 @@ function BedCard({
   onUploadPhoto: (file: File, plantId: string, bedId: string, takenAt?: string) => void;
   onRegenerateTimeline?: (plantId: string) => void | Promise<void>;
   onEditPlannedWork?: (
-    event: { id: string; title: string; description: string | null; scheduledDate: string; dateTo: string | null; isAction: boolean; type?: string },
+    event: {
+      id: string;
+      title: string;
+      description: string | null;
+      scheduledDate: string;
+      dateTo: string | null;
+      isAction: boolean;
+      type?: string;
+      offlineMeta?: OfflineEntityMeta;
+    },
     plant: { id: string; name: string },
     bed: { id: string; name: string }
   ) => void;
@@ -1254,6 +1268,7 @@ function BedCard({
                                       dateTo: ev.dateTo,
                                       isAction: ev.isAction,
                                       type: ev.type,
+                                      offlineMeta: ev.offlineMeta,
                                     },
                                     { id: plant.id, name: plant.name },
                                     { id: bed.id, name: bed.name }

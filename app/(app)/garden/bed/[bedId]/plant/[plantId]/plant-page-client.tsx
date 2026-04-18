@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { PlannedWorkModal, type PlannedWorkEvent } from "@/components/planned-work-modal";
 import { useBeds, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 import { useCrops } from "@/lib/hooks/use-crops";
 import { getCropDisplayImageUrl } from "@/lib/crop-community";
 import { proxifyGuideMediaUrl } from "@/lib/guide-image-url";
@@ -253,7 +254,11 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
         bedName={bed.name}
         plantName={plant.name}
         event={plannedWorkModal.event}
-        onSuccess={() => void qc.invalidateQueries({ queryKey: ["beds"] })}
+        onSuccess={() => {
+          if (!shouldQueueOfflineMutation()) {
+            void qc.invalidateQueries({ queryKey: ["beds"] });
+          }
+        }}
         onShowPaywall={() => setShowPaywall(true)}
       />
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { OfflineEntityMeta } from "@/lib/hooks/use-beds";
 
 type TimelineEvent = {
   id: string;
@@ -12,6 +13,7 @@ type TimelineEvent = {
   isAction: boolean;
   sortOrder: number;
   doneAt: string | null;
+  offlineMeta?: OfflineEntityMeta;
 };
 
 export type PhotoCheck = {

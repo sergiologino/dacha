@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import type { BedPlantTimelineEvent } from "@/lib/hooks/use-beds";
+import type { Bed, BedPlantTimelineEvent } from "@/lib/hooks/use-beds";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 
 function startOfDay(d: Date): Date {
   const x = new Date(d);
@@ -33,6 +36,7 @@ export function WorkDetailModal({
   allEvents: BedPlantTimelineEvent[];
   onSuccess: () => void;
 }) {
+  const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
 
   const analysis = useMemo(() => {
@@ -66,10 +70,41 @@ export function WorkDetailModal({
   const markDone = async () => {
     setSaving(true);
     try {
+      const doneAt = new Date().toISOString();
+      if (shouldQueueOfflineMutation()) {
+        const outId = await enqueueOutbox({
+          action: "PATCH_TIMELINE_EVENT",
+          payload: {
+            plantId,
+            eventId: event.id,
+            body: { doneAt },
+          },
+          dependsOn: event.offlineMeta?.pendingOutboxId,
+        });
+        if (!outId) throw new Error("Локальное хранилище недоступно");
+        qc.setQueryData<Bed[]>(["beds"], (old) =>
+          old?.map((bed) => ({
+            ...bed,
+            plants: (bed.plants ?? []).map((p) => {
+              if (p.id !== plantId) return p;
+              return {
+                ...p,
+                timelineEvents: (p.timelineEvents ?? []).map((e) =>
+                  e.id === event.id ? { ...e, doneAt } : e
+                ),
+              };
+            }),
+          }))
+        );
+        toast.success("Сохранено локально, отправим при сети");
+        onSuccess();
+        onOpenChange(false);
+        return;
+      }
       const res = await fetch(`/api/plants/${plantId}/timeline/events/${event.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ doneAt: new Date().toISOString() }),
+        body: JSON.stringify({ doneAt }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Ошибка");
