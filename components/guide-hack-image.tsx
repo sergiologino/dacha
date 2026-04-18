@@ -11,14 +11,30 @@ type Props = {
 };
 
 /**
- * Картинки идут через /api/guide-image — Wikimedia часто недоступен из браузера в РФ,
- * зато сервер приложения качает и отдаёт байты самому клиенту.
- * Обычный img вместо next/image: длинный query и загрузка без оптимизатора.
+ * Локальные пути `/images/...` отдаются из `public` как есть.
+ * `https://upload.wikimedia.org/...` — через `/api/guide-image` (в РФ прямой запрос из браузера часто падает).
+ * Прочие абсолютные URL — как есть.
  */
+function resolvedSrc(src: string): string {
+  const t = src.trim();
+  if (!t) return t;
+  if (t.startsWith("/")) return t;
+  if (t.startsWith("data:") || t.startsWith("blob:")) return t;
+  try {
+    const u = new URL(t);
+    if (u.protocol === "https:" && u.hostname === "upload.wikimedia.org") {
+      return `/api/guide-image?url=${encodeURIComponent(t)}`;
+    }
+  } catch {
+    return t;
+  }
+  return t;
+}
+
 export function GuideHackImage({ src, alt, sizes: _sizes, className = "object-cover" }: Props) {
   const [failed, setFailed] = useState(false);
 
-  const proxied = `/api/guide-image?url=${encodeURIComponent(src)}`;
+  const imgSrc = resolvedSrc(src);
 
   if (failed) {
     return (
@@ -32,7 +48,7 @@ export function GuideHackImage({ src, alt, sizes: _sizes, className = "object-co
   return (
     // eslint-disable-next-line @next/next/no-img-element -- прокси-URL с длинным query; тот же origin
     <img
-      src={proxied}
+      src={imgSrc}
       alt={alt}
       className={`absolute inset-0 w-full h-full ${className}`}
       loading="lazy"

@@ -60,17 +60,38 @@ export async function probeServerReachable(): Promise<boolean> {
   }
 }
 
+let probeInFlight: Promise<NetworkReachability> | null = null;
+
 /**
  * Обновить глобальное состояние: сначала offline-событие, затем ping.
+ * Параллельные вызовы сливаются в один запрос (иначе гонки и «вечная проверка» в UI).
  */
-export async function refreshReachabilityWithProbe(): Promise<NetworkReachability> {
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    setReachability("offline");
-    return "offline";
-  }
-  setReachability("checking");
-  const ok = await probeServerReachable();
-  const next: NetworkReachability = ok ? "online" : "offline";
-  setReachability(next);
-  return next;
+export function refreshReachabilityWithProbe(): Promise<NetworkReachability> {
+  if (probeInFlight) return probeInFlight;
+
+  probeInFlight = (async () => {
+    try {
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        setReachability("offline");
+        return "offline";
+      }
+
+      setReachability("checking");
+
+      let ok = false;
+      try {
+        ok = await probeServerReachable();
+      } catch {
+        ok = false;
+      }
+
+      const next: NetworkReachability = ok ? "online" : "offline";
+      setReachability(next);
+      return next;
+    } finally {
+      probeInFlight = null;
+    }
+  })();
+
+  return probeInFlight;
 }
