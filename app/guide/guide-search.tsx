@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import type { Crop } from "@/lib/types";
 import { getCropDisplayImageUrl } from "@/lib/crop-community";
 import type { CropWithSource } from "@/lib/crops-merge";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
+import { toast } from "sonner";
 
 export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
   const router = useRouter();
@@ -41,6 +44,19 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
     setAiResult(null);
     setAddToGuideError(null);
     try {
+      if (shouldQueueOfflineMutation()) {
+        const content = `Расскажи подробно о культуре "${searchTerm}" для выращивания на даче в России. Включи: описание, популярные сорта (3-5), сроки посадки (средняя полоса), полив, уход, болезни, урожай. Формат: структурированный текст с заголовками.`;
+        const outId = await enqueueOutbox({
+          action: "AI_CHAT_MESSAGE",
+          payload: { messages: [{ role: "user", content }] },
+        });
+        if (!outId) throw new Error("Локальное хранилище недоступно");
+        toast.message("Запрос к ИИ в очереди");
+        setAiResult(
+          "Ответ появится после подключения к сети — откройте чат с агрономом или обновите страницу."
+        );
+        return;
+      }
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

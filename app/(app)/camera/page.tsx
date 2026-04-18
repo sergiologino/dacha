@@ -9,6 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { compressImageFile } from "@/lib/compress-image";
+import { dataUrlToBlob } from "@/lib/offline/blob-utils";
+import { deleteLocalBlob, enqueueOutbox, putLocalBlob } from "@/lib/offline/outbox";
+import { newOfflineClientId } from "@/lib/offline/offline-id";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
+import { ANALYSES_SYNC_EVENT } from "@/lib/offline/sync-events";
+import { toast } from "sonner";
 
 interface AnalysisItem {
   id: string;
@@ -48,6 +54,20 @@ export default function CameraPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    const refresh = () => {
+      fetch("/api/ai/analyze")
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.analyses) setAnalyses(data.analyses);
+          if (typeof data.freeLeft === "number") setFreeLeft(data.freeLeft);
+        })
+        .catch(() => {});
+    };
+    window.addEventListener(ANALYSES_SYNC_EVENT, refresh);
+    return () => window.removeEventListener(ANALYSES_SYNC_EVENT, refresh);
+  }, []);
+
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -81,6 +101,33 @@ export default function CameraPage() {
     setIsAnalyzing(true);
 
     try {
+      if (shouldQueueOfflineMutation()) {
+        const blob = await dataUrlToBlob(selectedImage);
+        const mimeMatch = selectedImage.match(/^data:([^;]+);/);
+        const mime = mimeMatch?.[1] ?? "image/jpeg";
+        const localBlobId = await putLocalBlob(blob, mime);
+        if (!localBlobId) throw new Error("Нет доступа к хранилищу");
+        const tempId = newOfflineClientId();
+        const outId = await enqueueOutbox({
+          action: "AI_ANALYZE_PHOTO",
+          payload: { localBlobId },
+        });
+        if (!outId) {
+          await deleteLocalBlob(localBlobId);
+          throw new Error("Нет доступа к хранилищу");
+        }
+        const newAnalysis: AnalysisItem = {
+          id: tempId,
+          imageUrl: selectedImage,
+          result: "Анализ в очереди — результат появится после подключения к сети.",
+          date: new Date().toLocaleDateString("ru-RU"),
+        };
+        setAnalyses((prev) => [newAnalysis, ...prev]);
+        toast.message("Анализ фото поставлен в очередь");
+        setSelectedImage(null);
+        return;
+      }
+
       const response = await fetch("/api/ai/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -232,7 +279,7 @@ export default function CameraPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => shareAnalysis(a)}
-                    disabled={sharingId === a.id}
+                    disabled={sharingId === a.id || a.id.startsWith("offline-")}
                     className="text-emerald-600"
                   >
                     {sharedOk === a.id ? (

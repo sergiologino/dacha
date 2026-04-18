@@ -1,5 +1,6 @@
 import { getLocalDb } from "@/lib/offline/local-db";
 import type { OutboxActionType, OutboxRecord } from "@/lib/offline/outbox-types";
+import { notifyOutboxChanged } from "@/lib/offline/sync-events";
 
 function randomId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
@@ -23,6 +24,7 @@ export async function enqueueOutbox(params: {
     dependsOn: params.dependsOn,
   };
   await db.outbox.put(row);
+  notifyOutboxChanged();
   return id;
 }
 
@@ -58,6 +60,12 @@ export async function countPendingOutbox(): Promise<number> {
   return db.outbox.where("status").equals("pending").count();
 }
 
+export async function countFailedOutbox(): Promise<number> {
+  const db = getLocalDb();
+  if (!db) return 0;
+  return db.outbox.where("status").equals("failed").count();
+}
+
 export async function updateOutboxRecord(
   id: string,
   patch: Partial<Pick<OutboxRecord, "status" | "retries" | "lastError">>
@@ -65,12 +73,14 @@ export async function updateOutboxRecord(
   const db = getLocalDb();
   if (!db) return;
   await db.outbox.update(id, patch);
+  notifyOutboxChanged();
 }
 
 export async function deleteOutboxRecord(id: string): Promise<void> {
   const db = getLocalDb();
   if (!db) return;
   await db.outbox.delete(id);
+  notifyOutboxChanged();
 }
 
 export async function putLocalBlob(blob: Blob, mimeType: string): Promise<string | null> {
@@ -97,4 +107,18 @@ export async function deleteLocalBlob(id: string): Promise<void> {
   const db = getLocalDb();
   if (!db) return;
   await db.localBlobs.delete(id);
+}
+
+/** Отмена неотправленной загрузки фото (temp id в кэше = tempPhotoId в payload). */
+export async function cancelPendingPhotoUploadByTempId(tempPhotoId: string): Promise<void> {
+  const db = getLocalDb();
+  if (!db) return;
+  const rows = await db.outbox.filter((r) => r.action === "UPLOAD_PHOTO").toArray();
+  for (const r of rows) {
+    const p = r.payload as { tempPhotoId?: string; localBlobId?: string };
+    if (p.tempPhotoId !== tempPhotoId) continue;
+    if (p.localBlobId) await deleteLocalBlob(p.localBlobId);
+    await db.outbox.delete(r.id);
+  }
+  notifyOutboxChanged();
 }

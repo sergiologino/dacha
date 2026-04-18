@@ -15,10 +15,12 @@ export type OutboxActionType =
   | "CREATE_TIMELINE_EVENT"
   | "PATCH_TIMELINE_EVENT"
   | "DELETE_TIMELINE_EVENT"
+  | "DELETE_PHOTO"
   | "UPLOAD_PHOTO"
   | "AI_ANALYZE_PHOTO"
   | "AI_CHAT_MESSAGE"
-  | "AI_TIMELINE_GENERATE";
+  | "AI_TIMELINE_GENERATE"
+  | "GUIDE_DETAIL_FETCH";
 
 export interface OutboxRecord {
   id: string;

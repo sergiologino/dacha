@@ -3,9 +3,16 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { compressImageFileForUpload } from "@/lib/compress-image";
-import { enqueueOutbox } from "@/lib/offline/outbox";
+import {
+  cancelPendingPhotoUploadByTempId,
+  deleteLocalBlob,
+  enqueueOutbox,
+  putLocalBlob,
+} from "@/lib/offline/outbox";
 import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 import { newOfflineClientId } from "@/lib/offline/offline-id";
+
+export type OfflineEntityMeta = { pendingOutboxId: string };
 
 export interface BedPhoto {
   id: string;
@@ -24,9 +31,9 @@ export interface BedPlantPhoto {
   analysisResult?: string | null;
   analysisStatus?: string | null;
   analyzedAt?: string | null;
+  /** Офлайн: очередь загрузки + blob в Dexie */
+  offlineMeta?: OfflineEntityMeta & { localBlobId?: string };
 }
-
-export type OfflineEntityMeta = { pendingOutboxId: string };
 
 export interface BedPlantTimelineEvent {
   id: string;
@@ -305,11 +312,46 @@ async function deletePlantPhoto(photoId: string): Promise<void> {
 export function useDeletePlantPhoto() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: deletePlantPhoto,
+    mutationFn: async (photoId: string) => {
+      if (shouldQueueOfflineMutation()) {
+        if (photoId.startsWith("offline-")) {
+          await cancelPendingPhotoUploadByTempId(photoId);
+          return photoId;
+        }
+        const outId = await enqueueOutbox({
+          action: "DELETE_PHOTO",
+          payload: { id: photoId },
+        });
+        if (!outId) throw new Error("Локальное хранилище недоступно");
+        return photoId;
+      }
+      await deletePlantPhoto(photoId);
+      return photoId;
+    },
     onSuccess: (_, photoId) => {
-      qc.setQueryData<Bed[]>(["beds"], (old) => {
-        if (!old) return old;
-        return old.map((bed) => ({
+      const old = qc.getQueryData<Bed[]>(["beds"]);
+      let blobToRevoke: string | null = null;
+      if (old) {
+        outer: for (const bed of old) {
+          for (const plant of bed.plants ?? []) {
+            const ph = (plant.photos ?? []).find((p) => p.id === photoId);
+            if (ph?.url?.startsWith("blob:")) {
+              blobToRevoke = ph.url;
+              break outer;
+            }
+          }
+        }
+      }
+      if (blobToRevoke) {
+        try {
+          URL.revokeObjectURL(blobToRevoke);
+        } catch {
+          /* ignore */
+        }
+      }
+      qc.setQueryData<Bed[]>(["beds"], (prev) => {
+        if (!prev) return prev;
+        return prev.map((bed) => ({
           ...bed,
           plants: (bed.plants ?? []).map((plant) => ({
             ...plant,
@@ -317,9 +359,17 @@ export function useDeletePlantPhoto() {
           })),
         }));
       });
-      void qc.invalidateQueries({ queryKey: ["beds"] });
-      void qc.invalidateQueries({ queryKey: ["gallery-feed"] });
-      toast.success("Фото удалено");
+      if (!shouldQueueOfflineMutation()) {
+        void qc.invalidateQueries({ queryKey: ["beds"] });
+        void qc.invalidateQueries({ queryKey: ["gallery-feed"] });
+      }
+      if (photoId.startsWith("offline-")) {
+        toast.success("Локальное фото убрано");
+      } else if (shouldQueueOfflineMutation()) {
+        toast.message("Удаление фото в очереди, отправим при сети");
+      } else {
+        toast.success("Фото удалено");
+      }
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Не удалось удалить фото");
@@ -330,7 +380,52 @@ export function useDeletePlantPhoto() {
 export function useUploadPlantPhoto() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: uploadPlantPhoto,
+    mutationFn: async (variables: UploadPlantPhotoParams) => {
+      if (shouldQueueOfflineMutation()) {
+        const fileToSend = await compressImageFileForUpload(variables.file);
+        if (!fileToSend?.size) {
+          throw new Error("Пустой файл изображения — попробуйте другое фото");
+        }
+        const localBlobId = await putLocalBlob(fileToSend, fileToSend.type || "image/jpeg");
+        if (!localBlobId) throw new Error("Локальное хранилище недоступно");
+        const tempPhotoId = newOfflineClientId();
+        const beds = qc.getQueryData<Bed[]>(["beds"]);
+        const bed = beds?.find((b) => b.id === variables.bedId);
+        const plant = bed?.plants?.find((p) => p.id === variables.plantId);
+        const dependsOn = plant?.offlineMeta?.pendingOutboxId;
+        const outId = await enqueueOutbox({
+          action: "UPLOAD_PHOTO",
+          payload: {
+            localBlobId,
+            plantId: variables.plantId,
+            bedId: variables.bedId,
+            takenAt: variables.takenAt,
+            tempPhotoId,
+          },
+          dependsOn,
+        });
+        if (!outId) {
+          await deleteLocalBlob(localBlobId);
+          throw new Error("Локальное хранилище недоступно");
+        }
+        const displayUrl = URL.createObjectURL(fileToSend);
+        const takenAtRaw = variables.takenAt?.trim();
+        const takenAt =
+          takenAtRaw && takenAtRaw.length > 0
+            ? takenAtRaw.includes("T")
+              ? takenAtRaw
+              : `${takenAtRaw}T12:00:00.000Z`
+            : new Date().toISOString();
+        return {
+          id: tempPhotoId,
+          url: displayUrl,
+          takenAt,
+          caption: null,
+          offlineMeta: { pendingOutboxId: outId, localBlobId },
+        } as BedPlantPhoto;
+      }
+      return uploadPlantPhoto(variables);
+    },
     onSuccess: async (data, variables) => {
       const { plantId, bedId } = variables;
       const newPhoto: BedPlantPhoto = data;
@@ -354,7 +449,11 @@ export function useUploadPlantPhoto() {
       if (!shouldQueueOfflineMutation()) {
         await qc.invalidateQueries({ queryKey: ["beds"] });
       }
-      toast.success("Фото добавлено");
+      if (newPhoto.offlineMeta) {
+        toast.message("Фото сохранено локально, загрузим при появлении сети");
+      } else {
+        toast.success("Фото добавлено");
+      }
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Не удалось загрузить фото");

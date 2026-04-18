@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
+import { CHAT_HISTORY_SYNC_EVENT } from "@/lib/offline/sync-events";
+import { toast } from "sonner";
 
 export interface ChatMessage {
   id: string;
@@ -20,8 +24,8 @@ export function useChat() {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [freeLeft, setFreeLeft] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetch("/api/chat/history")
+  const loadHistory = useCallback((): Promise<void> => {
+    return fetch("/api/chat/history")
       .then((r) => r.json())
       .then((data) => {
         if (data.messages?.length) {
@@ -33,14 +37,25 @@ export function useChat() {
               timestamp: new Date(m.timestamp),
             }))
           );
+        } else {
+          setMessages([]);
         }
         if (typeof data.freeLeft === "number") {
           setFreeLeft(data.freeLeft);
         }
       })
-      .catch(() => {})
-      .finally(() => setHistoryLoaded(true));
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    loadHistory().finally(() => setHistoryLoaded(true));
+  }, [loadHistory]);
+
+  useEffect(() => {
+    const onSync = () => loadHistory();
+    window.addEventListener(CHAT_HISTORY_SYNC_EVENT, onSync);
+    return () => window.removeEventListener(CHAT_HISTORY_SYNC_EVENT, onSync);
+  }, [loadHistory]);
 
   const sendMessage = useCallback(
     async (content: string, options?: SendOptions) => {
@@ -61,6 +76,19 @@ export function useChat() {
           ...messages.map((m) => ({ role: m.role, content: m.content })),
           { role: "user" as const, content },
         ];
+
+        if (shouldQueueOfflineMutation()) {
+          const outId = await enqueueOutbox({
+            action: "AI_CHAT_MESSAGE",
+            payload: {
+              messages: apiMessages,
+              networkName: options?.networkName,
+            },
+          });
+          if (!outId) throw new Error("Локальное хранилище недоступно");
+          toast.message("Сообщение в очереди — ответ появится после подключения к сети");
+          return;
+        }
 
         const response = await fetch("/api/chat", {
           method: "POST",

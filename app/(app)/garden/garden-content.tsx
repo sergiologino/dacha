@@ -55,6 +55,7 @@ import { searchCropsAndVarieties, type CropSearchHit } from "@/lib/crops-search"
 import type { CropWithSource } from "@/lib/crops-merge";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { PlannedWorkModal, type PlannedWorkEvent } from "@/components/planned-work-modal";
+import { enqueueOutbox } from "@/lib/offline/outbox";
 import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 import { NotificationPromptModal, getNotificationPromptSeen } from "@/components/notification-prompt-modal";
 import {
@@ -513,6 +514,19 @@ export default function GardenContent() {
                     uploadPhoto.mutate({ file, plantId, bedId, takenAt })
                   }
                   onRegenerateTimeline={async (plantId) => {
+                    if (shouldQueueOfflineMutation()) {
+                      const bedsData = qc.getQueryData<Bed[]>(["beds"]);
+                      const plant = bedsData?.flatMap((b) => b.plants ?? []).find((p) => p.id === plantId);
+                      const dependsOn = plant?.offlineMeta?.pendingOutboxId;
+                      const outId = await enqueueOutbox({
+                        action: "AI_TIMELINE_GENERATE",
+                        payload: { plantId },
+                        dependsOn,
+                      });
+                      if (!outId) throw new Error("Локальное хранилище недоступно");
+                      toast.message("Генерация таймлайна в очереди — выполним при появлении сети");
+                      return;
+                    }
                     const res = await fetch(`/api/plants/${plantId}/timeline/generate`, { method: "POST" });
                     if (!res.ok) throw new Error("Generate failed");
                     qc.invalidateQueries({ queryKey: ["beds"] });
