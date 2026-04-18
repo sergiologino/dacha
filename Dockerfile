@@ -80,6 +80,10 @@ COPY --from=builder /app/prisma.config.ts ./
 USER root
 RUN npm install --no-save prisma@6.19.0 tsx@4.21.0 dotenv@17.3.1 && \
     chown -R nextjs:nodejs /app/node_modules
+
+COPY --from=builder /app/scripts/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh && chown nextjs:nodejs ./docker-entrypoint.sh
+
 USER nextjs
 
 EXPOSE 3000
@@ -90,4 +94,4 @@ ENV HOSTNAME="0.0.0.0"
 HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=5 \
   CMD node -e "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)throw 1}).catch(()=>process.exit(1))"
 
-CMD ["node", "server.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]
