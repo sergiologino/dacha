@@ -2,7 +2,7 @@
  * Лайфхаки и народные приёмы для раздела «Справочник».
  *
  * Редакция: раз в неделю добавляйте в этот массив 5–10 новых объектов с уникальным `id`
- * и рабочей `imageUrl` (лучше upload.wikimedia.org — уже разрешён в next.config).
+ * и рабочей `imageUrl` (локальный путь `/images/guide/...` после `npm run guide:sync-assets`).
  * Подборка на странице /guide формируется автоматически из пула по номеру ISO-недели.
  */
 import { getISOWeek, getISOWeekYear } from "date-fns";
@@ -31,8 +31,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Яичная скорлупа вместо покупной извести",
     text: "Высушите скорлупу, разомните в крошку или перемелите на кофемолке и вмешайте в почву при перекопке или добавьте в лунку под рассаду. Кальций медленно отдаётся растениям и помогает предотвратить вершинную гниль у томатов и перца. На кислых почвах не заменяет доломит, но как добавка полезна.",
     category: "огород и теплица",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Eggshell_membrane.jpg/640px-Eggshell_membrane.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-shell-calcium.jpg",
     imageAlt: "Куски яичной скорлупы крупным планом",
   },
   {
@@ -40,8 +39,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Кофейная гуща на грядку",
     text: "Остывшую гущу вносят в компост или тонким слоем под мульчу вокруг ягод и кустов. Органика и микроэлементы стимулируют почвенную жизнь; важно не переборщить: кофе слегка подкисляет среду — для клубники и роз часто к месту, для известковых любителей — умеренно.",
     category: "огород и теплица",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Coffee_beans_in_burlap_bags.jpg/640px-Coffee_beans_in_burlap_bags.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-coffee-grounds.jpg",
     imageAlt: "Кофейные зёрна в мешковине",
   },
   {
@@ -49,8 +47,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Древесная зола против слизней и для подкормки",
     text: "Просеянную золу рассыпают тонкой полосой вдоль грядок: слизни не любят сухую щёлочную кромку. Вносят и как источник калия и фосфора под корнеплоды после анализа почвы: на кислых участках эффект заметнее, на щелочных — экономьте золу.",
     category: "народные методы",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Wood_ash_from_fireplace.jpg/640px-Wood_ash_from_fireplace.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-wood-ash.png",
     imageAlt: "Древесная зола",
   },
   {
@@ -58,8 +55,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Хлебный настой как мягкий стимулятор",
     text: "Небольшой кусок дрожжевого хлеба или 1 ч. л. сухих дрожжей разводят в тёплой воде с ложкой сахара, настаивают 2–3 часа, процеживают и разбавляют ведром воды. Поливают под корень утром не чаще раза в две недели в период роста — источник микроэлементов и органики; не путать с полноценной минеральной подкормкой.",
     category: "народные методы",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Saccharomyces_cerevisiae_SEM.jpg/640px-Saccharomyces_cerevisiae_SEM.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-bread-yeast-spray.jpg",
     imageAlt: "Дрожжи под микроскопом",
   },
   {
@@ -67,8 +63,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Отвар луковой шелухи от рассады до полива",
     text: "Шелуху лука заливают водой, кипят сорок минут, охлаждают и разбавляют чистой водой 1:5. Используют для замачивания семян (10–12 ч), полива рассады или опрыскивания: флавоноиды мягко подавляют грибковую микрофлору. Перед обработкой всей грядки проверьте реакцию на паре листьев.",
     category: "обработка и уход",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Mixed_onions.jpg/640px-Mixed_onions.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-onion-peel-decoction.jpg",
     imageAlt: "Луковицы разных сортов",
   },
   {
@@ -76,8 +71,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Крапивое удобрение (настой)",
     text: "Молодую крапиву без семян укладывают в бочку, заливают водой на четверть выше, накрывают марлей. Через 10–14 дней брожения разбавляют водой 1:10 и поливают капусту, томаты, огурцы. Азот и микроэлементы; запах сильный — бочку держите подальше от дома.",
     category: "огород и теплица",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/5/57/Urtica_dioica_koehler.jpg/640px-Urtica_dioica_koehler.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-nettle-manure.jpg",
     imageAlt: "Растение крапива",
   },
   {
@@ -85,8 +79,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Банановая кожура для калия",
     text: "Высушите кожуру, измельчите и вносите в лунки при посадке томатов и цветков или добавьте в компост. Калий помогает завязи и окраске плодов; избыток «банана» не заменит полный состав удобрений.",
     category: "огород и теплица",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/6/69/Banana_peels.jpg/640px-Banana_peels.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-banana-potassium.jpg",
     imageAlt: "Банановая кожура",
   },
   {
@@ -94,8 +87,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Капельный полив из пластиковой бутылки",
     text: "В крышке бутылки прокалывают 1–3 отверстия иглой, перевёрнутую бутылку закапывают у корня на 15–20 см. Наполняют водой — влага уходит сутками, корни тянутся вглубь. Удобно для теплицы и контейнеров в отпускной сезон.",
     category: "участок и обустройство",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Drip_irrigation_in_Har_Nof%2C_Jerusalem.jpg/640px-Drip_irrigation_in_Har_Nof%2C_Jerusalem.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-bottle-drip.jpg",
     imageAlt: "Капельный полив на грядке",
   },
   {
@@ -103,8 +95,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Многослойный компост на месте грядки",
     text: "На газоне или жёстком участке укладывают картон, слой органики, земли, снова органику — как слоёный пирог. За сезон материал проседает, почва рыхлеет, черви подтягиваются сами. Подходит для новых грядок без тяжёлой лопаты.",
     category: "участок и обустройство",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/Compost_-_panoramio.jpg/640px-Compost_-_panoramio.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-compost-lasagna.jpg",
     imageAlt: "Комостная куча на участке",
   },
   {
@@ -112,8 +103,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Горчица сидератом вместо «запрещённой химии»",
     text: "Белую или сарептскую горчицу сеют густо после уборки ранних культур, через 5–6 недель сакатывают или заделывают. Корни разрыхляют почву, биомасса подавляет часть почвенных вредителей и готовит грядку к весне.",
     category: "огород и теплица",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Brassica_nigra_plant.jpg/640px-Brassica_nigra_plant.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-mustard-green-manure.jpg",
     imageAlt: "Растение горчицы с жёлтыми цветами",
   },
   {
@@ -121,8 +111,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Хвоя и дёготь для кислой клумбы",
     text: "Сухую хвою мельчают и добавляют в субстрат для черники, брусники и рододендронов; перепревшая хвоя держит pH ниже нейтрали. Смолистый запах отпугивает муравьёв на дорожках — укладывают полосами.",
     category: "участок и обустройство",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Pinus_sylvestris_cones.jpg/640px-Pinus_sylvestris_cones.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-pine-needles-acid.jpg",
     imageAlt: "Шишки и хвоя сосны",
   },
   {
@@ -130,8 +119,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Соломенная мульча против сорняков и перегрева",
     text: "Слой соломы 8–12 см у корней томатов, кабачков и ягодников снижает испарение и подавляет сорняки. Влага после полива держится дольше; под соломой не формируется корка после дождя.",
     category: "огород и теплица",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Straw_bale.jpg/640px-Straw_bale.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-straw-mulch.jpg",
     imageAlt: "Тюки соломы",
   },
   {
@@ -139,8 +127,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Уксус по бордюрам против спорных сорняков",
     text: "9% уксус разбавляют водой 1:1 и точечно обрабатывают щели в плитке и щели дорожек в жару. Обжигает листья сорняков; не брызгайте на культурные растения и не злоупотребляйте — микрожизнь почвы тоже чувствительна.",
     category: "участок и обустройство",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/White_vinegar.jpg/640px-White_vinegar.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-vinegar-path.jpg",
     imageAlt: "Бутылка белого уксуса",
   },
   {
@@ -148,8 +135,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Сбор дождевой воды с крыши",
     text: "Вода без хлора мягче для полива рассады и комнатных растений. Добавьте сетку от листьев и перелив; первые минуты дождя сливают в сторону — смывает пыль с кровли. Ёмкость прикрывают от комаров и водоплавающего мусора.",
     category: "участок и обустройство",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/Rainwater_Harvesting_-_Auroville.jpg/640px-Rainwater_Harvesting_-_Auroville.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-rain-barrel.jpg",
     imageAlt: "Сбор дождевой воды в цистерну",
   },
   {
@@ -157,8 +143,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Высокая грядка из поддонов без пилы",
     text: "Чистые EUR-паллеты выкладывают двойным контуром, внутрь укладывают картон на дно, затем ветки, компост и землю. Удобно спине, быстро обогревается весной. Проверьте маркировку: не используйте обработанные метилбромидом импортные поддоны.",
     category: "участок и обустройство",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/2/26/Wooden_pallets_stacked.jpg/640px-Wooden_pallets_stacked.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-pallet-bed.jpg",
     imageAlt: "Стопка деревянных поддонов",
   },
   {
@@ -166,8 +151,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Замачивание чеснока перед озимой посадкой",
     text: "Зубчики на час-два опускают в слабый раствор марганцовки или настой золы, затем на сутки в слегка подогретую воду — пробуждают ростки, снижают риск гнили в холодной земле. Высушите перед высадкой.",
     category: "огород и теплица",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Allium_sativum_Woodwill_1793.jpg/640px-Allium_sativum_Woodwill_1793.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-garlic-soak.jpg",
     imageAlt: "Иллюстрация чеснока",
   },
   {
@@ -175,8 +159,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Настурция-«ловушка» для тли",
     text: "Пахучую настурцию сеют по краю теплицы и грядок: тля часто садится на неё раньше, чем на томаты. Поражённые кусты вырывают и уничтожают — дешёвый индикатор и приманка.",
     category: "обработка и уход",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/TropaeolumMajusOrange.jpg/640px-TropaeolumMajusOrange.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-nasturtium-trap.jpg",
     imageAlt: "Оранжевая настурция",
   },
   {
@@ -184,8 +167,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Тропинка из щепы без бетона",
     text: "На утрамбованный грунт кладут геотекстиль и 10–15 см древесных щепок; за год материал оседает и спекается в удобную бурую дорожку. Воду пропускает, сорняк почти не пробивается, выглядит органично.",
     category: "участок и обустройство",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/Woodchips_-_Massachusetts.jpg/640px-Woodchips_-_Massachusetts.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-wood-chip-path.jpg",
     imageAlt: "Дорожка из древесной щепы",
   },
   {
@@ -193,8 +175,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Вермикомпост в ящике на балконе или в подвале",
     text: "Червь старатель (Eisenia fetida) перерабатывает кухонные отходы в «чай» и гумус без запаха при правильной влажности. Контейнер с отверстиями, слоями картона и пищевыми отходами без цитрусов и лука — готовый подкормочный отстой через 2–3 месяца работы.",
     category: "народные методы",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Worm_compost_6.jpg/640px-Worm_compost_6.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-vermicompost-bins.jpg",
     imageAlt: "Вермикомпост с червями",
   },
   {
@@ -202,8 +183,7 @@ export const GUIDE_HACKS: GuideHack[] = [
     title: "Бархатцы как барьер от нематод",
     text: "Тагетес выделяют вещества, подавляющие часть видов галловых нематод в почве. Сеют плотной лентой перед клубникой или после картофеля на участках с историей «узелков» на корнях. Это помощник, не панацея при тяжёлом заражении.",
     category: "обработка и уход",
-    imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Tagetes_erecta_chendumalli_chedi.jpg/640px-Tagetes_erecta_chendumalli_chedi.jpg",
+    imageUrl: "/images/guide/lifehacks/hack-marigold-nematodes.jpg",
     imageAlt: "Бархатцы оранжевые",
   },
 ];

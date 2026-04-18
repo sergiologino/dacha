@@ -25,16 +25,34 @@ export async function GET(request: NextRequest) {
     return new NextResponse(null, { status: 403 });
   }
 
-  const upstream = await fetch(target.toString(), {
-    headers: {
-      Accept: "image/avif,image/webp,image/*,*/*;q=0.8",
-      "User-Agent":
-        "DachaAI-GuideImage/1.0 (https://dacha-ai.ru/guide/lifehacks; image proxy for readers)",
-    },
-    next: { revalidate: 86_400 },
-  });
+  const urlStr = target.toString();
+  const headers = {
+    Accept: "image/avif,image/webp,image/*,*/*;q=0.8",
+    "User-Agent":
+      "DachaAI-GuideImage/1.0 (https://dacha-ai.ru/guide/lifehacks; image proxy for readers)",
+  };
 
-  if (!upstream.ok) {
+  let upstream: Response | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(urlStr, {
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(25_000),
+      });
+      if (res.ok) {
+        upstream = res;
+        break;
+      }
+    } catch {
+      /* сеть / таймаут — повтор */
+    }
+    if (attempt < 2) {
+      await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+    }
+  }
+
+  if (!upstream?.ok) {
     return new NextResponse(null, { status: 502 });
   }
 

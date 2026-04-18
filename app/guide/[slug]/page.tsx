@@ -10,6 +10,7 @@ import {
 } from "@/lib/crop-community";
 import { crops as staticCrops } from "@/lib/data/crops";
 import { prisma } from "@/lib/prisma";
+import { proxifyGuideMediaUrl } from "@/lib/guide-image-url";
 import { absoluteUrl } from "@/lib/seo";
 import { CropDetailContent } from "./crop-detail";
 import type { Crop } from "@/lib/types";
@@ -75,7 +76,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const previewImg = getCropDisplayImageUrl(crop);
   const ogImage =
-    previewImg && !previewImg.startsWith("data:") ? previewImg : undefined;
+    previewImg && !previewImg.startsWith("data:")
+      ? absoluteUrl(proxifyGuideMediaUrl(previewImg))
+      : undefined;
 
   return {
     title: `${crop.name}: когда сажать и как выращивать | Любимая Дача`,
@@ -102,7 +105,9 @@ export default async function CropPage({ params }: Props) {
 
   const previewImg = getCropDisplayImageUrl(crop);
   const schemaImage =
-    previewImg && !previewImg.startsWith("data:") ? [previewImg] : undefined;
+    previewImg && !previewImg.startsWith("data:")
+      ? [absoluteUrl(proxifyGuideMediaUrl(previewImg))]
+      : undefined;
 
   return (
     <>

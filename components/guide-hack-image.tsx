@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { ImageOff } from "lucide-react";
 
 type Props = {
@@ -14,8 +13,9 @@ type Props = {
 /**
  * Картинки идут через /api/guide-image — Wikimedia часто недоступен из браузера в РФ,
  * зато сервер приложения качает и отдаёт байты самому клиенту.
+ * Обычный img вместо next/image: длинный query и загрузка без оптимизатора.
  */
-export function GuideHackImage({ src, alt, sizes, className = "object-cover" }: Props) {
+export function GuideHackImage({ src, alt, sizes: _sizes, className = "object-cover" }: Props) {
   const [failed, setFailed] = useState(false);
 
   const proxied = `/api/guide-image?url=${encodeURIComponent(src)}`;
@@ -30,13 +30,13 @@ export function GuideHackImage({ src, alt, sizes, className = "object-cover" }: 
   }
 
   return (
-    <Image
+    // eslint-disable-next-line @next/next/no-img-element -- прокси-URL с длинным query; тот же origin
+    <img
       src={proxied}
       alt={alt}
-      fill
-      className={className}
-      sizes={sizes}
-      unoptimized
+      className={`absolute inset-0 w-full h-full ${className}`}
+      loading="lazy"
+      decoding="async"
       onError={() => setFailed(true)}
     />
   );

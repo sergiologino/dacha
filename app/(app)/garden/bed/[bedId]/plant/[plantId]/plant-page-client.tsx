@@ -14,6 +14,7 @@ import { PlannedWorkModal, type PlannedWorkEvent } from "@/components/planned-wo
 import { useBeds, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
 import { useCrops } from "@/lib/hooks/use-crops";
 import { getCropDisplayImageUrl } from "@/lib/crop-community";
+import { proxifyGuideMediaUrl } from "@/lib/guide-image-url";
 import { crops as staticCrops } from "@/lib/data/crops";
 import type { CropWithSource } from "@/lib/crops-merge";
 
@@ -116,7 +117,7 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
       {heroUrl ? (
         <div className="mb-6 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 max-h-56 sm:max-h-64">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={heroUrl} alt="" className="w-full h-48 sm:h-64 object-cover" />
+          <img src={proxifyGuideMediaUrl(heroUrl)} alt="" className="w-full h-48 sm:h-64 object-cover" />
         </div>
       ) : (
         <div className="mb-6 rounded-2xl h-40 bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950 dark:to-slate-900 border border-emerald-200/60 dark:border-emerald-800 flex items-center justify-center text-6xl" aria-hidden>

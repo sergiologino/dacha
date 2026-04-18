@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { proxifyGuideMediaUrl } from "@/lib/guide-image-url";
 
 type Props = {
   src: string;
@@ -25,9 +26,28 @@ export function CropImage({ src, alt, className, fill, width, height, sizes }: P
     );
   }
 
+  const displaySrc = proxifyGuideMediaUrl(src);
+
+  if (displaySrc.startsWith("/api/guide-image")) {
+    if (fill) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element -- прокси Wikimedia, тот же origin
+        <img
+          src={displaySrc}
+          alt={alt}
+          className={className ?? "object-cover absolute inset-0 w-full h-full"}
+        />
+      );
+    }
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={displaySrc} alt={alt} width={width} height={height} className={className} />
+    );
+  }
+
   return (
     <Image
-      src={src}
+      src={displaySrc}
       alt={alt}
       fill={fill}
       width={width}

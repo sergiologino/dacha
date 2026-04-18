@@ -5,26 +5,18 @@ import { normalizeCropText } from "@/lib/crop-community";
 const AI_URL = process.env.AI_INTEGRATION_URL;
 const AI_KEY = process.env.AI_INTEGRATION_API_KEY;
 
-/** Запасные иллюстрации с Commons (все upload.wikimedia.org — уже в remotePatterns). */
+/** Запасные иллюстрации (локальные файлы в public/images/guide/fallbacks). */
 export const CATEGORY_FALLBACK_IMAGE: Record<string, string> = {
-  Овощи:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/Tomato_je.jpg/640px-Tomato_je.jpg",
-  Ягоды:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg/640px-Garden_strawberry_%28Fragaria_%C3%97_ananassa%29_single2.jpg",
-  Зелень:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Petroselinum.jpg/640px-Petroselinum.jpg",
-  "Пряные травы":
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Illustration_Anethum_graveolens_clean.jpg/640px-Illustration_Anethum_graveolens_clean.jpg",
-  Бобовые:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/1/11/Peas_in_pods_-_Studio.jpg/640px-Peas_in_pods_-_Studio.jpg",
-  "Плодовые деревья":
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Malus_domestica_2.jpg/640px-Malus_domestica_2.jpg",
-  Цветы:
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Lavender_flower_field.jpg/640px-Lavender_flower_field.jpg",
+  Овощи: "/images/guide/fallbacks/category-vegetables.jpg",
+  Ягоды: "/images/guide/fallbacks/category-berries.jpg",
+  Зелень: "/images/guide/fallbacks/category-greens.jpg",
+  "Пряные травы": "/images/guide/fallbacks/category-herbs.jpg",
+  Бобовые: "/images/guide/fallbacks/category-legumes.jpg",
+  "Плодовые деревья": "/images/guide/fallbacks/category-fruit-trees.jpg",
+  Цветы: "/images/guide/fallbacks/category-flowers.jpg",
 };
 
-const GENERIC_FALLBACK =
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Allium_sativum_Woodwill_1793.jpg/640px-Allium_sativum_Woodwill_1793.jpg";
+export const GENERIC_FALLBACK = "/images/guide/fallbacks/generic-allium.jpg";
 
 function dedupeLabels(labels: string[]): string[] {
   const seen = new Set<string>();
