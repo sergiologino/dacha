@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Sparkles, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,34 +9,50 @@ import { Badge } from "@/components/ui/badge";
 import { MotionDiv, StaggerContainer, StaggerItem } from "@/components/motion";
 import { motion } from "framer-motion";
 import {
-  funFacts,
-  factCategories,
-  type FactCategory,
+  FACT_FILTER_ALL,
+  factCategoryBadgeClass,
+  type FactFilterValue,
+  type FunFactDTO,
 } from "@/lib/data/fun-facts";
 
-const categoryColors: Record<string, string> = {
-  растения: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300",
-  урожай: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
-  история: "bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300",
-  наука: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-  рекорды: "bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300",
+export type FactCategoryOption = { slug: string; title: string };
+
+const PAGE = 8;
+
+type Props = {
+  facts: FunFactDTO[];
+  categories: FactCategoryOption[];
 };
 
-export function FactsContent() {
-  const [activeCategory, setActiveCategory] = useState<FactCategory>("все");
-  const [randomFact, setRandomFact] = useState<number | null>(null);
+export function FactsContent({ facts, categories }: Props) {
+  const filterOptions: { value: FactFilterValue; label: string }[] = useMemo(
+    () => [
+      { value: FACT_FILTER_ALL, label: "Все" },
+      ...categories.map((c) => ({ value: c.slug, label: c.title })),
+    ],
+    [categories]
+  );
 
-  const filtered =
-    activeCategory === "все"
-      ? funFacts
-      : funFacts.filter((f) => f.category === activeCategory);
+  const [activeCategory, setActiveCategory] = useState<FactFilterValue>(FACT_FILTER_ALL);
+  const [randomSlug, setRandomSlug] = useState<string | null>(null);
+  const [visible, setVisible] = useState(PAGE);
+
+  const filtered = useMemo(() => {
+    if (activeCategory === FACT_FILTER_ALL) return facts;
+    return facts.filter((f) => f.categorySlug === activeCategory);
+  }, [facts, activeCategory]);
+
+  const shown = filtered.slice(0, visible);
+  const canMore = visible < filtered.length;
 
   const showRandom = () => {
-    const idx = Math.floor(Math.random() * funFacts.length);
-    setRandomFact(funFacts[idx].id);
-    setActiveCategory("все");
+    if (facts.length === 0) return;
+    const pick = facts[Math.floor(Math.random() * facts.length)];
+    setRandomSlug(pick.slug);
+    setActiveCategory(FACT_FILTER_ALL);
+    setVisible(PAGE);
     setTimeout(() => {
-      document.getElementById(`fact-${funFacts[idx].id}`)?.scrollIntoView({
+      document.getElementById(`fact-${pick.slug}`)?.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
@@ -46,60 +62,60 @@ export function FactsContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950 dark:via-slate-950 dark:to-amber-950">
       <div className="max-w-5xl mx-auto px-4 py-8">
-        {/* Header */}
         <MotionDiv variant="fadeUp">
           <div className="flex items-center gap-3 mb-2">
             <Sparkles className="w-8 h-8 text-amber-500" />
             <h1 className="text-3xl font-bold">Интересные факты</h1>
           </div>
           <p className="text-slate-500 dark:text-slate-400 mb-6">
-            {funFacts.length} удивительных фактов о растениях и огородничестве
+            {facts.length} удивительных фактов о растениях и огородничестве
           </p>
         </MotionDiv>
 
-        {/* Controls */}
         <MotionDiv variant="fadeUp" delay={0.1} className="mb-8">
           <div className="flex flex-wrap gap-2 mb-4">
-            {factCategories.map((cat) => (
+            {filterOptions.map((opt) => (
               <Button
-                key={cat}
-                variant={activeCategory === cat ? "default" : "outline"}
+                key={opt.value}
+                variant={activeCategory === opt.value ? "default" : "outline"}
                 size="sm"
                 onClick={() => {
-                  setActiveCategory(cat);
-                  setRandomFact(null);
+                  setActiveCategory(opt.value);
+                  setRandomSlug(null);
+                  setVisible(PAGE);
                 }}
                 className={
-                  activeCategory === cat
-                    ? "bg-emerald-600 hover:bg-emerald-700"
-                    : ""
+                  activeCategory === opt.value ? "bg-emerald-600 hover:bg-emerald-700" : ""
                 }
               >
-                {cat === "все" ? "Все" : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                {opt.label}
               </Button>
             ))}
           </div>
-          <Button variant="outline" size="sm" onClick={showRandom}>
+          <Button variant="outline" size="sm" onClick={showRandom} disabled={facts.length === 0}>
             <Shuffle className="w-4 h-4 mr-2" />
             Случайный факт
           </Button>
         </MotionDiv>
 
-        {/* Facts grid */}
-        <StaggerContainer key={activeCategory} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" staggerDelay={0.05}>
-          {filtered.map((fact) => (
-            <StaggerItem key={fact.id}>
+        <StaggerContainer
+          key={activeCategory}
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+          staggerDelay={0.05}
+        >
+          {shown.map((fact) => (
+            <StaggerItem key={fact.slug}>
               <motion.div
-                id={`fact-${fact.id}`}
+                id={`fact-${fact.slug}`}
                 animate={
-                  randomFact === fact.id
+                  randomSlug === fact.slug
                     ? { scale: [1, 1.03, 1], transition: { duration: 0.4 } }
                     : {}
                 }
               >
                 <Card
                   className={`p-6 transition-all ${
-                    randomFact === fact.id
+                    randomSlug === fact.slug
                       ? "ring-2 ring-amber-400 shadow-lg shadow-amber-100 dark:shadow-amber-900/30"
                       : "hover:shadow-md"
                   }`}
@@ -111,9 +127,9 @@ export function FactsContent() {
                         <h3 className="font-semibold text-lg">{fact.title}</h3>
                         <Badge
                           variant="secondary"
-                          className={`text-xs ${categoryColors[fact.category] || ""}`}
+                          className={`text-xs ${factCategoryBadgeClass(fact.categorySlug)}`}
                         >
-                          {fact.category}
+                          {fact.categoryTitle}
                         </Badge>
                       </div>
                       <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
@@ -127,17 +143,25 @@ export function FactsContent() {
           ))}
         </StaggerContainer>
 
-        {filtered.length === 0 && (
-          <p className="text-center text-slate-500 py-12">
-            Нет фактов в этой категории
-          </p>
-        )}
+        {filtered.length === 0 ? (
+          <p className="text-center text-slate-500 py-12">Нет фактов в этой категории</p>
+        ) : null}
 
-        {/* Footer link */}
+        {canMore ? (
+          <div className="mt-8 flex justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => setVisible((v) => Math.min(v + PAGE, filtered.length))}
+            >
+              Показать ещё 8
+            </Button>
+          </div>
+        ) : null}
+
         <MotionDiv variant="fadeIn" className="mt-12 text-center">
-          <p className="text-sm text-slate-500 mb-4">
-            Хотите применить знания на практике?
-          </p>
+          <p className="text-sm text-slate-500 mb-4">Хотите применить знания на практике?</p>
           <Button asChild className="bg-emerald-600 hover:bg-emerald-700 rounded-2xl">
             <Link href="/guide">Открыть справочник растений</Link>
           </Button>

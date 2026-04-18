@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getMergedCrops, type CropWithSource } from "@/lib/crops-merge";
 import { absoluteUrl } from "@/lib/seo";
 import { GuideWeeklyHacksSection } from "@/components/guide-weekly-hacks";
+import { getPublishedGuideHacks } from "@/lib/queries/guide-content";
 import { GuideSearch } from "./guide-search";
 import { GuideAccordion } from "./guide-accordion";
 
@@ -51,6 +52,13 @@ export default async function GuidePage() {
     console.error("[Guide] getMergedCrops failed, using static crops only:", err);
   }
 
+  let guideHacks: Awaited<ReturnType<typeof getPublishedGuideHacks>> = [];
+  try {
+    guideHacks = await getPublishedGuideHacks();
+  } catch (err) {
+    console.error("[Guide] getPublishedGuideHacks failed:", err);
+  }
+
   return (
     <div>
       <JsonLd
@@ -93,20 +101,13 @@ export default async function GuidePage() {
           </Link>
         </div>
 
-        <GuideWeeklyHacksSection />
+        <GuideWeeklyHacksSection hacks={guideHacks} />
 
         <GuideSearch crops={crops} />
 
         <GuideAccordion crops={crops} />
 
-        <div className="mt-10 pt-6 border-t border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <Link
-            href="/guide/lifehacks"
-            className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium"
-          >
-            <Sparkles className="w-5 h-5 flex-shrink-0" />
-            Все лайфхаки и народные приёмы
-          </Link>
+        <div className="mt-10 pt-6 border-t border-slate-200 dark:border-slate-700 flex justify-center sm:justify-end">
           <Link
             href="/facts"
             className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-300 text-sm font-medium"
