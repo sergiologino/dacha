@@ -48,6 +48,14 @@ export const metadata: Metadata = {
     locale: "ru_RU",
     url: absoluteUrl("/spravochnik-udobreniy-i-zashchity"),
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Справочник удобрений и защиты растений",
+    description:
+      "Фертика, Фаско, Кристалон, нитроаммофоска, Фитоспорин и др. — кратко и подробные страницы.",
+    images: ["/icons/icon-512.png"],
+  },
+  robots: { index: true, follow: true },
 };
 
 export default function FertilizersAndProtectionGuidePage() {

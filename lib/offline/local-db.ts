@@ -32,11 +32,41 @@ export function getLocalDb(): DachaLocalDb | null {
   return dbSingleton;
 }
 
-/** Очистка локальных данных при выходе из аккаунта. */
+/** Очистка таблиц без удаления БД (например, после успешного drain). */
 export async function wipeLocalOfflineStores(): Promise<void> {
   const db = getLocalDb();
   if (!db) return;
   await db.outbox.clear();
   await db.localBlobs.clear();
   await db.persistKv.clear();
+}
+
+/** Полное удаление IndexedDB «dacha-ai-local» и сброс синглтона (выход из аккаунта). */
+export async function deleteLocalDatabaseEntirely(): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  const db = dbSingleton;
+  try {
+    if (db) {
+      await db.delete();
+    } else {
+      await new Promise<void>((resolve, reject) => {
+        const req = indexedDB.deleteDatabase("dacha-ai-local");
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+  } catch (e) {
+    console.warn("[local-db] deleteLocalDatabaseEntirely:", e);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const req = indexedDB.deleteDatabase("dacha-ai-local");
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    } catch {
+      /* */
+    }
+  } finally {
+    dbSingleton = null;
+  }
 }

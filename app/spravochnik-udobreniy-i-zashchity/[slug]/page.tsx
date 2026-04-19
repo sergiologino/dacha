@@ -38,6 +38,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       locale: "ru_RU",
       url: absoluteUrl(path),
     },
+    twitter: {
+      card: "summary_large_image",
+      title: p.name,
+      description: p.teaser,
+      images: ["/icons/icon-512.png"],
+    },
+    robots: { index: true, follow: true },
   };
 }
 

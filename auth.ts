@@ -67,12 +67,12 @@ providers.push(
   }),
 );
 
-// Сессия JWT: до 30 дней с последнего продления; при заходах в приложение срок сдвигается (updateAge),
-// пока пользователь не пропадёт на месяц или не нажмёт «Выход».
-const SESSION_MAX_AGE_DAYS = 30;
-const SESSION_MAX_AGE_SEC = SESSION_MAX_AGE_DAYS * 24 * 60 * 60;
-/** Минимум секунд между продлениями cookie при обращении к сессии (скользящее окно). */
-const SESSION_UPDATE_AGE_SEC = 24 * 60 * 60;
+// JWT: скользящее окно бездействия 7 дней (каждый успешный запрос сессии обновляет lastActivitySec).
+// Cookie живёт не дольше SESSION_MAX_AGE_SEC. Осознанный выход — полная очистка на клиенте (см. signOutAndWipeLocalDevice).
+const IDLE_MAX_SEC = 7 * 24 * 60 * 60;
+const SESSION_MAX_AGE_SEC = IDLE_MAX_SEC;
+/** Как часто перезаписывать cookie сессии при активности (сек.). */
+const SESSION_UPDATE_AGE_SEC = 60 * 15;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers,
@@ -96,14 +96,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, user }) {
+      const nowSec = Math.floor(Date.now() / 1000);
+
       if (user) {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
         token.picture = user.image;
         token.phone = user.phone ?? null;
+        token.lastActivitySec = nowSec;
+        return token;
       }
 
+      const last =
+        typeof token.lastActivitySec === "number" ? token.lastActivitySec : nowSec;
+      if (nowSec - last > IDLE_MAX_SEC) {
+        return null;
+      }
+      token.lastActivitySec = nowSec;
       return token;
     },
     async session({ session, token }) {

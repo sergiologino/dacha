@@ -34,7 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
     >
       <SessionProvider
-        refetchInterval={60 * 60}
+        refetchInterval={2 * 60}
         refetchOnWindowFocus
       >
         <PersistQueryClientProvider

@@ -13,6 +13,15 @@
 - **`robots.ts`**, **`sitemap.ts`**, **`llms.txt`**, **`llms-full.txt`**: добавлены `vse-sovety` и справочник удобрений; **canonical** на новых страницах через `absoluteUrl(...)`.
 - **Тест**: `__tests__/lib/fun-facts-fallback.test.ts`.
 
+## 2026-04-19 — Сессия 7 дней, выход с полной очисткой, факты, SEO справочника
+
+- **Auth (JWT)**: скользящее окно **7 дней без активности** — в токене `lastActivitySec`, при превышении idle JWT обнуляется; `session.maxAge` и cookie **7 суток**; `updateAge` **15 мин** для обновления cookie при активности. `SessionProvider.refetchInterval` **2 мин** — чаще подтягивает сессию с сервера.
+- **Выход**: `signOutAndWipeLocalDevice()` — `deleteLocalDatabaseEntirely()` (IndexedDB `dacha-ai-local`), `localStorage` / `sessionStorage.clear()`, сброс флага онбординга; затем `signOut({ redirect: false })` и **`window.location.assign("/")`**. Кнопка «Выйти» в настройках переведена на этот поток. Серверная БД пользователя **не** удаляется.
+- **Интересные факты**: убраны `StaggerContainer`/`StaggerItem` с `whileInView`+`once` — из-за них новые карточки после «Показать ещё» оставались с `opacity: 0`. Сетка на `motion.div` с `initial`/`animate`; подпись кнопки **«Показать ещё N»**.
+- **SEO** `/spravochnik-udobreniy-i-zashchity` и `[slug]`: добавлены **twitter** (`summary_large_image`, иконка), **robots** index/follow; hub и slug уже имели title, description, keywords, canonical, OpenGraph — в sitemap/robots страницы были ранее.
+
+---
+
 ## 2026-04-19 (доп.) — Каталог препаратов на странице удобрений
 
 - **`lib/data/spravochnik-udobreniy-products.ts`**: виды удобрений и защиты с **конкретными названиями**, распространёнными в РФ (Фертика, Фаско, Кристалон, нитроаммофоска, Фитоспорин, Топаз и др.).
