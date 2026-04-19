@@ -13,6 +13,12 @@
 - **`robots.ts`**, **`sitemap.ts`**, **`llms.txt`**, **`llms-full.txt`**: добавлены `vse-sovety` и справочник удобрений; **canonical** на новых страницах через `absoluteUrl(...)`.
 - **Тест**: `__tests__/lib/fun-facts-fallback.test.ts`.
 
+## 2026-04-19 (доп.) — Каталог препаратов на странице удобрений
+
+- **`lib/data/spravochnik-udobreniy-products.ts`**: виды удобрений и защиты с **конкретными названиями**, распространёнными в РФ (Фертика, Фаско, Кристалон, нитроаммофоска, Фитоспорин, Топаз и др.).
+- **`/spravochnik-udobreniy-i-zashchity/[slug]`**: подробные страницы по каждому пункту; хаб сгруппирован по разделам, **ItemList** в JSON-LD.
+- **`sitemap.ts`**, **`robots.ts`**: все slug подстраниц; тест **`__tests__/lib/spravochnik-udobreniy-products.test.ts`**.
+
 ---
 
 ## 2026-04-18 — Офлайн: руководство в справочнике, drain при 401/403, счётчик ошибок

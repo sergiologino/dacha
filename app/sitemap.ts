@@ -1,5 +1,6 @@
 import { MetadataRoute } from "next";
 import { crops } from "@/lib/data/crops";
+import { getSpravochnikProductSlugs } from "@/lib/data/spravochnik-udobreniy-products";
 import { prisma } from "@/lib/prisma";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -99,6 +100,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.88,
     },
+    ...getSpravochnikProductSlugs().map((slug) => ({
+      url: `${baseUrl}/spravochnik-udobreniy-i-zashchity/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.72,
+    })),
     ...galleryPosts.map((photo) => ({
       url: `${baseUrl}/gallery/${photo.id}`,
       lastModified: photo.publishedAt ?? photo.createdAt,

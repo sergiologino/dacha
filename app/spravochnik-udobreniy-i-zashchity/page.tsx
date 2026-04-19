@@ -3,6 +3,10 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { JsonLd } from "@/components/json-ld";
 import { absoluteUrl } from "@/lib/seo";
+import {
+  SPRAVOCHNIK_SECTIONS,
+  getSpravochnikProductsBySection,
+} from "@/lib/data/spravochnik-udobreniy-products";
 
 const faq = [
   {
@@ -31,15 +35,15 @@ export const metadata: Metadata = {
   title:
     "Справочник удобрений и средств защиты растений — вредители, болезни, подкормки | Любимая Дача",
   description:
-    "Удобрения для огорода и сада: органика, NPK, микроэлементы. Средства защиты от вредителей и болезней томатов, огурцов, картофеля: профилактика, биопрепараты, безопасное применение.",
+    "Удобрения для огорода и сада: Фертика, Фаско, Кристалон, нитроаммофоска, Фитоспорин и др. Кратко по каждому препарату и ссылки на подробные страницы.",
   keywords:
-    "удобрения для огорода, подкормка томатов и огурцов, средства защиты растений, вредители огорода, болезни томатов фитофтороз, бордосская жидкость, биопрепараты для растений",
+    "удобрения для огорода, нитроаммофоска, карбамид мочевина, Фертика, Фаско, Кристалон, Фитоспорин, Топаз фунгицид, средства защиты растений",
   alternates: {
     canonical: absoluteUrl("/spravochnik-udobreniy-i-zashchity"),
   },
   openGraph: {
     title: "Справочник удобрений и защиты растений",
-    description: "Подкормки, вредители и болезни: практичный обзор для дачника.",
+    description: "Каталог популярных в РФ удобрений и препаратов защиты с подробными страницами.",
     type: "article",
     locale: "ru_RU",
     url: absoluteUrl("/spravochnik-udobreniy-i-zashchity"),
@@ -48,6 +52,13 @@ export const metadata: Metadata = {
 
 export default function FertilizersAndProtectionGuidePage() {
   const url = absoluteUrl("/spravochnik-udobreniy-i-zashchity");
+
+  const catalogItems = SPRAVOCHNIK_SECTIONS.flatMap((sec) =>
+    getSpravochnikProductsBySection(sec.id).map((p) => ({
+      name: p.name,
+      url: `${url}/${p.slug}`,
+    }))
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-lime-50 dark:from-emerald-950 dark:via-slate-950 dark:to-lime-950">
@@ -71,6 +82,18 @@ export default function FertilizersAndProtectionGuidePage() {
               acceptedAnswer: { "@type": "Answer", text: item.answer },
             })),
           },
+          {
+            "@context": "https://schema.org",
+            "@type": "ItemList",
+            name: "Популярные удобрения и препараты защиты",
+            numberOfItems: catalogItems.length,
+            itemListElement: catalogItems.map((item, i) => ({
+              "@type": "ListItem",
+              position: i + 1,
+              name: item.name,
+              url: item.url,
+            })),
+          },
         ]}
       />
 
@@ -91,9 +114,10 @@ export default function FertilizersAndProtectionGuidePage() {
           Справочник удобрений и средств защиты растений
         </h1>
         <p className="mt-4 text-lg text-slate-600 dark:text-slate-300">
-          Краткий ориентир для дачника: чем подкармливать грядки без «химического перегруза», как снизить
-          риск болезней и что учитывать при работе с вредителями. Для сроков посадки и ухода по культурам
-          используйте{" "}
+          Ниже — виды удобрений и защиты с <strong>конкретными названиями</strong>, которые чаще всего встречаются в
+          российских садовых маркетах и агрохимии. У каждого пункта есть краткое описание и ссылка на{" "}
+          <strong>отдельную страницу</strong> с практическими пояснениями. Дозировки и регламенты — только с вашей
+          упаковки. Для сроков посадки и ухода по культурам см.{" "}
           <Link href="/guide" className="text-emerald-700 underline-offset-2 hover:underline dark:text-emerald-400">
             основной справочник
           </Link>{" "}
@@ -107,92 +131,59 @@ export default function FertilizersAndProtectionGuidePage() {
           .
         </p>
 
-        <div className="mt-10 space-y-10">
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Органические удобрения</h2>
-            <ul className="mt-4 list-disc space-y-2 pl-5 text-slate-600 dark:text-slate-300">
-              <li>
-                <strong>Компост и перегной</strong> — базис плодородия: улучшают структуру почвы и дают
-                медленное питание. Вносят под перекопку или локально под посадку.
-              </li>
-              <li>
-                <strong>Зола</strong> — источник калия и части микроэлементов; дозировка зависит от типа почвы
-                и культуры. Не сочетать с известью и аммиачной селитрой без расчёта кислотности.
-              </li>
-              <li>
-                <strong>Настои</strong> (крапива, коровяк и др.) — осторожно с концентрацией, чтобы не обжечь
-                корни. Чаще используют как дополнение, а не единственный источник питания.
-              </li>
-            </ul>
-          </section>
+        <section className="mt-8 rounded-2xl border border-slate-200 bg-white/70 p-5 text-sm leading-relaxed text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-white">Общие принципы</h2>
+          <p className="mt-2">
+            Органика (компост, биогумус, зола) задаёт фон почвы; минеральные соли и водорастворимые комплексы
+            подключают по фазе развития растения. Азот усиливает зелёную массу, фосфор помогает корням и завязи, калий —
+            качеству плодов. Микроэлементы и листовые подкормки — при симптомах или по анализу. Средства защиты не
+            смешивайте «на глаз» с удобрениями в одной ёмкости, если это не разрешено инструкцией.
+          </p>
+        </section>
 
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Минеральные подкормки (NPK)</h2>
-            <p className="mt-4 text-slate-600 dark:text-slate-300">
-              Азот стимулирует зелёную массу, фосфор помогает корням и завязи, калий укрепляет растение и
-              влияет на качество плодов. На практике важно не переборщить с азотом перед плодоношением у
-              томатов и огурцов — это может усилить нежность тканей и привлечь вредителей. Готовые смеси для
-              овощей удобны, но читайте дозировку на упаковке и учитывайте уже внесённую органику.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Микроэлементы</h2>
-            <p className="mt-4 text-slate-600 dark:text-slate-300">
-              Дефицит бора, магния, железа и других элементов проявляется точечно: хлороз листьев, трещины
-              плодов, «стеклянная» кожица. Листовые подкормки иногда помогают быстрее, но сначала стоит
-              исключить перелив, загущение посадок и вредителей — симптомы могут быть похожи.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">
-              Биопрепараты и стимуляторы
-            </h2>
-            <p className="mt-4 text-slate-600 dark:text-slate-300">
-              Препараты на основе полезных бактерий и грибов помогают подавить часть патогенов и улучшить
-              усвоение питания. Они редко дают «мгновенный эффект», зато хорошо вписываются в профилактику.
-              Соблюдайте температурный режим и сроки обработки из инструкции.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Вредители огорода</h2>
-            <ul className="mt-4 list-disc space-y-2 pl-5 text-slate-600 dark:text-slate-300">
-              <li>
-                <strong>Тля</strong> — смывание струей воды, мыльно-зольные растворы, привлечение полезных
-                насекомых; при массовом поражении — препараты по инструкции с учётом опылителей.
-              </li>
-              <li>
-                <strong>Колорадский жук</strong> — регулярный сбор, глубокое окучивание, биопрепараты;
-                инсектициды — осознанно, с ротацией действующих веществ.
-              </li>
-              <li>
-                <strong>Паутинный клещ</strong> — повышение влажности, смыв, своевременная обрезка
-                заросших участков; акарициды — при необходимости.
-              </li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Болезни растений</h2>
-            <p className="mt-4 text-slate-600 dark:text-slate-300">
-              <strong>Фитофтороз, мучнистая роса, серая гниль</strong> чаще ловят там, где плохой воздух,
-              избыток влаги и загущение. Начинайте с режима полива, мульчи и прореживания.               Медьсодержащие и
-              другие фунгициды применяют по регламенту; бордосская жидкость и аналоги — классика, но
-              чувствительны к передозировке и времени суток обработки.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Безопасность</h2>
-            <p className="mt-4 text-slate-600 dark:text-slate-300">
-              Используйте СИЗ, не смешивайте неизвестные составы, храните препараты отдельно от пищи и детей.
-              Соблюдайте срок ожидания до сбора урожая. При сомнениях — консультируйтесь с региональными
-              справочниками и специалистами; этот текст не заменяет инструкции производителя.
-            </p>
-          </section>
+        <div className="mt-12 space-y-12">
+          {SPRAVOCHNIK_SECTIONS.map((sec) => {
+            const products = getSpravochnikProductsBySection(sec.id);
+            if (products.length === 0) return null;
+            return (
+              <section key={sec.id}>
+                <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{sec.title}</h2>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">{sec.hubIntro}</p>
+                <ul className="mt-5 space-y-4">
+                  {products.map((p) => (
+                    <li key={p.slug}>
+                      <Card className="p-4 transition hover:border-emerald-300 dark:hover:border-emerald-700">
+                        <Link
+                          href={`/spravochnik-udobreniy-i-zashchity/${p.slug}`}
+                          className="text-base font-semibold text-emerald-800 hover:underline dark:text-emerald-300"
+                        >
+                          {p.name}
+                        </Link>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{p.subtitle}</p>
+                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{p.teaser}</p>
+                        <Link
+                          href={`/spravochnik-udobreniy-i-zashchity/${p.slug}`}
+                          className="mt-2 inline-block text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+                        >
+                          Подробнее →
+                        </Link>
+                      </Card>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
         </div>
+
+        <section className="mt-12">
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Безопасность</h2>
+          <p className="mt-4 text-slate-600 dark:text-slate-300">
+            Используйте СИЗ, не смешивайте неизвестные составы, храните препараты отдельно от пищи и детей. Соблюдайте
+            срок ожидания до сбора урожая. Этот материал не заменяет инструкцию производителя и действующий регламент
+            применения.
+          </p>
+        </section>
 
         <Card className="mt-12 p-6 border-emerald-200 bg-emerald-50/60 dark:border-emerald-900 dark:bg-emerald-950/30">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Смотрите также</h2>
