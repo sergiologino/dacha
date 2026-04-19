@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,6 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2, Trash2 } from "lucide-react";
+import type { Bed, BedPlantTimelineEvent, OfflineEntityMeta } from "@/lib/hooks/use-beds";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
+import { newOfflineClientId } from "@/lib/offline/offline-id";
 
 const EVENT_TYPES: { value: string; label: string }[] = [
   { value: "other", label: "Другое" },
@@ -31,6 +36,7 @@ export type PlannedWorkEvent = {
   dateTo: string | null;
   isAction: boolean;
   type: string;
+  offlineMeta?: OfflineEntityMeta;
 };
 
 export type BedPlantOption = { bedId: string; bedName: string; plantId: string; plantName: string };
@@ -59,6 +65,32 @@ function toDateInputValue(iso: string): string {
   }
 }
 
+function sortTimelineEvents(ev: BedPlantTimelineEvent[]): BedPlantTimelineEvent[] {
+  return [...ev].sort((a, b) => {
+    const da = new Date(a.scheduledDate).getTime();
+    const db = new Date(b.scheduledDate).getTime();
+    if (da !== db) return da - db;
+    return a.sortOrder - b.sortOrder;
+  });
+}
+
+function patchBedsPlantTimeline(
+  qc: QueryClient,
+  plantId: string,
+  updater: (events: BedPlantTimelineEvent[]) => BedPlantTimelineEvent[]
+) {
+  qc.setQueryData<Bed[]>(["beds"], (old) =>
+    old?.map((bed) => ({
+      ...bed,
+      plants: (bed.plants ?? []).map((p) => {
+        if (p.id !== plantId) return p;
+        const next = updater(p.timelineEvents ?? []);
+        return { ...p, timelineEvents: sortTimelineEvents(next) };
+      }),
+    }))
+  );
+}
+
 export function PlannedWorkModal({
   open,
   onOpenChange,
@@ -72,6 +104,7 @@ export function PlannedWorkModal({
   bedsForPick,
   onShowPaywall,
 }: PlannedWorkModalProps) {
+  const qc = useQueryClient();
   const [pickedPlant, setPickedPlant] = useState<BedPlantOption | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -133,6 +166,69 @@ export function PlannedWorkModal({
         isAction,
         type,
       };
+      if (shouldQueueOfflineMutation()) {
+        if (mode === "add") {
+          const beds = qc.getQueryData<Bed[]>(["beds"]);
+          const plant = beds?.flatMap((b) => b.plants ?? []).find((p) => p.id === plantIdToUse);
+          const dependsOn = plant?.offlineMeta?.pendingOutboxId;
+          const tempEventId = newOfflineClientId();
+          const maxOrder = (plant?.timelineEvents ?? []).reduce((m, e) => Math.max(m, e.sortOrder), -1);
+          const optimistic: BedPlantTimelineEvent = {
+            id: tempEventId,
+            type: body.type,
+            title: body.title,
+            description: body.description,
+            scheduledDate: body.scheduledDate,
+            dateTo: body.dateTo,
+            isAction: body.isAction,
+            sortOrder: maxOrder + 1,
+            doneAt: null,
+            isUserCreated: true,
+          };
+          const outId = await enqueueOutbox({
+            action: "CREATE_TIMELINE_EVENT",
+            payload: { plantId: plantIdToUse, tempEventId, body },
+            dependsOn,
+          });
+          if (!outId) throw new Error("Локальное хранилище недоступно");
+          patchBedsPlantTimeline(qc, plantIdToUse, (ev) => [
+            ...ev,
+            { ...optimistic, offlineMeta: { pendingOutboxId: outId } },
+          ]);
+          toast.success("Работа добавлена (ожидает сеть)");
+          onSuccess();
+          onOpenChange(false);
+          return;
+        }
+        if (mode === "edit" && event) {
+          const dependsOn = event.offlineMeta?.pendingOutboxId;
+          const outId = await enqueueOutbox({
+            action: "PATCH_TIMELINE_EVENT",
+            payload: { plantId: initialPlantId, eventId: event.id, body },
+            dependsOn,
+          });
+          if (!outId) throw new Error("Локальное хранилище недоступно");
+          patchBedsPlantTimeline(qc, initialPlantId, (ev) =>
+            ev.map((x) =>
+              x.id === event.id
+                ? {
+                    ...x,
+                    title: body.title,
+                    description: body.description,
+                    scheduledDate: body.scheduledDate,
+                    dateTo: body.dateTo,
+                    isAction: body.isAction,
+                    type: body.type,
+                  }
+                : x
+            )
+          );
+          toast.success("Изменения сохранены локально");
+          onSuccess();
+          onOpenChange(false);
+          return;
+        }
+      }
       if (mode === "add") {
         const res = await fetch(`/api/plants/${plantIdToUse}/timeline/events`, {
           method: "POST",
@@ -184,6 +280,20 @@ export function PlannedWorkModal({
     if (!confirm("Удалить эту плановую работу?")) return;
     setDeleting(true);
     try {
+      if (shouldQueueOfflineMutation()) {
+        const dependsOn = event.offlineMeta?.pendingOutboxId;
+        const outId = await enqueueOutbox({
+          action: "DELETE_TIMELINE_EVENT",
+          payload: { plantId: initialPlantId, eventId: event.id },
+          dependsOn,
+        });
+        if (!outId) throw new Error("Локальное хранилище недоступно");
+        patchBedsPlantTimeline(qc, initialPlantId, (ev) => ev.filter((x) => x.id !== event.id));
+        toast.success("Удаление сохранено локально");
+        onSuccess();
+        onOpenChange(false);
+        return;
+      }
       const res = await fetch(`/api/plants/${initialPlantId}/timeline/events/${event.id}`, {
         method: "DELETE",
       });

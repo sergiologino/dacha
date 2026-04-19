@@ -1,4 +1,4 @@
-const CACHE_NAME = "dacha-ai-v3";
+const CACHE_NAME = "dacha-ai-v4";
 
 const STATIC_ASSETS = [
   "/manifest.json",
@@ -73,6 +73,26 @@ self.addEventListener("fetch", (event) => {
 
   if (request.method !== "GET") return;
   if (url.origin !== self.location.origin) return;
+  // Прокси иллюстраций справочника/лайфхаков: кэш после первого показа → офлайн
+  if (url.pathname === "/api/guide-image") {
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(CACHE_NAME);
+        try {
+          const res = await fetch(request);
+          if (res.ok) {
+            await cache.put(request, res.clone());
+          }
+          return res;
+        } catch {
+          const cached = await caches.match(request);
+          if (cached) return cached;
+          return new Response(null, { status: 503 });
+        }
+      })()
+    );
+    return;
+  }
   if (url.pathname.startsWith("/api/")) return;
   if (url.pathname.startsWith("/_next/")) return;
   // Не кэшируем user uploads: cache-first давал пустые/устаревшие ответы для новых файлов.

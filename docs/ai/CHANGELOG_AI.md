@@ -4,6 +4,41 @@
 
 ---
 
+## 2026-04-18 — Офлайн: руководство в справочнике, drain при 401/403, счётчик ошибок
+
+- **`GUIDE_DETAIL_FETCH`**: постановка в outbox с страницы культуры (`crop-detail.tsx`); после drain — `GET /api/guide/detail`, событие `GUIDE_DETAIL_READY_EVENT` с Markdown-текстом для текущего `slug`.
+- **`sync-engine`**: единая проверка ответа `assertOkForDrain` — **401/403** → `DrainAuthError`, запись возвращается в `pending`, drain **останавливается**, в результате флаг `authRequired`; прочие ошибки — ретраи с backoff, после 8 попыток — `failed`; при `failed` остальные pending обрабатываются дальше.
+- **UI**: `OfflineSyncBridge` — тост при `authRequired`; `SyncStatusBar` — блок «Ошибки: N» для записей outbox в статусе `failed`; хук `useOutboxQueueStats` (pending + failed).
+- **Документация**: `docs/DEPLOY.md` — блок про DBeaver и расхождение паролей; `OFFLINE_SYNC.md` — актуализирован пункт про `AI_ANALYZE_PHOTO`.
+
+---
+
+## 2026-04-18 — Офлайн: очередь AI + индикаторы сети и outbox
+
+- **Outbox**: действия `AI_ANALYZE_PHOTO` (блоб → `POST /api/ai/analyze`), `AI_CHAT_MESSAGE` (`POST /api/chat`), `AI_TIMELINE_GENERATE` (`POST .../timeline/generate`) в `sync-engine`; после анализа/чата — события `ANALYSES_SYNC_EVENT` / `CHAT_HISTORY_SYNC_EVENT` (`lib/offline/sync-events.ts`).
+- **Клиент**: камера (`camera/page.tsx`), чат (`use-chat.ts`), поиск в справочнике (`guide-search.tsx`), генерация таймлайна (`garden-content`, `plant-page-client`) ставят задачи в очередь офлайн; чат и история анализов подписаны на события и подтягивают данные с сервера после drain.
+- **Событие `dacha-outbox-changed`**: вызывается из `enqueueOutbox`, `deleteOutboxRecord`, `updateOutboxRecord`, отмены загрузки фото — для живого счётчика.
+- **UI**: `components/sync-status-bar.tsx` — для авторизованных: онлайн/офлайн (с тапом — `recheck` + probe), счётчик «В очереди: N»; в `Providers`.
+
+---
+
+## 2026-04-18 — Офлайн: фото в outbox, удаление фото, drain UX
+
+- **`UPLOAD_PHOTO`**: при офлайне сжатие → `putLocalBlob` → очередь с `dependsOn` на pending-создание растения при необходимости; превью через `blob:` URL; `applyOne` в `sync-engine` шлёт `POST /api/photos`, затем `deleteLocalBlob`.
+- **`DELETE_PHOTO`**: офлайн-удаление уже сохранённого на сервере фото через outbox; для локального превью (`offline-…`) — `cancelPendingPhotoUploadByTempId` + отзыв `blob:` URL.
+- **Инвалидация**: после drain также `gallery-feed`.
+- **`OfflineSyncBridge`**: при ошибках drain — `toast.error` (кратко).
+
+---
+
+## 2026-04-18 — Офлайн-синхронизация: спецификация и фундамент (Dexie, outbox)
+
+- **Документация**: `docs/ai/OFFLINE_SYNC.md` — целевая архитектура (кэш, очередь, AI, фото, этапы внедрения); **D-018** в `docs/ai/DECISIONS.md`; блок в `docs/ai/ARCHITECTURE.md`.
+- **Код**: зависимость `dexie`; `lib/offline/` — `local-db.ts` (IndexedDB), `outbox-types.ts`, `outbox.ts` (enqueue/list/update блобы), `network-status.ts` (online/offline + `GET /api/health`), `sync-engine.ts` (каркас `drainOutbox`, реализация вызовов API — TODO); хук `lib/hooks/use-network-status.ts`.
+- **Следующие шаги**: персист React Query; обёртки мутаций грядок/календаря/камеры на «офлайн → outbox»; реализация `applyOne` в sync-engine.
+
+---
+
 ## 2026-04-17 — Таймлайн озимых; главная «Мой участок»; триал 14 дней без бесплатного тарифа
 
 - **Grandfathering (старый бесплатный тариф)**: аккаунты с `createdAt` **до 17.04.2026 включительно** (UTC, см. `LEGACY_FREE_TIER_LAST_INCLUSIVE` в `lib/user-access.ts`), пока **не** купили Премиум, сохраняют прежние лимиты: 2 грядки, 3 растения, 1 таймлайн на аккаунт, до 5 ручных работ, 5 сообщений чата и 3 анализа фото в месяц. Триал 14 дней для них **не** действует. После покупки Премиум правила как у остальных. Новые регистрации с **18.04.2026** — только триал и paywall. Крон погодных пушей не считает legacy за «триал» (только Премиум или новая модель в окне 14 дней). `GET /api/user/premium` отдаёт `isLegacyFreeTier`.

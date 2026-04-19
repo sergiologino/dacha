@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Camera, Image as ImageIcon, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { GardenBreadcrumbs } from "@/components/garden-breadcrumbs";
 import { PlantWorksList } from "@/components/plant-works-list";
@@ -12,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { PlannedWorkModal, type PlannedWorkEvent } from "@/components/planned-work-modal";
 import { useBeds, useUploadPlantPhoto, type Bed } from "@/lib/hooks/use-beds";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 import { useCrops } from "@/lib/hooks/use-crops";
 import { getCropDisplayImageUrl } from "@/lib/crop-community";
 import { proxifyGuideMediaUrl } from "@/lib/guide-image-url";
@@ -222,6 +225,18 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
                 setShowPaywall(true);
                 return;
               }
+              if (shouldQueueOfflineMutation()) {
+                const dependsOn = plant.offlineMeta?.pendingOutboxId;
+                const outId = await enqueueOutbox({
+                  action: "AI_TIMELINE_GENERATE",
+                  payload: { plantId: plant.id },
+                  dependsOn,
+                });
+                if (outId) {
+                  toast.message("Генерация таймлайна в очереди — выполним при появлении сети");
+                }
+                return;
+              }
               const res = await fetch(`/api/plants/${plant.id}/timeline/generate`, { method: "POST" });
               if (!res.ok) return;
               void qc.invalidateQueries({ queryKey: ["beds"] });
@@ -253,7 +268,11 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
         bedName={bed.name}
         plantName={plant.name}
         event={plannedWorkModal.event}
-        onSuccess={() => void qc.invalidateQueries({ queryKey: ["beds"] })}
+        onSuccess={() => {
+          if (!shouldQueueOfflineMutation()) {
+            void qc.invalidateQueries({ queryKey: ["beds"] });
+          }
+        }}
         onShowPaywall={() => setShowPaywall(true)}
       />
 

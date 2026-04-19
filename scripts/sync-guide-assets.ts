@@ -1,15 +1,16 @@
 /**
  * Скачивает иллюстрации справочника и лайфхаков в public/images/guide/
- * и обновляет lib/data/crops.ts, lib/data/guide-hacks.ts, lib/crop-image.ts.
+ * и обновляет lib/data/crops.ts, imageUrl лайфхаков в БД, lib/crop-image.ts.
  *
  * Повторный запуск: уже локальные пути (/) пропускает.
  *
  * Запуск: npx tsx scripts/sync-guide-assets.ts
  */
+import "dotenv/config";
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "fs";
 import { join } from "path";
+import { PrismaClient } from "../lib/generated/prisma/client";
 import { crops } from "../lib/data/crops";
-import { GUIDE_HACKS } from "../lib/data/guide-hacks";
 import {
   CATEGORY_FALLBACK_IMAGE,
   GENERIC_FALLBACK,
@@ -19,9 +20,7 @@ const ROOT = join(process.cwd(), "public/images/guide");
 const UA =
   "DachaAI-GuideAssetSync/1.0 (https://dacha-ai.ru; local mirror of guide images)";
 
-function escapeRe(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+const prisma = new PrismaClient();
 
 /** Если thumb отдаёт 404, пробуем оригинал без /thumb/…/NNpx- (хеш в пути может быть устаревшим). */
 function directCommonsFromThumbUrl(url: string): string | null {
@@ -192,6 +191,7 @@ function writeIfChanged(abs: string, buf: Buffer) {
 }
 
 async function main() {
+  try {
   mkdirSync(join(ROOT, "crops"), { recursive: true });
   mkdirSync(join(ROOT, "lifehacks"), { recursive: true });
   mkdirSync(join(ROOT, "fallbacks"), { recursive: true });
@@ -215,21 +215,23 @@ async function main() {
     await sleep(1200);
   }
 
-  const hackPaths = new Map<string, string>();
-  for (const h of GUIDE_HACKS) {
+  const hacks = await prisma.guideHack.findMany({
+    select: { slug: true, imageUrl: true },
+  });
+  for (const h of hacks) {
     const url = h.imageUrl?.trim();
     if (!url) continue;
-    if (url.startsWith("/")) {
-      hackPaths.set(h.id, url);
-      continue;
-    }
+    if (url.startsWith("/")) continue;
     if (!/^https?:\/\//i.test(url)) continue;
     const { buf, ext } = await fetchRemoteMaybeDirect(url);
-    const safeId = h.id.replace(/[^a-z0-9-]/gi, "-").toLowerCase();
-    const rel = `/images/guide/lifehacks/${safeId}${ext}`;
+    const safeSlug = h.slug.replace(/[^a-z0-9-]/gi, "-").toLowerCase();
+    const rel = `/images/guide/lifehacks/${safeSlug}${ext}`;
     const abs = join(process.cwd(), "public", rel.slice(1));
     writeIfChanged(abs, buf);
-    hackPaths.set(h.id, rel);
+    await prisma.guideHack.update({
+      where: { slug: h.slug },
+      data: { imageUrl: rel },
+    });
     await sleep(1200);
   }
 
@@ -293,20 +295,6 @@ async function main() {
   writeFileSync(cropsPath, cropLines.join("\n"), "utf8");
   console.log("updated", cropsPath);
 
-  // --- guide-hacks.ts (imageUrl с запятой в конце строки; путь — первый после id)
-  let hacksSrc = readFileSync(join(process.cwd(), "lib/data/guide-hacks.ts"), "utf8");
-  for (const h of GUIDE_HACKS) {
-    const p = hackPaths.get(h.id);
-    if (!p) continue;
-    const reHack = new RegExp(
-      `(\\r?\\n    id: "${escapeRe(h.id)}"[\\s\\S]*?)(\\r?\\n    imageUrl:\\s*")[^"]+(")(,?)`,
-      ""
-    );
-    hacksSrc = hacksSrc.replace(reHack, `$1$2${p}$3$4`);
-  }
-  writeFileSync(join(process.cwd(), "lib/data/guide-hacks.ts"), hacksSrc, "utf8");
-  console.log("updated lib/data/guide-hacks.ts");
-
   // --- crop-image.ts
   const newCategoryBlock = `/** Запасные иллюстрации (локальные файлы в public/images/guide/fallbacks). */
 export const CATEGORY_FALLBACK_IMAGE: Record<string, string> = {
@@ -329,6 +317,9 @@ export const GENERIC_FALLBACK = "${fallbackPaths["__generic"]}";`;
   );
   writeFileSync(cropImagePath, ci, "utf8");
   console.log("updated lib/crop-image.ts");
+  } finally {
+    await prisma.$disconnect();
+  }
 }
 
 main().catch((e) => {

@@ -354,6 +354,69 @@ model TaskQueue {
   @@map("task_queue")
 }
 
+// ─── Справочник: лайфхаки (контент в БД) ─────────────────────
+
+model GuideHackCategory {
+  id        String      @id @default(cuid())
+  slug      String      @unique
+  title     String
+  sortOrder Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  hacks     GuideHack[]
+
+  @@map("guide_hack_categories")
+}
+
+model GuideHack {
+  id         String              @id @default(cuid())
+  slug       String              @unique
+  title      String
+  text       String              @db.Text
+  imageUrl   String
+  imageAlt   String
+  published  Boolean             @default(true)
+  sortOrder  Int                 @default(0)
+  categoryId String
+  category   GuideHackCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@index([published, categoryId])
+  @@map("guide_hacks")
+}
+
+// ─── Интересные факты (контент в БД) ─────────────────────────
+
+model FactCategory {
+  id        String     @id @default(cuid())
+  slug      String     @unique
+  title     String
+  sortOrder Int        @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  facts     FunFact[]
+
+  @@map("fact_categories")
+}
+
+model FunFact {
+  id         String       @id @default(cuid())
+  slug       String       @unique
+  emoji      String
+  title      String
+  text       String       @db.Text
+  published  Boolean      @default(true)
+  sortOrder  Int          @default(0)
+  categoryId String
+  category   FactCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([published, categoryId])
+  @@map("fun_facts")
+}
+
 // ─── AI prompts (редактируемые в БД) ────────────────────────
 
 model Prompt {

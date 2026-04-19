@@ -1,4 +1,4 @@
-import type { Bed } from "@/lib/hooks/use-beds";
+import type { Bed, OfflineEntityMeta } from "@/lib/hooks/use-beds";
 
 export type PlannedWorkItem = {
   id: string;
@@ -13,6 +13,7 @@ export type PlannedWorkItem = {
   isAction: boolean;
   type?: string;
   isUserCreated?: boolean;
+  offlineMeta?: OfflineEntityMeta;
 };
 
 export function getPlannedEventsForMonth(
@@ -47,6 +48,7 @@ export function getPlannedEventsForMonth(
           isAction: event.isAction,
           type: event.type,
           isUserCreated: event.isUserCreated,
+          offlineMeta: event.offlineMeta,
         });
       }
     }

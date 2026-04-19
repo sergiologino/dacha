@@ -12,7 +12,7 @@
 | Auth | NextAuth v5 beta | ^5.0.0-beta.30 |
 | ORM | Prisma | ^6.5.0 (client 6.19.2) |
 | Database | PostgreSQL | 82.97.242.40:5432/dacha_db |
-| Local Storage | localForage | ^1.10.0 |
+| Local / offline | Dexie (IndexedDB) | см. `lib/offline/`, [OFFLINE_SYNC.md](./OFFLINE_SYNC.md) |
 | Date | date-fns | ^4.1.0 |
 | State | @tanstack/react-query | ^5.90.21 |
 | Animation | framer-motion | ^12 |
@@ -100,7 +100,8 @@ lib/
 ├── weather-tips.ts                # Генерация рекомендаций по погоде
 ├── get-prompt.ts                 # getPromptByKey() — чтение промптов из БД
 ├── log-ai-call.ts                # logAiCall() — запись логов вызовов нейросетей
-└── generated/prisma/          # Prisma generated (gitignored)
+├── generated/prisma/          # Prisma generated (gitignored)
+└── offline/                   # Офлайн: Dexie, outbox, sync-engine (см. OFFLINE_SYNC.md)
 ```
 
 ## Auth

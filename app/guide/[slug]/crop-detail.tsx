@@ -23,6 +23,10 @@ import { MotionDiv, StaggerContainer, StaggerItem } from "@/components/motion";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import type { Crop } from "@/lib/types";
 import { getCropDisplayImageUrl } from "@/lib/crop-community";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
+import { GUIDE_DETAIL_READY_EVENT } from "@/lib/offline/sync-events";
+import { toast } from "sonner";
 
 interface Props {
   crop: Crop & { addedByCommunity?: boolean };
@@ -36,6 +40,7 @@ export function CropDetailContent({ crop }: Props) {
   const [expandedVariety, setExpandedVariety] = useState<string | null>(null);
   const [hasFullAccess, setHasFullAccess] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [detailQueued, setDetailQueued] = useState(false);
 
   useEffect(() => {
     fetch("/api/user/premium")
@@ -46,12 +51,39 @@ export function CropDetailContent({ crop }: Props) {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const onReady = (ev: Event) => {
+      const ce = ev as CustomEvent<{ slug?: string; content?: string }>;
+      if (ce.detail?.slug !== crop.slug) return;
+      const c = ce.detail.content;
+      if (typeof c !== "string") return;
+      setDetailContent(c);
+      setDetailQueued(false);
+      setDetailError(null);
+    };
+    window.addEventListener(GUIDE_DETAIL_READY_EVENT, onReady as EventListener);
+    return () =>
+      window.removeEventListener(GUIDE_DETAIL_READY_EVENT, onReady as EventListener);
+  }, [crop.slug]);
+
   const loadDetail = async () => {
     if (detailContent) return;
     setIsLoadingDetail(true);
     setDetailError(null);
     try {
-      const res = await fetch(`/api/guide/detail?slug=${crop.slug}`);
+      if (shouldQueueOfflineMutation()) {
+        const outId = await enqueueOutbox({
+          action: "GUIDE_DETAIL_FETCH",
+          payload: { slug: crop.slug },
+        });
+        if (!outId) throw new Error("Локальное хранилище недоступно");
+        setDetailQueued(true);
+        toast.message("Руководство в очереди — откроется после подключения к сети");
+        return;
+      }
+      const res = await fetch(`/api/guide/detail?slug=${encodeURIComponent(crop.slug)}`, {
+        credentials: "same-origin",
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
       setDetailContent(data.content);
@@ -278,7 +310,7 @@ export function CropDetailContent({ crop }: Props) {
                 {!detailContent && hasFullAccess && (
                   <Button
                     onClick={loadDetail}
-                    disabled={isLoadingDetail}
+                    disabled={isLoadingDetail || detailQueued}
                     className="bg-emerald-600 hover:bg-emerald-700"
                   >
                     {isLoadingDetail ? (
@@ -286,6 +318,8 @@ export function CropDetailContent({ crop }: Props) {
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Генерирую руководство...
                       </>
+                    ) : detailQueued ? (
+                      <>В очереди — дождитесь сети</>
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 mr-2" />

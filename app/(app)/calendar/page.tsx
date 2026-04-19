@@ -14,6 +14,7 @@ import { useUserLocation } from "@/lib/hooks/use-user-location";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBeds } from "@/lib/hooks/use-beds";
 import { getPlannedEventsForMonth, type PlannedWorkItem } from "@/lib/planned-events";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 import { ChevronLeft, ChevronRight, ChevronDown, Moon, CalendarDays, Crown, Loader2, Sprout } from "lucide-react";
 import {
   calendarTasks,
@@ -195,6 +196,7 @@ export default function CalendarPage() {
                   dateTo: item.dateTo,
                   isAction: item.isAction,
                   type: item.type ?? "other",
+                  offlineMeta: item.offlineMeta,
                 },
                 plantId: item.plantId,
                 bedId: item.bedId,
@@ -298,6 +300,7 @@ export default function CalendarPage() {
                             dateTo: item.dateTo,
                             isAction: item.isAction,
                             type: item.type ?? "other",
+                            offlineMeta: item.offlineMeta,
                           },
                           plantId: item.plantId,
                           bedId: item.bedId,
@@ -378,6 +381,7 @@ export default function CalendarPage() {
                             dateTo: item.dateTo,
                             isAction: item.isAction,
                             type: item.type ?? "other",
+                            offlineMeta: item.offlineMeta,
                           },
                           plantId: item.plantId,
                           bedId: item.bedId,
@@ -502,7 +506,9 @@ export default function CalendarPage() {
           plantName={plannedWorkModal.plantName}
           event={plannedWorkModal.event}
           onSuccess={() => {
-            qc.invalidateQueries({ queryKey: ["beds"] });
+            if (!shouldQueueOfflineMutation()) {
+              void qc.invalidateQueries({ queryKey: ["beds"] });
+            }
             setPlannedWorkModal(null);
           }}
           bedsForPick={plannedWorkModal.mode === "add" && !plannedWorkModal.plantId ? bedsForPick : undefined}

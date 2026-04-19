@@ -57,11 +57,11 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 
-# sharp и др. native-модули в Alpine (standalone подтягивает sharp из node_modules)
+# sharp и др. native-модули в Alpine; postgresql-client — psql в entrypoint до migrate deploy
 RUN for i in 1 2 3 4 5; do \
-      apk add --no-cache libc6-compat && break; \
+      apk add --no-cache libc6-compat postgresql-client && break; \
       [ "$i" -eq 5 ] && exit 1; \
-      echo "apk add libc6-compat failed (try $i/5), sleep 12s"; \
+      echo "apk add libc6-compat postgresql-client failed (try $i/5), sleep 12s"; \
       sleep 12; \
     done
 
@@ -73,6 +73,17 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/lib/generated ./lib/generated
 
+# Миграции и сиды из терминала Coolify: в standalone нет prisma/ и CLI — добавляем.
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./
+
+USER root
+RUN npm install --no-save prisma@6.19.0 tsx@4.21.0 dotenv@17.3.1 && \
+    chown -R nextjs:nodejs /app/node_modules
+
+COPY --from=builder /app/scripts/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh && chown nextjs:nodejs ./docker-entrypoint.sh
+
 USER nextjs
 
 EXPOSE 3000
@@ -80,7 +91,8 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=5 \
+# migrate deploy при первом старте может занять заметное время — запас по start-period
+HEALTHCHECK --interval=10s --timeout=5s --start-period=120s --retries=5 \
   CMD node -e "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)throw 1}).catch(()=>process.exit(1))"
 
-CMD ["node", "server.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]

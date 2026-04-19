@@ -10,6 +10,7 @@ import {
 } from "@/components/garden-plant-gallery-dialog";
 import { Button } from "@/components/ui/button";
 import { useDeletePlantPhoto, type BedPlantPhoto, type BedPlantTimelineEvent } from "@/lib/hooks/use-beds";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 import { Camera, ChevronRight, Loader2, Trash2 } from "lucide-react";
 
 const FAR_FUTURE_DAYS = 21;
@@ -293,7 +294,11 @@ export function PlantWorksList({
           plantId={plantId}
           event={openEvent}
           allEvents={events}
-          onSuccess={() => void qc.invalidateQueries({ queryKey: ["beds"] })}
+          onSuccess={() => {
+            if (!shouldQueueOfflineMutation()) {
+              void qc.invalidateQueries({ queryKey: ["beds"] });
+            }
+          }}
         />
       </div>
   );

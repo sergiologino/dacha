@@ -1,9 +1,8 @@
-ALTER TABLE "photos"
-ADD COLUMN "publishedAt" TIMESTAMP(3);
+ALTER TABLE "photos" ADD COLUMN IF NOT EXISTS "publishedAt" TIMESTAMP(3);
 
-CREATE INDEX "photos_isPublic_publishedAt_idx" ON "photos"("isPublic", "publishedAt");
+CREATE INDEX IF NOT EXISTS "photos_isPublic_publishedAt_idx" ON "photos"("isPublic", "publishedAt");
 
-CREATE TABLE "photo_likes" (
+CREATE TABLE IF NOT EXISTS "photo_likes" (
     "id" TEXT NOT NULL,
     "photoId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -12,13 +11,20 @@ CREATE TABLE "photo_likes" (
     CONSTRAINT "photo_likes_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "photo_likes_photoId_userId_key" ON "photo_likes"("photoId", "userId");
-CREATE INDEX "photo_likes_photoId_createdAt_idx" ON "photo_likes"("photoId", "createdAt");
+CREATE UNIQUE INDEX IF NOT EXISTS "photo_likes_photoId_userId_key" ON "photo_likes"("photoId", "userId");
+CREATE INDEX IF NOT EXISTS "photo_likes_photoId_createdAt_idx" ON "photo_likes"("photoId", "createdAt");
 
-ALTER TABLE "photo_likes" ADD CONSTRAINT "photo_likes_photoId_fkey" FOREIGN KEY ("photoId") REFERENCES "photos"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "photo_likes" ADD CONSTRAINT "photo_likes_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'photo_likes_photoId_fkey') THEN
+    ALTER TABLE "photo_likes" ADD CONSTRAINT "photo_likes_photoId_fkey" FOREIGN KEY ("photoId") REFERENCES "photos"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'photo_likes_userId_fkey') THEN
+    ALTER TABLE "photo_likes" ADD CONSTRAINT "photo_likes_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
 
-CREATE TABLE "photo_comments" (
+CREATE TABLE IF NOT EXISTS "photo_comments" (
     "id" TEXT NOT NULL,
     "photoId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -28,8 +34,15 @@ CREATE TABLE "photo_comments" (
     CONSTRAINT "photo_comments_pkey" PRIMARY KEY ("id")
 );
 
-CREATE INDEX "photo_comments_photoId_createdAt_idx" ON "photo_comments"("photoId", "createdAt");
-CREATE INDEX "photo_comments_userId_createdAt_idx" ON "photo_comments"("userId", "createdAt");
+CREATE INDEX IF NOT EXISTS "photo_comments_photoId_createdAt_idx" ON "photo_comments"("photoId", "createdAt");
+CREATE INDEX IF NOT EXISTS "photo_comments_userId_createdAt_idx" ON "photo_comments"("userId", "createdAt");
 
-ALTER TABLE "photo_comments" ADD CONSTRAINT "photo_comments_photoId_fkey" FOREIGN KEY ("photoId") REFERENCES "photos"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "photo_comments" ADD CONSTRAINT "photo_comments_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'photo_comments_photoId_fkey') THEN
+    ALTER TABLE "photo_comments" ADD CONSTRAINT "photo_comments_photoId_fkey" FOREIGN KEY ("photoId") REFERENCES "photos"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'photo_comments_userId_fkey') THEN
+    ALTER TABLE "photo_comments" ADD CONSTRAINT "photo_comments_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+  END IF;
+END $$;
