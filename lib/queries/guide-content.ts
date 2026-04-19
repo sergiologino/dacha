@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { GuideHackDTO } from "@/lib/data/guide-hacks";
 import type { FunFactDTO } from "@/lib/data/fun-facts";
+import { getStaticFunFactsFallback } from "@/lib/data/fun-facts-fallback";
 
 export async function getPublishedGuideHacks(): Promise<GuideHackDTO[]> {
   const rows = await prisma.guideHack.findMany({
@@ -34,6 +35,17 @@ export async function getPublishedFunFacts(): Promise<FunFactDTO[]> {
     categorySlug: f.category.slug,
     categoryTitle: f.category.title,
   }));
+}
+
+/** Факты из БД; если таблица пуста или БД недоступна — встроенный набор как у seed. */
+export async function getPublishedFunFactsWithFallback(): Promise<FunFactDTO[]> {
+  try {
+    const fromDb = await getPublishedFunFacts();
+    if (fromDb.length > 0) return fromDb;
+  } catch {
+    // P1001 / пустая БД / миграции
+  }
+  return getStaticFunFactsFallback();
 }
 
 export async function countPublishedGuideHacks(): Promise<number> {

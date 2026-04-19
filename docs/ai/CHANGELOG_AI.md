@@ -4,6 +4,17 @@
 
 ---
 
+## 2026-04-19 — Сезонные SEO-страницы, факты без БД, обратная связь, справочник удобрений
+
+- **`/kogda-sazhat-rassadu`**, **`/kalendar-posadok-2026`**: основной контент смещён на **апрель–июнь** (вторая половина апреля — высадка и закалка); прежние тексты — в **`/vse-sovety`** на каждом маршруте; перекрёстные ссылки и блоки «старые разделы» внизу. Данные вынесены в `lib/data/seo-kogda-sazhat.ts`, `lib/data/seo-kalendar-posadok.ts`; общая вёрстка — `kogda-seo-body.tsx`, `kalendar-seo-body.tsx`.
+- **Интересные факты**: `getPublishedFunFactsWithFallback()` — при пустой или недоступной БД подставляется тот же набор, что и в `db:seed:guide` (`lib/data/fun-facts-fallback.ts`).
+- **Обратная связь**: в шапке приложения и на лендинге — **иконки Telegram и MAX** (`TelegramBrandIcon`, `MaxMessengerIcon`, `MessengerFeedbackButtons`); полоса под шапкой в `(app)/layout` убрана; у кнопки «Поделиться» добавлен **`aria-label`** (подсказка при наведении уже через `title`).
+- **Новая публичная страница** `/spravochnik-udobreniy-i-zashchity` — SEO-текст про удобрения и защиту растений; в **`/guide`** — отдельный блок-ссылка, не смешивая с аккордеоном культур.
+- **`robots.ts`**, **`sitemap.ts`**, **`llms.txt`**, **`llms-full.txt`**: добавлены `vse-sovety` и справочник удобрений; **canonical** на новых страницах через `absoluteUrl(...)`.
+- **Тест**: `__tests__/lib/fun-facts-fallback.test.ts`.
+
+---
+
 ## 2026-04-18 — Офлайн: руководство в справочнике, drain при 401/403, счётчик ошибок
 
 - **`GUIDE_DETAIL_FETCH`**: постановка в outbox с страницы культуры (`crop-detail.tsx`); после drain — `GET /api/guide/detail`, событие `GUIDE_DETAIL_READY_EVENT` с Markdown-текстом для текущего `slug`.

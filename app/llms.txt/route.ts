@@ -9,7 +9,10 @@ const content = `# Любимая Дача
 - ${SITE_URL}/
 - ${SITE_URL}/guide
 - ${SITE_URL}/kogda-sazhat-rassadu
+- ${SITE_URL}/kogda-sazhat-rassadu/vse-sovety
 - ${SITE_URL}/kalendar-posadok-2026
+- ${SITE_URL}/kalendar-posadok-2026/vse-sovety
+- ${SITE_URL}/spravochnik-udobreniy-i-zashchity
 - ${SITE_URL}/facts
 
 ## High-value topical pages

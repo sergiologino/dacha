@@ -81,6 +81,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.95,
     },
+    {
+      url: `${baseUrl}/kogda-sazhat-rassadu/vse-sovety`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.75,
+    },
+    {
+      url: `${baseUrl}/kalendar-posadok-2026/vse-sovety`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.75,
+    },
+    {
+      url: `${baseUrl}/spravochnik-udobreniy-i-zashchity`,
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 0.88,
+    },
     ...galleryPosts.map((photo) => ({
       url: `${baseUrl}/gallery/${photo.id}`,
       lastModified: photo.publishedAt ?? photo.createdAt,

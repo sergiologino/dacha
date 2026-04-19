@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { AppHeader } from "@/components/app-header";
 import { BottomNav } from "@/components/bottom-nav";
-import { FeedbackLinks } from "@/components/feedback-links";
 import { PageVisitTracker } from "@/components/page-visit-tracker";
 import { YearlyPromoBannerWithData } from "@/components/yearly-promo";
 import { getAuthUser } from "@/lib/get-user";
@@ -32,7 +31,6 @@ export default async function AppLayout({
     <div className="min-h-screen max-w-[100vw] overflow-x-hidden bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950 dark:via-slate-950 dark:to-amber-950 pb-20">
       <PageVisitTracker />
       <AppHeader />
-      <FeedbackLinks />
       <div className="max-w-5xl mx-auto px-4 pt-4">
         <YearlyPromoBannerWithData
           initialOffer={initialOffer}
