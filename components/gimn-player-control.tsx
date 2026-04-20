@@ -333,25 +333,37 @@ export function GimnHeaderIconButton() {
   );
 }
 
-/** Иконка гимна для лендинга — на всех ширинах экрана. */
-export function GimnLandingIconButton() {
-  const { openPlayer, spotlightActive } = useGimn();
+/** Крупная кнопка гимна для лендинга (hero). */
+export function GimnLandingHeroButton() {
+  const { openPlayer } = useGimn();
   return (
-    <Button
+    <button
       type="button"
-      variant="ghost"
-      size="icon"
       onClick={openPlayer}
       title="Гимн дачников"
       aria-label="Открыть проигрыватель — гимн дачников"
       className={cn(
-        "inline-flex shrink-0 h-9 w-9 sm:h-10 sm:w-10 text-emerald-600 dark:text-emerald-400",
-        "hover:bg-emerald-100/90 dark:hover:bg-emerald-950/50",
-        spotlightActive && spotlightBtnClass
+        "group w-full max-w-xl mx-auto flex items-center justify-center gap-4 rounded-3xl px-6 py-4 sm:py-5",
+        "bg-gradient-to-r from-emerald-500 via-emerald-600 to-amber-500 text-white",
+        "shadow-lg shadow-emerald-600/35 border-2 border-amber-200/90 dark:border-amber-400/50",
+        "hover:brightness-105 hover:shadow-xl hover:shadow-emerald-600/25 active:scale-[0.99] transition-all"
       )}
     >
-      <Music2 className="w-5 h-5" aria-hidden />
-    </Button>
+      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/25 backdrop-blur-sm ring-2 ring-white/40">
+        <Music2 className="h-8 w-8" aria-hidden />
+      </span>
+      <span className="text-left min-w-0">
+        <span className="block text-xl sm:text-2xl font-bold leading-tight tracking-tight">
+          Гимн дачников
+        </span>
+        <span className="mt-1 block text-sm sm:text-base text-white/95 font-medium leading-snug">
+          Немного музыки для настроения на грядки и тёплые вечера
+        </span>
+      </span>
+      <span className="hidden sm:flex shrink-0 h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white ring-2 ring-white/30 group-hover:bg-white/30 transition-colors pl-0.5">
+        <Play className="h-7 w-7 fill-current" aria-hidden />
+      </span>
+    </button>
   );
 }
 

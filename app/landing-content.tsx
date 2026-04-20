@@ -30,12 +30,16 @@ import {
   motion,
 } from "@/components/motion";
 import {
-  GimnLandingIconButton,
+  GimnLandingHeroButton,
   GimnPlayerProvider,
 } from "@/components/gimn-player-control";
 import type { YearlyPromoOffer } from "@/lib/yearly-promo";
 
 const USER_COUNT = "30 000";
+
+/** Локальные иллюстрации (лежат в public/images/landing/). */
+const LANDING_HERO_IMAGE = "/images/landing/hero-garden.jpg";
+const LANDING_VEGETABLES_IMAGE = "/images/landing/fresh-vegetables.jpg";
 
 const TESTIMONIALS = [
   {
@@ -135,7 +139,6 @@ export function LandingContent({
           </div>
           <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
             <MessengerFeedbackButtons size="sm" />
-            <GimnLandingIconButton />
             <ThemeToggle />
             <Button variant="outline" size="sm" asChild className="text-xs sm:text-sm px-2 sm:px-3">
               <Link href="/guide">Справочник</Link>
@@ -188,6 +191,9 @@ export function LandingContent({
             </Button>
           </div>
         </MotionDiv>
+        <MotionDiv variant="fadeUp" delay={0.32} className="mt-8 px-1">
+          <GimnLandingHeroButton />
+        </MotionDiv>
         <MotionDiv variant="fadeUp" delay={0.35} className="mt-6">
           <YearlyPromoBanner offer={offer} ctaHref="/subscribe" />
         </MotionDiv>
@@ -195,15 +201,14 @@ export function LandingContent({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.45, ease: "easeOut" }}
-          className="mt-12 rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800"
+          className="mt-12 relative w-full h-56 sm:h-72 rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700 bg-emerald-100 dark:bg-emerald-950"
         >
           <Image
-            src="https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=900&q=80"
-            alt="Огород, зелень, дача"
-            width={900}
-            height={500}
+            src={LANDING_HERO_IMAGE}
+            alt="Свежая зелень и огород — настроение дачного сезона"
+            fill
             sizes="(max-width: 896px) 100vw, 896px"
-            className="w-full h-56 sm:h-72 object-cover"
+            className="object-cover"
             priority
           />
         </motion.div>
@@ -274,17 +279,18 @@ export function LandingContent({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.1, ease: "easeOut" }}
-          className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800"
+          className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-700 bg-emerald-100 dark:bg-emerald-950"
         >
-          <Image
-            src="https://images.unsplash.com/photo-1592150621744-aca64f48394a?w=900&q=80"
-            alt="Свежие овощи с огорода"
-            width={900}
-            height={500}
-            sizes="(max-width: 896px) 100vw, 896px"
-            className="w-full h-64 sm:h-80 object-cover"
-          />
-          <div className="bg-gradient-to-t from-slate-900/90 to-transparent p-6 sm:p-8 -mt-24 relative">
+          <div className="relative w-full h-64 sm:h-80">
+            <Image
+              src={LANDING_VEGETABLES_IMAGE}
+              alt="Свежие овощи с огорода"
+              fill
+              sizes="(max-width: 896px) 100vw, 896px"
+              className="object-cover"
+            />
+          </div>
+          <div className="bg-gradient-to-t from-slate-900/90 to-transparent p-6 sm:p-8 -mt-24 relative z-10">
             <p className="text-white text-lg sm:text-xl font-medium max-w-xl">
               Планируйте посев и высадку по сезону, ведите участок и получайте подсказки AI — всё в одном
               приложении.
