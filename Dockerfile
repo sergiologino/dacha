@@ -86,6 +86,10 @@ RUN mkdir -p /opt/prisma-cli && cd /opt/prisma-cli && npm init -y >/dev/null 2>&
 
 ENV PATH="/opt/prisma-cli/node_modules/.bin:${PATH}"
 
+# prisma.config.ts импортирует "prisma/config"; Node ищет пакет в /app/node_modules (cwd приложения),
+# а не рядом с бинарником в /opt/prisma-cli — без ссылки загрузка конфига падает в рантайме.
+RUN ln -sf /opt/prisma-cli/node_modules/prisma /app/node_modules/prisma
+
 COPY --from=builder /app/scripts/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh && chown nextjs:nodejs ./docker-entrypoint.sh
 

@@ -83,7 +83,7 @@ npx prisma migrate deploy
 
 ### Coolify: терминал контейнера **приложения** (не Postgres)
 
-Образ собирается как **Next.js standalone**: в рантайме до недавнего времени не было папки `prisma/` и CLI Prisma, поэтому `npx prisma` тянул **Prisma 7** с npm и падал на `prisma.config.ts` / отсутствии `dotenv`. В актуальном `Dockerfile` в образ добавляются `prisma/`, `prisma.config.ts` и пакеты `prisma@6.19.0`, `tsx`, `dotenv`.
+Образ собирается как **Next.js standalone**: в рантайме до недавнего времени не было папки `prisma/` и CLI Prisma, поэтому `npx prisma` тянул **Prisma 7** с npm и падал на `prisma.config.ts` / отсутствии `dotenv`. В актуальном `Dockerfile` в образ добавляются `prisma/`, `prisma.config.ts` и пакеты `prisma@6.19.0`, `tsx`, `dotenv` в `/opt/prisma-cli`, плюс **симлинк** `/app/node_modules/prisma` → эта установка — иначе при загрузке `prisma.config.ts` Node не находит модуль `prisma/config` (ищет только в `/app/node_modules`).
 
 После **пересборки и деплоя** образа выполните в терминале **сервиса приложения**:
 
