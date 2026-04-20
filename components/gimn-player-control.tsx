@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Music2, Pause, Play, Sprout } from "lucide-react";
+import { Music2, Pause, Play, Sprout, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +20,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import {
+  dismissGimnSpotlightPersist,
+  shouldShowGimnSpotlight,
+} from "@/lib/gimn-spotlight";
 
 const GIMN_SRC = "/gimn_dachnikov.mp3";
 
@@ -30,7 +34,11 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-type GimnCtx = { openPlayer: () => void };
+type GimnCtx = {
+  openPlayer: () => void;
+  spotlightActive: boolean;
+  dismissSpotlight: () => void;
+};
 
 const GimnContext = createContext<GimnCtx | null>(null);
 
@@ -43,14 +51,36 @@ function useGimn(): GimnCtx {
 }
 
 /** Оборачивает шапку: аудио, диалог и контекст для кнопок. */
-export function GimnPlayerProvider({ children }: { children: ReactNode }) {
+export function GimnPlayerProvider({
+  children,
+  withSpotlight = true,
+}: {
+  children: ReactNode;
+  /** На лендинге отключите, чтобы не показывать одноразовый баннер-подсказку. */
+  withSpotlight?: boolean;
+}) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [open, setOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [current, setCurrent] = useState(0);
+  const [spotlightActive, setSpotlightActive] = useState(false);
 
-  const openPlayer = useCallback(() => setOpen(true), []);
+  useEffect(() => {
+    if (!withSpotlight) return;
+    if (!shouldShowGimnSpotlight()) return;
+    dismissGimnSpotlightPersist();
+    setSpotlightActive(true);
+  }, [withSpotlight]);
+
+  const dismissSpotlight = useCallback(() => {
+    setSpotlightActive(false);
+  }, []);
+
+  const openPlayer = useCallback(() => {
+    setSpotlightActive(false);
+    setOpen(true);
+  }, []);
 
   const syncFromAudio = useCallback(() => {
     const a = audioRef.current;
@@ -117,7 +147,10 @@ export function GimnPlayerProvider({ children }: { children: ReactNode }) {
   const progressPct =
     duration > 0 ? Math.min(100, (current / duration) * 100) : 0;
 
-  const ctxValue = useMemo(() => ({ openPlayer }), [openPlayer]);
+  const ctxValue = useMemo(
+    () => ({ openPlayer, spotlightActive, dismissSpotlight }),
+    [openPlayer, spotlightActive, dismissSpotlight]
+  );
 
   return (
     <GimnContext.Provider value={ctxValue}>
@@ -210,9 +243,77 @@ export function GimnPlayerProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Одноразовый баннер: с 21.04.2026, пока не закрыт пользователем. */
+export function GimnSpotlightBanner() {
+  const { spotlightActive, dismissSpotlight, openPlayer } = useGimn();
+  if (!spotlightActive) return null;
+
+  return (
+    <div
+      className="mt-3 animate-in fade-in slide-in-from-top-2 duration-500"
+      role="region"
+      aria-label="Новинка: гимн дачников"
+    >
+      <div className="relative overflow-hidden rounded-2xl border border-amber-300/60 dark:border-amber-600/40 bg-gradient-to-br from-amber-50/98 via-white to-emerald-50/95 dark:from-amber-950/55 dark:via-slate-900/90 dark:to-emerald-950/50 px-3.5 py-3 sm:px-4 sm:py-3.5 pr-11 shadow-md shadow-amber-900/10 dark:shadow-black/30">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-1.5 top-1.5 h-8 w-8 text-emerald-800/70 hover:text-emerald-950 dark:text-emerald-200/80"
+          onClick={dismissSpotlight}
+          aria-label="Закрыть подсказку"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+        <div className="flex gap-3 min-w-0">
+          <div
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-md gimn-spotlight-glow"
+            aria-hidden
+          >
+            <Music2 className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            <p className="font-semibold text-emerald-900 dark:text-emerald-100 text-sm sm:text-base leading-snug">
+              Новинка: гимн дачников в приложении
+            </p>
+            <p className="text-xs sm:text-sm text-emerald-900/85 dark:text-emerald-100/85 leading-relaxed">
+              Мы добавили небольшую музыкальную открытку для настроения. Кнопка с
+              нотой — рядом с профилем на большом экране; на телефоне чуть ниже
+              названия «Любимая Дача». Эту подсказку покажем один раз — дальше
+              просто включайте, когда захочется.
+            </p>
+            <div className="flex flex-wrap items-center gap-2 pt-0.5">
+              <Button
+                type="button"
+                size="sm"
+                className="rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                onClick={openPlayer}
+              >
+                Слушать гимн
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-emerald-800 dark:text-emerald-200"
+                onClick={dismissSpotlight}
+              >
+                Понятно, спасибо
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const spotlightBtnClass =
+  "ring-2 ring-amber-400/90 dark:ring-amber-500/80 ring-offset-2 ring-offset-white dark:ring-offset-slate-950 gimn-spotlight-glow relative z-[1]";
+
 /** Иконка в строке шапки (планшеты и десктоп). */
 export function GimnHeaderIconButton() {
-  const { openPlayer } = useGimn();
+  const { openPlayer, spotlightActive } = useGimn();
   return (
     <Button
       type="button"
@@ -223,7 +324,30 @@ export function GimnHeaderIconButton() {
       aria-label="Открыть проигрыватель — гимн дачников"
       className={cn(
         "hidden md:inline-flex text-emerald-600 dark:text-emerald-400 shrink-0",
-        "hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+        "hover:bg-emerald-50 dark:hover:bg-emerald-950/50",
+        spotlightActive && spotlightBtnClass
+      )}
+    >
+      <Music2 className="w-5 h-5" aria-hidden />
+    </Button>
+  );
+}
+
+/** Иконка гимна для лендинга — на всех ширинах экрана. */
+export function GimnLandingIconButton() {
+  const { openPlayer, spotlightActive } = useGimn();
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      onClick={openPlayer}
+      title="Гимн дачников"
+      aria-label="Открыть проигрыватель — гимн дачников"
+      className={cn(
+        "inline-flex shrink-0 h-9 w-9 sm:h-10 sm:w-10 text-emerald-600 dark:text-emerald-400",
+        "hover:bg-emerald-100/90 dark:hover:bg-emerald-950/50",
+        spotlightActive && spotlightBtnClass
       )}
     >
       <Music2 className="w-5 h-5" aria-hidden />
@@ -233,7 +357,7 @@ export function GimnHeaderIconButton() {
 
 /** Компактная кнопка под названием приложения на узких экранах. */
 export function GimnMobileLaunchButton() {
-  const { openPlayer } = useGimn();
+  const { openPlayer, spotlightActive } = useGimn();
   return (
     <button
       type="button"
@@ -245,7 +369,8 @@ export function GimnMobileLaunchButton() {
         "rounded-2xl border border-emerald-200/90 dark:border-emerald-800/90",
         "bg-white/85 dark:bg-slate-900/85 backdrop-blur-sm",
         "py-2 px-3 text-sm font-medium text-emerald-800 dark:text-emerald-200",
-        "shadow-sm active:scale-[0.99] transition-transform"
+        "shadow-sm active:scale-[0.99] transition-transform",
+        spotlightActive && spotlightBtnClass
       )}
     >
       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">

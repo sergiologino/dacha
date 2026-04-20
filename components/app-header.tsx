@@ -14,6 +14,7 @@ import {
   GimnHeaderIconButton,
   GimnMobileLaunchButton,
   GimnPlayerProvider,
+  GimnSpotlightBanner,
 } from "@/components/gimn-player-control";
 import { toast } from "sonner";
 
@@ -103,6 +104,7 @@ export function AppHeader() {
             )}
           </div>
         </div>
+        <GimnSpotlightBanner />
         <div className="mt-2 md:hidden px-0.5">
           <GimnMobileLaunchButton />
         </div>
