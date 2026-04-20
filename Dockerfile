@@ -85,6 +85,8 @@ RUN mkdir -p /opt/prisma-cli && cd /opt/prisma-cli && npm init -y >/dev/null 2>&
     chown -R nextjs:nodejs /opt/prisma-cli
 
 ENV PATH="/opt/prisma-cli/node_modules/.bin:${PATH}"
+# tsx запускает /app/prisma/*.ts: резолв идёт из /app/node_modules; dotenv и др. лежат только в /opt/prisma-cli.
+ENV NODE_PATH=/opt/prisma-cli/node_modules
 
 # prisma.config.ts импортирует "prisma/config"; Node ищет пакет в /app/node_modules (cwd приложения),
 # а не рядом с бинарником в /opt/prisma-cli — без ссылки загрузка конфига падает в рантайме.
