@@ -73,13 +73,18 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/lib/generated ./lib/generated
 
-# Миграции и сиды из терминала Coolify: в standalone нет prisma/ и CLI — добавляем.
+# Миграции и сиды: схема в /app; CLI Prisma/tsx — отдельно в /opt/prisma-cli, чтобы не смешивать
+# node_modules с output standalone (иначе раздувается слой и export образа на PaaS может падать по таймауту/OOM).
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./
 
 USER root
-RUN npm install --no-save prisma@6.19.0 tsx@4.21.0 dotenv@17.3.1 && \
-    chown -R nextjs:nodejs /app/node_modules
+RUN mkdir -p /opt/prisma-cli && cd /opt/prisma-cli && npm init -y >/dev/null 2>&1 && \
+    npm install --no-save --no-audit --no-fund prisma@6.19.0 tsx@4.21.0 dotenv@17.3.1 && \
+    npm cache clean --force && \
+    chown -R nextjs:nodejs /opt/prisma-cli
+
+ENV PATH="/opt/prisma-cli/node_modules/.bin:${PATH}"
 
 COPY --from=builder /app/scripts/docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh && chown nextjs:nodejs ./docker-entrypoint.sh
