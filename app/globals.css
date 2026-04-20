@@ -124,3 +124,22 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Подсветка кнопки «Гимн» при одноразовом знакомстве с фичей */
+@keyframes gimn-spotlight-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 oklch(0.75 0.15 85 / 0.55),
+      0 0 20px oklch(0.65 0.18 145 / 0.35);
+  }
+  50% {
+    box-shadow:
+      0 0 0 12px oklch(0.75 0.15 85 / 0),
+      0 0 28px oklch(0.65 0.18 145 / 0.45);
+  }
+}
+
+.gimn-spotlight-glow {
+  animation: gimn-spotlight-glow 2.1s ease-in-out infinite;
+}
