@@ -87,7 +87,7 @@ export default async function GuidePage() {
           >
             <span className="block font-semibold">Когда сажать рассаду</span>
             <span className="mt-1 block text-emerald-800/80 dark:text-emerald-200/80">
-              Помидоры, перец, баклажаны, огурцы, лук и цветы по месяцам и регионам.
+              Весна 2026: закалка и высадка; полный текст сроков посева — «Все советы».
             </span>
           </Link>
           <Link
@@ -96,7 +96,25 @@ export default async function GuidePage() {
           >
             <span className="block font-semibold">Календарь посадок 2026</span>
             <span className="mt-1 block text-amber-900/80 dark:text-amber-200/80">
-              Что сажать в феврале, марте, апреле и когда высаживать в теплицу и грунт.
+              Апрель–июнь на грядках; расширенный помесячный обзор — «Все советы».
+            </span>
+          </Link>
+        </div>
+
+        <div className="mb-8">
+          <Link
+            href="/spravochnik-udobreniy-i-zashchity"
+            className="flex flex-col rounded-2xl border border-lime-200 bg-lime-50/90 px-4 py-4 text-sm text-lime-950 transition hover:bg-lime-100 dark:border-lime-900 dark:bg-lime-950/25 dark:text-lime-100 md:flex-row md:items-center md:justify-between md:gap-4"
+          >
+            <div>
+              <span className="block font-semibold">Удобрения и защита растений</span>
+              <span className="mt-1 block text-lime-900/85 dark:text-lime-200/85">
+                Отдельный справочник: подкормки, вредители и болезни огорода — без дублирования в списке
+                культур ниже.
+              </span>
+            </div>
+            <span className="mt-3 shrink-0 font-medium text-lime-800 underline-offset-4 hover:underline dark:text-lime-300 md:mt-0">
+              Открыть страницу →
             </span>
           </Link>
         </div>

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { signOutAndWipeLocalDevice } from "@/lib/auth/client-sign-out";
 import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3, BookOpen, CloudSun } from "lucide-react";
 import { clearFeatureOnboardingSeen } from "@/components/feature-onboarding";
 import { SubscribeModal } from "@/components/subscribe-modal";
@@ -774,7 +775,7 @@ export default function SettingsPage() {
 
       <Button
         variant="outline"
-        onClick={() => signOut({ callbackUrl: "/" })}
+        onClick={() => void signOutAndWipeLocalDevice()}
         className="w-full h-12 rounded-2xl text-red-600 border-red-200"
       >
         <LogOut className="w-5 h-5 mr-2" /> Выйти

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { Sprout, Crown } from "lucide-react";
 import { ShareIcon } from "@/components/icons";
+import { MessengerFeedbackButtons } from "@/components/feedback-links";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -54,14 +55,16 @@ export function AppHeader() {
           </span>
         </Link>
         <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <MessengerFeedbackButtons size="md" />
           <Button
             variant="ghost"
             size="icon"
             onClick={shareApp}
             title="Поделиться приложением"
+            aria-label="Поделиться приложением"
             className="text-emerald-600"
           >
-            <ShareIcon className="w-5 h-5" />
+            <ShareIcon className="w-5 h-5" aria-hidden />
           </Button>
           <ThemeToggle />
           {isPremium ? (

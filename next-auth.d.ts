@@ -17,5 +17,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id?: string;
     phone?: string | null;
+    /** Unix seconds — последняя активность для скользящего окна сессии */
+    lastActivitySec?: number;
   }
 }

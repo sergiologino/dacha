@@ -1,4 +1,9 @@
 import { MetadataRoute } from "next";
+import { getSpravochnikProductSlugs } from "@/lib/data/spravochnik-udobreniy-products";
+
+const spravochnikProductPaths = getSpravochnikProductSlugs().map(
+  (slug) => `/spravochnik-udobreniy-i-zashchity/${slug}`
+);
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -13,7 +18,11 @@ export default function robots(): MetadataRoute.Robots {
           "/gallery",
           "/gallery/*",
           "/kogda-sazhat-rassadu",
+          "/kogda-sazhat-rassadu/vse-sovety",
           "/kalendar-posadok-2026",
+          "/kalendar-posadok-2026/vse-sovety",
+          "/spravochnik-udobreniy-i-zashchity",
+          ...spravochnikProductPaths,
           "/llms.txt",
           "/llms-full.txt",
         ],

@@ -6,7 +6,7 @@ import { Sparkles, Shuffle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MotionDiv, StaggerContainer, StaggerItem } from "@/components/motion";
+import { MotionDiv } from "@/components/motion";
 import { motion } from "framer-motion";
 import {
   FACT_FILTER_ALL,
@@ -44,6 +44,7 @@ export function FactsContent({ facts, categories }: Props) {
 
   const shown = filtered.slice(0, visible);
   const canMore = visible < filtered.length;
+  const nextBatch = Math.min(PAGE, filtered.length - visible);
 
   const showRandom = () => {
     if (facts.length === 0) return;
@@ -98,50 +99,51 @@ export function FactsContent({ facts, categories }: Props) {
           </Button>
         </MotionDiv>
 
-        <StaggerContainer
-          key={activeCategory}
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-          staggerDelay={0.05}
-        >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((fact) => (
-            <StaggerItem key={fact.slug}>
-              <motion.div
-                id={`fact-${fact.slug}`}
-                animate={
+            <motion.div
+              key={fact.slug}
+              id={`fact-${fact.slug}`}
+              layout={false}
+              initial={{ opacity: 0, y: 10 }}
+              animate={
+                randomSlug === fact.slug
+                  ? { opacity: 1, y: 0, scale: [1, 1.03, 1] }
+                  : { opacity: 1, y: 0, scale: 1 }
+              }
+              transition={{
+                duration: 0.3,
+                scale: randomSlug === fact.slug ? { duration: 0.45 } : { duration: 0.2 },
+              }}
+            >
+              <Card
+                className={`p-6 transition-all h-full ${
                   randomSlug === fact.slug
-                    ? { scale: [1, 1.03, 1], transition: { duration: 0.4 } }
-                    : {}
-                }
+                    ? "ring-2 ring-amber-400 shadow-lg shadow-amber-100 dark:shadow-amber-900/30"
+                    : "hover:shadow-md"
+                }`}
               >
-                <Card
-                  className={`p-6 transition-all ${
-                    randomSlug === fact.slug
-                      ? "ring-2 ring-amber-400 shadow-lg shadow-amber-100 dark:shadow-amber-900/30"
-                      : "hover:shadow-md"
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    <span className="text-3xl flex-shrink-0">{fact.emoji}</span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h3 className="font-semibold text-lg">{fact.title}</h3>
-                        <Badge
-                          variant="secondary"
-                          className={`text-xs ${factCategoryBadgeClass(fact.categorySlug)}`}
-                        >
-                          {fact.categoryTitle}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                        {fact.text}
-                      </p>
+                <div className="flex items-start gap-4">
+                  <span className="text-3xl flex-shrink-0">{fact.emoji}</span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h3 className="font-semibold text-lg">{fact.title}</h3>
+                      <Badge
+                        variant="secondary"
+                        className={`text-xs ${factCategoryBadgeClass(fact.categorySlug)}`}
+                      >
+                        {fact.categoryTitle}
+                      </Badge>
                     </div>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                      {fact.text}
+                    </p>
                   </div>
-                </Card>
-              </motion.div>
-            </StaggerItem>
+                </div>
+              </Card>
+            </motion.div>
           ))}
-        </StaggerContainer>
+        </div>
 
         {filtered.length === 0 ? (
           <p className="text-center text-slate-500 py-12">Нет фактов в этой категории</p>
@@ -155,7 +157,7 @@ export function FactsContent({ facts, categories }: Props) {
               className="rounded-full"
               onClick={() => setVisible((v) => Math.min(v + PAGE, filtered.length))}
             >
-              Показать ещё 8
+              Показать ещё {nextBatch}
             </Button>
           </div>
         ) : null}

@@ -18,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { FeedbackLinks } from "@/components/feedback-links";
+import { FeedbackLinks, MessengerFeedbackButtons } from "@/components/feedback-links";
 import {
   YearlyPromoBanner,
   useYearlyPromoOffer,
@@ -36,7 +36,7 @@ const USER_COUNT = "30 000";
 const TESTIMONIALS = [
   {
     name: "Марина, Подмосковье",
-    text: "Наконец-то перестала гадать, когда сажать. Календарь подсказывает по погоде — урожай томатов впервые как на картинке.",
+    text: "Перестала гадать, когда высаживать рассаду: календарь весны и погода на участке подсказали сроки — томаты впервые как на картинке.",
     rating: 5,
   },
   {
@@ -55,7 +55,8 @@ const features = [
   {
     icon: CalendarIcon,
     title: "Календарь работ",
-    description: "Что сажать и когда — персонально для вашего региона и погоды",
+    description:
+      "Апрель–июнь на грядке: что сеять, высаживать и чем заняться — с учётом региона и погоды; полный помесячный обзор — в «Все советы».",
     color: "emerald",
   },
   {
@@ -67,7 +68,8 @@ const features = [
   {
     icon: BookOpen,
     title: "Справочник культур",
-    description: "100+ растений с подробными рекомендациями по выращиванию в РФ",
+    description:
+      "100+ культур с сроками и уходом; отдельно — удобрения и защита от вредителей и болезней.",
     color: "violet",
   },
   {
@@ -126,7 +128,8 @@ export function LandingContent({
             Любимая Дача
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <MessengerFeedbackButtons size="sm" />
           <ThemeToggle />
           <Button variant="outline" size="sm" asChild>
             <Link href="/guide">Справочник</Link>
@@ -150,8 +153,9 @@ export function LandingContent({
         </MotionDiv>
         <MotionDiv variant="fadeUp" delay={0.15}>
           <p className="text-xl text-slate-600 dark:text-slate-400 max-w-xl mx-auto mb-8">
-            AI-агроном в кармане: календарь по региону, анализ болезней по фото,
-            справочник растений. Работает даже без интернета.
+            AI-агроном в кармане: календарь посадок весна–лето с учётом региона и погоды, анализ
+            болезней по фото, справочник культур и материалы про удобрения и защиту растений. Работает
+            даже без интернета.
           </p>
         </MotionDiv>
         <MotionDiv variant="fadeUp" delay={0.25}>
@@ -264,7 +268,8 @@ export function LandingContent({
           />
           <div className="bg-gradient-to-t from-slate-900/90 to-transparent p-6 sm:p-8 -mt-24 relative">
             <p className="text-white text-lg sm:text-xl font-medium max-w-xl">
-              Планируйте посадки, фиксируйте урожай и получайте подсказки AI — всё в одном приложении.
+              Планируйте посев и высадку по сезону, ведите участок и получайте подсказки AI — всё в одном
+              приложении.
             </p>
           </div>
         </MotionDiv>
@@ -284,7 +289,8 @@ export function LandingContent({
               Присоединяйтесь к тем, кто собирает больше
             </h2>
             <p className="text-emerald-100 mb-8 text-lg">
-              Бесплатный календарь, справочник и 3 AI-анализа в месяц. Премиум — без ограничений.
+              Бесплатный календарь посадок, справочник культур и 3 AI-анализа в месяц. Премиум — без
+              ограничений.
             </p>
             <Button
               size="lg"
@@ -305,20 +311,35 @@ export function LandingContent({
               <Sprout className="w-4 h-4" />
               Любимая Дача © {new Date().getFullYear()}
             </div>
-            <div className="flex flex-wrap items-center gap-4">
-              <Link href="/kogda-sazhat-rassadu" className="hover:text-emerald-600">
-                Когда сажать рассаду
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <Link
+                href="/kogda-sazhat-rassadu"
+                className="hover:text-emerald-600 dark:hover:text-emerald-400"
+                title="Когда сажать и высаживать рассаду — апрель–июнь 2026; полный график посева — «Все советы»"
+              >
+                Рассада: весна 2026
               </Link>
-              <Link href="/kalendar-posadok-2026" className="hover:text-emerald-600">
-                Календарь посадок 2026
+              <Link
+                href="/kalendar-posadok-2026"
+                className="hover:text-emerald-600 dark:hover:text-emerald-400"
+                title="Календарь посадок апрель–июнь 2026; расширенный обзор — «Все советы»"
+              >
+                Календарь: апрель–июнь
               </Link>
-              <Link href="/guide" className="hover:text-emerald-600">
-                Справочник
+              <Link href="/guide" className="hover:text-emerald-600 dark:hover:text-emerald-400">
+                Справочник культур
               </Link>
-              <Link href="/facts" className="hover:text-emerald-600">
+              <Link
+                href="/spravochnik-udobreniy-i-zashchity"
+                className="hover:text-emerald-600 dark:hover:text-emerald-400"
+                title="Справочник удобрений и средств защиты растений"
+              >
+                Удобрения и защита
+              </Link>
+              <Link href="/facts" className="hover:text-emerald-600 dark:hover:text-emerald-400">
                 Интересные факты
               </Link>
-              <FeedbackLinks variant="inline" />
+              <FeedbackLinks variant="icons" />
             </div>
           </div>
         </footer>
