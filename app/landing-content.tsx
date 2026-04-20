@@ -29,6 +29,10 @@ import {
   StaggerItem,
   motion,
 } from "@/components/motion";
+import {
+  GimnLandingIconButton,
+  GimnPlayerProvider,
+} from "@/components/gimn-player-control";
 import type { YearlyPromoOffer } from "@/lib/yearly-promo";
 
 const USER_COUNT = "30 000";
@@ -109,36 +113,38 @@ export function LandingContent({
   const { offer } = useYearlyPromoOffer({ initialOffer });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950 dark:via-slate-950 dark:to-amber-950">
-      {/* Header */}
-      <motion.header
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-4xl mx-auto px-4 pt-6 flex justify-between items-center"
-      >
-        <div className="flex items-center gap-3">
-          <motion.div
-            animate={{ rotate: [0, 10, -10, 0] }}
-            transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
-          >
-            <Sprout className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
-          </motion.div>
-          <span className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-amber-600 bg-clip-text text-transparent">
-            Любимая Дача
-          </span>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <MessengerFeedbackButtons size="sm" />
-          <ThemeToggle />
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/guide">Справочник</Link>
-          </Button>
-          <Button size="sm" asChild className="bg-emerald-600 hover:bg-emerald-700">
-            <Link href="/auth/signin">Войти</Link>
-          </Button>
-        </div>
-      </motion.header>
+    <GimnPlayerProvider withSpotlight={false}>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950 dark:via-slate-950 dark:to-amber-950">
+        {/* Header */}
+        <motion.header
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="max-w-4xl mx-auto px-4 pt-6 flex flex-wrap justify-between items-center gap-x-2 gap-y-3"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 4 }}
+            >
+              <Sprout className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+            </motion.div>
+            <span className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-amber-600 bg-clip-text text-transparent">
+              Любимая Дача
+            </span>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
+            <MessengerFeedbackButtons size="sm" />
+            <GimnLandingIconButton />
+            <ThemeToggle />
+            <Button variant="outline" size="sm" asChild className="text-xs sm:text-sm px-2 sm:px-3">
+              <Link href="/guide">Справочник</Link>
+            </Button>
+            <Button size="sm" asChild className="bg-emerald-600 hover:bg-emerald-700 text-xs sm:text-sm px-2 sm:px-3">
+              <Link href="/auth/signin">Войти</Link>
+            </Button>
+          </div>
+        </motion.header>
 
       {/* Hero */}
       <section className="max-w-4xl mx-auto px-4 pt-12 pb-8 text-center">
@@ -185,16 +191,22 @@ export function LandingContent({
         <MotionDiv variant="fadeUp" delay={0.35} className="mt-6">
           <YearlyPromoBanner offer={offer} ctaHref="/subscribe" />
         </MotionDiv>
-        <MotionDiv variant="fadeUp" delay={0.4} className="mt-12 rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.45, ease: "easeOut" }}
+          className="mt-12 rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800"
+        >
           <Image
             src="https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=900&q=80"
             alt="Огород, зелень, дача"
             width={900}
             height={500}
+            sizes="(max-width: 896px) 100vw, 896px"
             className="w-full h-56 sm:h-72 object-cover"
             priority
           />
-        </MotionDiv>
+        </motion.div>
       </section>
 
       {/* Features */}
@@ -258,12 +270,18 @@ export function LandingContent({
 
       {/* Visual: app in context */}
       <section className="max-w-4xl mx-auto px-4 py-12">
-        <MotionDiv variant="fadeUp" className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-700">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.1, ease: "easeOut" }}
+          className="rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800"
+        >
           <Image
             src="https://images.unsplash.com/photo-1592150621744-aca64f48394a?w=900&q=80"
             alt="Свежие овощи с огорода"
             width={900}
             height={500}
+            sizes="(max-width: 896px) 100vw, 896px"
             className="w-full h-64 sm:h-80 object-cover"
           />
           <div className="bg-gradient-to-t from-slate-900/90 to-transparent p-6 sm:p-8 -mt-24 relative">
@@ -272,7 +290,7 @@ export function LandingContent({
               приложении.
             </p>
           </div>
-        </MotionDiv>
+        </motion.div>
       </section>
 
       {/* CTA */}
@@ -344,6 +362,7 @@ export function LandingContent({
           </div>
         </footer>
       </MotionDiv>
-    </div>
+      </div>
+    </GimnPlayerProvider>
   );
 }
