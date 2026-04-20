@@ -17,6 +17,9 @@ import { MotionDiv } from "@/components/motion";
 import { motion, AnimatePresence } from "framer-motion";
 import { useChat, type ChatMessage } from "@/lib/hooks/use-chat";
 import { SubscribeModal } from "@/components/subscribe-modal";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
+import { toast } from "sonner";
 
 const quickQuestions = [
   "Что посадить в марте на рассаду?",
@@ -177,13 +180,21 @@ export default function ChatPage() {
     const pairKey = `${question.substring(0, 20)}`;
     setSharingPair(pairKey);
     try {
+      const payload = {
+        type: "chat",
+        data: { question, answer },
+      };
+      if (shouldQueueOfflineMutation()) {
+        const outId = await enqueueOutbox({ action: "SHARE_CONTENT", payload });
+        if (outId) {
+          toast.message("Ссылка для «Поделиться» в очереди — появится после подключения к сети");
+        }
+        return;
+      }
       const res = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "chat",
-          data: { question, answer },
-        }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (json.url) {

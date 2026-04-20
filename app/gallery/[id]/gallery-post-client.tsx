@@ -5,6 +5,9 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Heart, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
+import { GALLERY_SYNCED_EVENT } from "@/lib/offline/sync-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -32,6 +35,20 @@ export function GalleryPostClient({ photoId }: { photoId: string }) {
       .finally(() => setLoading(false));
   }, [photoId]);
 
+  useEffect(() => {
+    const onGallerySynced = (ev: Event) => {
+      const e = ev as CustomEvent<{ photoIds?: string[] }>;
+      const ids = e.detail?.photoIds ?? [];
+      if (ids.length > 0 && !ids.includes(photoId)) return;
+      fetch(`/api/gallery/${photoId}`)
+        .then((res) => res.json())
+        .then((data) => setItem(data.item ?? null))
+        .catch(() => {});
+    };
+    window.addEventListener(GALLERY_SYNCED_EVENT, onGallerySynced);
+    return () => window.removeEventListener(GALLERY_SYNCED_EVENT, onGallerySynced);
+  }, [photoId]);
+
   const toggleLike = async () => {
     if (status !== "authenticated") {
       toast.message("Чтобы ставить лайки, войдите в аккаунт");
@@ -41,7 +58,32 @@ export function GalleryPostClient({ photoId }: { photoId: string }) {
 
     setLiking(true);
     try {
-      const res = await fetch(`/api/gallery/${item.id}/like`, { method: "POST" });
+      const nextLiked = !item.likedByViewer;
+
+      if (shouldQueueOfflineMutation()) {
+        const outId = await enqueueOutbox({
+          action: "GALLERY_LIKE",
+          payload: { photoId: item.id, setLiked: nextLiked },
+        });
+        if (!outId) throw new Error("Нет доступа к хранилищу");
+        setItem((prev) =>
+          prev
+            ? {
+                ...prev,
+                likedByViewer: nextLiked,
+                likesCount: Math.max(0, prev.likesCount + (nextLiked ? 1 : -1)),
+              }
+            : prev
+        );
+        toast.message("Лайк в очереди на синхронизацию");
+        return;
+      }
+
+      const res = await fetch(`/api/gallery/${item.id}/like`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ setLiked: nextLiked }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Не удалось поставить лайк");
       setItem((prev) =>
@@ -74,10 +116,31 @@ export function GalleryPostClient({ photoId }: { photoId: string }) {
 
     setPostingComment(true);
     try {
+      const text = comment.trim();
+
+      if (shouldQueueOfflineMutation()) {
+        const outId = await enqueueOutbox({
+          action: "GALLERY_COMMENT",
+          payload: { photoId: item.id, content: text },
+        });
+        if (!outId) throw new Error("Нет доступа к хранилищу");
+        setItem((prev) =>
+          prev
+            ? {
+                ...prev,
+                commentsCount: prev.commentsCount + 1,
+              }
+            : prev
+        );
+        setComment("");
+        toast.message("Комментарий в очереди на синхронизацию");
+        return;
+      }
+
       const res = await fetch(`/api/gallery/${item.id}/comments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: comment.trim() }),
+        body: JSON.stringify({ content: text }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Не удалось отправить комментарий");

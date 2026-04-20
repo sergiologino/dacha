@@ -1,6 +1,15 @@
 "use client";
 
+/**
+ * Web Push (VAPID + service worker). На мобильном вебе поддержка ограничена (iOS Safari 16.4+).
+ * Для **Capacitor**: замените на `@capacitor/push-notifications` + свой backend endpoint;
+ * хранение подписки в `PushSubscription` (Prisma) можно оставить с отдельным `provider`/`deviceToken`.
+ * Для **React Native**: Firebase Cloud Messaging или аналог + тот же серверный cron, что шлёт погоду/напоминания.
+ */
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { isLikelyNetworkError } from "@/lib/offline/network-error";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -122,6 +131,22 @@ export function usePushSubscription() {
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
+        const premiumOrAuth = res.status === 403 || res.status === 401;
+        const queueable = !premiumOrAuth && (res.status >= 500 || res.status === 0);
+        if (queueable) {
+          const outId = await enqueueOutbox({
+            action: "PUSH_SUBSCRIBE",
+            payload: { subscription: sub.toJSON() },
+          });
+          if (outId) {
+            setState("subscribed");
+            setMessage(
+              "Подписка на уведомления в очереди — сервер обновится при появлении сети."
+            );
+            toast.message("Push: регистрация в очереди");
+            return;
+          }
+        }
         await sub.unsubscribe().catch(() => {});
         throw new Error(
           typeof data.error === "string"
@@ -136,6 +161,23 @@ export function usePushSubscription() {
         "Уведомления включены. Напоминания по запланированным работам будут приходить на это устройство."
       );
     } catch (err) {
+      const maybeSub = await navigator.serviceWorker.ready
+        .then((r) => r.pushManager.getSubscription())
+        .catch(() => null);
+      if (maybeSub && isLikelyNetworkError(err)) {
+        const outId = await enqueueOutbox({
+          action: "PUSH_SUBSCRIBE",
+          payload: { subscription: maybeSub.toJSON() },
+        });
+        if (outId) {
+          setState("subscribed");
+          setMessage(
+            "Подписка на уведомления в очереди — сервер обновится при появлении сети."
+          );
+          toast.message("Push: регистрация в очереди");
+          return;
+        }
+      }
       setState(Notification.permission === "denied" ? "denied" : "idle");
       setMessage(err instanceof Error ? err.message : "Ошибка подписки");
     }
@@ -148,11 +190,21 @@ export function usePushSubscription() {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) {
-        await fetch("/api/push/unsubscribe", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint: sub.endpoint }),
-        });
+        try {
+          await fetch("/api/push/unsubscribe", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint: sub.endpoint }),
+          });
+        } catch (e) {
+          if (isLikelyNetworkError(e)) {
+            void enqueueOutbox({
+              action: "PUSH_UNSUBSCRIBE",
+              payload: { endpoint: sub.endpoint },
+            });
+            toast.message("Отписка от push в очереди — завершится при появлении сети");
+          }
+        }
         await sub.unsubscribe();
       }
       setState(Notification.permission === "denied" ? "denied" : "idle");

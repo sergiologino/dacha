@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { enqueueOutbox } from "@/lib/offline/outbox";
+import { isLikelyNetworkError } from "@/lib/offline/network-error";
 import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 import { CHAT_HISTORY_SYNC_EVENT } from "@/lib/offline/sync-events";
 import { toast } from "sonner";
@@ -71,12 +72,12 @@ export function useChat() {
       setMessages((prev) => [...prev, userMessage]);
       setIsLoading(true);
 
-      try {
-        const apiMessages = [
-          ...messages.map((m) => ({ role: m.role, content: m.content })),
-          { role: "user" as const, content },
-        ];
+      const apiMessages = [
+        ...messages.map((m) => ({ role: m.role, content: m.content })),
+        { role: "user" as const, content },
+      ];
 
+      try {
         if (shouldQueueOfflineMutation()) {
           const outId = await enqueueOutbox({
             action: "AI_CHAT_MESSAGE",
@@ -114,6 +115,23 @@ export function useChat() {
 
         setMessages((prev) => [...prev, assistantMessage]);
       } catch (err) {
+        if (!shouldQueueOfflineMutation() && isLikelyNetworkError(err)) {
+          try {
+            const outId = await enqueueOutbox({
+              action: "AI_CHAT_MESSAGE",
+              payload: {
+                messages: apiMessages,
+                networkName: options?.networkName,
+              },
+            });
+            if (outId) {
+              toast.message("Нет стабильной связи — сообщение поставлено в очередь");
+              return;
+            }
+          } catch {
+            /* fall through */
+          }
+        }
         const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
         setError(msg);
       } finally {

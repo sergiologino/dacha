@@ -16,6 +16,8 @@ import {
   YearlyPromoBanner,
   useYearlyPromoOffer,
 } from "@/components/yearly-promo";
+import { guardOnlineForFeature } from "@/lib/offline/offline-feature-toast";
+import { isLikelyNetworkError } from "@/lib/offline/network-error";
 
 const TESTIMONIALS = [
   {
@@ -60,6 +62,8 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
         : "Любимая Дача Премиум на месяц";
 
     setError(null);
+    if (!guardOnlineForFeature("Оплата подписки")) return;
+
     setIsSubmitting(true);
 
     try {
@@ -89,8 +93,12 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
       } else {
         setError("Платёж создан некорректно: не пришёл URL оплаты.");
       }
-    } catch {
-      setError("Ошибка связи с YooKassa. Проверьте интернет или попробуйте позже.");
+    } catch (e) {
+      if (isLikelyNetworkError(e)) {
+        setError("Нет стабильного интернета. Подключитесь к сети и откройте оплату снова.");
+      } else {
+        setError("Ошибка связи с YooKassa. Проверьте интернет или попробуйте позже.");
+      }
     } finally {
       setIsSubmitting(false);
     }

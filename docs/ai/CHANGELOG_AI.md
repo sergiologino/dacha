@@ -4,6 +4,14 @@
 
 ---
 
+## 2026-04-20 — Офлайн: дожим очереди, сбои сети, ответ нейроэксперта в /guide, иконка MAX
+
+- **`OfflineSyncBridge`**: периодический **drain ~60 с** при активной сессии; **visibilitychange** / **focus** — повторная попытка после возврата на вкладку. Комментарий для **Capacitor / RN** (вызов `drainOutbox` на resume).
+- **`AI_CHAT_MESSAGE`**: при сбое fetch при «онлайн» чат ставит сообщение в outbox (`use-chat` + `isLikelyNetworkError`); камера — то же для анализа фото (`camera/page.tsx`).
+- **Справочник**: в payload очереди — `guideAiSearch.searchTerm`; после drain `sync-engine` шлёт **`GUIDE_AI_SEARCH_READY_EVENT`** — UI подставляет текст ответа и тост.
+- **MAX**: `public/icons/max-messenger.png` + `MaxMessengerIcon` через `<img>`.
+- **`use-push-subscription`**: JSDoc про миграцию на **Capacitor Push Notifications** / **FCM**.
+
 ## 2026-04-19 — Сезонные SEO-страницы, факты без БД, обратная связь, справочник удобрений
 
 - **`/kogda-sazhat-rassadu`**, **`/kalendar-posadok-2026`**: основной контент смещён на **апрель–июнь** (вторая половина апреля — высадка и закалка); прежние тексты — в **`/vse-sovety`** на каждом маршруте; перекрёстные ссылки и блоки «старые разделы» внизу. Данные вынесены в `lib/data/seo-kogda-sazhat.ts`, `lib/data/seo-kalendar-posadok.ts`; общая вёрстка — `kogda-seo-body.tsx`, `kalendar-seo-body.tsx`.

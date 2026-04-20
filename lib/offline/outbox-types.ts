@@ -20,7 +20,13 @@ export type OutboxActionType =
   | "AI_ANALYZE_PHOTO"
   | "AI_CHAT_MESSAGE"
   | "AI_TIMELINE_GENERATE"
-  | "GUIDE_DETAIL_FETCH";
+  | "GUIDE_DETAIL_FETCH"
+  | "SHARE_CONTENT"
+  | "GALLERY_LIKE"
+  | "GALLERY_COMMENT"
+  | "PAGE_VISIT"
+  | "PUSH_SUBSCRIBE"
+  | "PUSH_UNSUBSCRIBE";
 
 export interface OutboxRecord {
   id: string;

@@ -8,6 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { enqueueOutbox } from "@/lib/offline/outbox";
+import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
+import { GALLERY_SYNCED_EVENT } from "@/lib/offline/sync-events";
 import { GalleryShareButton } from "@/components/gallery-share-button";
 import {
   galleryPhotoImageSrc,
@@ -29,6 +32,17 @@ export function GalleryFeed() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    const onGallerySynced = () => {
+      fetch("/api/gallery")
+        .then((res) => res.json())
+        .then((data) => setItems(data.items ?? []))
+        .catch(() => {});
+    };
+    window.addEventListener(GALLERY_SYNCED_EVENT, onGallerySynced);
+    return () => window.removeEventListener(GALLERY_SYNCED_EVENT, onGallerySynced);
+  }, []);
+
   const toggleLike = async (photoId: string) => {
     if (status !== "authenticated") {
       toast.message("Чтобы ставить лайки, войдите в аккаунт");
@@ -37,25 +51,54 @@ export function GalleryFeed() {
 
     setLikingId(photoId);
     try {
+      const item = items.find((i) => i.id === photoId);
+      const nextLiked = !item?.likedByViewer;
+
+      if (shouldQueueOfflineMutation()) {
+        const outId = await enqueueOutbox({
+          action: "GALLERY_LIKE",
+          payload: { photoId, setLiked: nextLiked },
+        });
+        if (!outId) throw new Error("Нет доступа к хранилищу");
+        setItems((prev) =>
+          prev.map((it) =>
+            it.id === photoId
+              ? {
+                  ...it,
+                  likedByViewer: nextLiked,
+                  likesCount: Math.max(
+                    0,
+                    it.likesCount + (nextLiked ? 1 : -1)
+                  ),
+                }
+              : it
+          )
+        );
+        toast.message("Лайк в очереди на синхронизацию");
+        return;
+      }
+
       const res = await fetch(`/api/gallery/${photoId}/like`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ setLiked: nextLiked }),
       });
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Не удалось поставить лайк");
       }
       setItems((prev) =>
-        prev.map((item) =>
-          item.id === photoId
+        prev.map((it) =>
+          it.id === photoId
             ? {
-                ...item,
+                ...it,
                 likedByViewer: !!data.liked,
                 likesCount:
                   typeof data.likesCount === "number"
                     ? data.likesCount
-                    : item.likesCount,
+                    : it.likesCount,
               }
-            : item
+            : it
         )
       );
     } catch (error) {

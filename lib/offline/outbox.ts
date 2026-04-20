@@ -1,5 +1,9 @@
 import { getLocalDb } from "@/lib/offline/local-db";
 import type { OutboxActionType, OutboxRecord } from "@/lib/offline/outbox-types";
+import {
+  mirrorOutboxCancelled,
+  mirrorOutboxUpsert,
+} from "@/lib/offline/outbox-server-mirror";
 import { notifyOutboxChanged } from "@/lib/offline/sync-events";
 
 function randomId(): string {
@@ -25,7 +29,37 @@ export async function enqueueOutbox(params: {
   };
   await db.outbox.put(row);
   notifyOutboxChanged();
+  void mirrorOutboxUpsert(row);
   return id;
+}
+
+async function releaseOutboxResourcesForRecord(record: OutboxRecord): Promise<void> {
+  const p = record.payload as { localBlobId?: string };
+  if (!p?.localBlobId) return;
+  if (record.action === "UPLOAD_PHOTO" || record.action === "AI_ANALYZE_PHOTO") {
+    await deleteLocalBlob(p.localBlobId);
+  }
+}
+
+/** Pending + failed для синхронизации зеркала на сервер. */
+export async function listOutboxTasksForMirrorSync(): Promise<OutboxRecord[]> {
+  const db = getLocalDb();
+  if (!db) return [];
+  const [pending, failed] = await Promise.all([
+    db.outbox.where("status").equals("pending").toArray(),
+    db.outbox.where("status").equals("failed").toArray(),
+  ]);
+  return [...pending, ...failed].sort((a, b) => a.createdAt - b.createdAt);
+}
+
+/** Все задачи для экрана «Очередь» (кроме успешно удалённых). */
+export async function listOutboxTasksForDisplay(): Promise<OutboxRecord[]> {
+  const db = getLocalDb();
+  if (!db) return [];
+  const rows = await db.outbox
+    .filter((r) => r.status === "pending" || r.status === "failed" || r.status === "syncing")
+    .toArray();
+  return rows.sort((a, b) => a.createdAt - b.createdAt);
 }
 
 export async function listPendingOutbox(): Promise<OutboxRecord[]> {
@@ -76,11 +110,17 @@ export async function updateOutboxRecord(
   notifyOutboxChanged();
 }
 
-export async function deleteOutboxRecord(id: string): Promise<void> {
+export async function deleteOutboxRecord(
+  id: string,
+  opts?: { skipMirrorCancel?: boolean }
+): Promise<void> {
   const db = getLocalDb();
   if (!db) return;
+  const row = await db.outbox.get(id);
+  if (row) await releaseOutboxResourcesForRecord(row);
   await db.outbox.delete(id);
   notifyOutboxChanged();
+  if (!opts?.skipMirrorCancel) void mirrorOutboxCancelled(id);
 }
 
 export async function putLocalBlob(blob: Blob, mimeType: string): Promise<string | null> {
@@ -119,6 +159,7 @@ export async function cancelPendingPhotoUploadByTempId(tempPhotoId: string): Pro
     if (p.tempPhotoId !== tempPhotoId) continue;
     if (p.localBlobId) await deleteLocalBlob(p.localBlobId);
     await db.outbox.delete(r.id);
+    void mirrorOutboxCancelled(r.id);
   }
   notifyOutboxChanged();
 }

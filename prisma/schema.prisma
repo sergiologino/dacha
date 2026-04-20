@@ -338,18 +338,21 @@ model CropGuide {
 // ─── Offline sync ───────────────────────────────────────────
 
 model TaskQueue {
-  id          String   @id @default(cuid())
-  userId      String
-  action      String   // create_plant, update_plant, delete_plant, analyze_photo, etc.
-  payload     Json
-  status      String   @default("pending") // pending, processing, completed, failed
-  retries     Int      @default(0)
-  errorMsg    String?
-  createdAt   DateTime @default(now())
-  processedAt DateTime?
+  id            String    @id @default(cuid())
+  userId        String
+  /** id строки outbox в IndexedDB (клиент) — для зеркала и отмены */
+  clientLocalId String?
+  action        String // create_plant, AI_CHAT_MESSAGE, SHARE_CONTENT, …
+  payload       Json
+  status        String    @default("pending") // pending, completed, failed, cancelled
+  retries       Int       @default(0)
+  errorMsg      String?
+  createdAt     DateTime  @default(now())
+  processedAt   DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, clientLocalId])
   @@index([userId, status])
   @@map("task_queue")
 }
