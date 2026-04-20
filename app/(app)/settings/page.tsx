@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { signOutAndWipeLocalDevice } from "@/lib/auth/client-sign-out";
-import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3, BookOpen, CloudSun } from "lucide-react";
+import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3, BookOpen, CloudSun, ListTodo } from "lucide-react";
 import { clearFeatureOnboardingSeen } from "@/components/feature-onboarding";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import {
   WEATHER_CHECK_INTERVAL_OPTIONS,
   WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT,
 } from "@/lib/weather-settings";
+import { guardOnlineForFeature } from "@/lib/offline/offline-feature-toast";
 
 type PaymentRow = {
   id: string;
@@ -163,6 +165,7 @@ export default function SettingsPage() {
   }, [tab, isAdmin, dateFrom, dateTo]);
 
   const togglePremium = async () => {
+    if (!guardOnlineForFeature("Смена статуса Премиум")) return;
     setTogglingPremium(true);
     try {
       const res = await fetch("/api/user/premium", {
@@ -200,6 +203,7 @@ export default function SettingsPage() {
 
   const saveLocation = async () => {
     if (!position) return;
+    if (!guardOnlineForFeature("Сохранение местоположения")) return;
     setSaving(true);
     try {
       await fetch("/api/user/location", {
@@ -235,6 +239,7 @@ export default function SettingsPage() {
       setShowPaywall(true);
       return;
     }
+    if (!guardOnlineForFeature("Сохранение настроек погоды")) return;
     setWeatherSaving(true);
     try {
       const res = await fetch("/api/user/weather-settings", {
@@ -543,6 +548,20 @@ export default function SettingsPage() {
           </div>
         </Card>
       )}
+
+      <Card className="p-6 mb-6">
+        <h2 className="font-semibold mb-2 flex items-center gap-2">
+          <ListTodo className="w-5 h-5 text-emerald-600" />
+          Очередь синхронизации
+        </h2>
+        <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+          Задачи без интернета (лайки, комментарии, шаринг, аналитика, push) накапливаются здесь и
+          уходят на сервер при появлении связи.
+        </p>
+        <Button variant="outline" className="w-full h-11 rounded-2xl" asChild>
+          <Link href="/settings/sync-queue">Открыть очередь</Link>
+        </Button>
+      </Card>
 
       {/* Admin: premium toggle */}
       {isAdmin && (

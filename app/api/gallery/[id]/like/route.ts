@@ -5,13 +5,17 @@ import { getAuthUser } from "@/lib/get-user";
 export const dynamic = "force-dynamic";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const body = await request.json().catch(() => ({}));
+  const setLiked =
+    typeof body.setLiked === "boolean" ? (body.setLiked as boolean) : null;
 
   const { id } = await params;
   const photo = await prisma.photo.findFirst({
@@ -37,7 +41,21 @@ export async function POST(
     select: { id: true },
   });
 
-  if (existing) {
+  if (setLiked === true) {
+    if (!existing) {
+      await prisma.photoLike.create({
+        data: { photoId: id, userId: user.id },
+      });
+    }
+  } else if (setLiked === false) {
+    if (existing) {
+      await prisma.photoLike.delete({
+        where: {
+          photoId_userId: { photoId: id, userId: user.id },
+        },
+      });
+    }
+  } else if (existing) {
     await prisma.photoLike.delete({
       where: {
         photoId_userId: {
@@ -55,12 +73,15 @@ export async function POST(
     });
   }
 
+  const likedAfter =
+    setLiked === true ? true : setLiked === false ? false : !existing;
+
   const likesCount = await prisma.photoLike.count({
     where: { photoId: id },
   });
 
   return NextResponse.json({
-    liked: !existing,
+    liked: likedAfter,
     likesCount,
   });
 }

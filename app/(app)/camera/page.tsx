@@ -12,6 +12,7 @@ import { compressImageFile } from "@/lib/compress-image";
 import { dataUrlToBlob } from "@/lib/offline/blob-utils";
 import { deleteLocalBlob, enqueueOutbox, putLocalBlob } from "@/lib/offline/outbox";
 import { newOfflineClientId } from "@/lib/offline/offline-id";
+import { isLikelyNetworkError } from "@/lib/offline/network-error";
 import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 import { ANALYSES_SYNC_EVENT } from "@/lib/offline/sync-events";
 import { toast } from "sonner";
@@ -150,7 +151,39 @@ export default function CameraPage() {
       setAnalyses((prev) => [newAnalysis, ...prev]);
       const quota = await fetch("/api/ai/analyze").then((r) => r.json());
       if (typeof quota.freeLeft === "number") setFreeLeft(quota.freeLeft);
-    } catch {
+    } catch (e) {
+      if (!shouldQueueOfflineMutation() && isLikelyNetworkError(e) && selectedImage) {
+        try {
+          const blob = await dataUrlToBlob(selectedImage);
+          const mimeMatch = selectedImage.match(/^data:([^;]+);/);
+          const mime = mimeMatch?.[1] ?? "image/jpeg";
+          const localBlobId = await putLocalBlob(blob, mime);
+          if (localBlobId) {
+            const outId = await enqueueOutbox({
+              action: "AI_ANALYZE_PHOTO",
+              payload: { localBlobId },
+            });
+            if (outId) {
+              const tempId = newOfflineClientId();
+              setAnalyses((prev) => [
+                {
+                  id: tempId,
+                  imageUrl: selectedImage,
+                  result:
+                    "Анализ в очереди — результат появится после восстановления связи.",
+                  date: new Date().toLocaleDateString("ru-RU"),
+                },
+                ...prev,
+              ]);
+              toast.message("Нет стабильной связи — анализ поставлен в очередь");
+              return;
+            }
+            await deleteLocalBlob(localBlobId);
+          }
+        } catch {
+          /* fall through */
+        }
+      }
       alert("Ошибка анализа. Проверьте интернет-соединение.");
     } finally {
       setSelectedImage(null);
@@ -161,13 +194,23 @@ export default function CameraPage() {
   const shareAnalysis = async (a: AnalysisItem) => {
     setSharingId(a.id);
     try {
+      const payload = {
+        type: "analysis",
+        data: { imageUrl: a.imageUrl, result: a.result, date: a.date },
+      };
+      if (shouldQueueOfflineMutation()) {
+        const outId = await enqueueOutbox({
+          action: "SHARE_CONTENT",
+          payload,
+        });
+        if (!outId) throw new Error("Нет доступа к хранилищу");
+        toast.message("Ссылка для «Поделиться» в очереди — появится после подключения к сети");
+        return;
+      }
       const res = await fetch("/api/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "analysis",
-          data: { imageUrl: a.imageUrl, result: a.result, date: a.date },
-        }),
+        body: JSON.stringify(payload),
       });
       const json = await res.json();
       if (json.url) {

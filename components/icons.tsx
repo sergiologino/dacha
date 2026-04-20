@@ -39,21 +39,20 @@ export function TelegramBrandIcon({ className }: { className?: string }) {
   );
 }
 
-/** Стильзованная иконка мессенджера MAX (условные фирменные цвета, без gradient id — можно несколько на странице). */
+/** Иконка мессенджера MAX (ассет из дизайна; `public/icons/max-messenger.png`). */
 export function MaxMessengerIcon({ className }: { className?: string }) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
+    // eslint-disable-next-line @next/next/no-img-element -- фиксированная иконка из public, без оптимизации
+    <img
+      src="/icons/max-messenger.png"
+      alt=""
+      width={24}
+      height={24}
       className={className}
       aria-hidden
-    >
-      <rect width="24" height="24" rx="6" fill="#6B4DE8" />
-      <path
-        fill="#fff"
-        d="M6.5 7.5h2.2v9H6.5v-9zm4.3 2.2h2.1l1.6 3.2 1.6-3.2h2.1v9h-2v-4.3l-1.8 3.6h-.1l-1.8-3.6v4.3h-2v-9z"
-      />
-    </svg>
+      loading="lazy"
+      decoding="async"
+    />
   );
 }
 

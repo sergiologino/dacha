@@ -76,11 +76,13 @@ export function WeatherWidget({
   bedTypes,
   plants,
 }: WeatherWidgetProps) {
-  const { data, isLoading, isFetching, error, refresh } = useWeather(lat, lon);
+  const { data, isLoading, isFetching, isError, refresh } = useWeather(lat, lon);
 
   if (!lat || !lon) return null;
 
-  if (isLoading) {
+  const staleForecast = Boolean(isError && data);
+
+  if (isLoading && !data) {
     return (
       <Card className="p-6 animate-pulse">
         <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-3" />
@@ -90,7 +92,7 @@ export function WeatherWidget({
     );
   }
 
-  if (error || !data) return null;
+  if (!data) return null;
 
   const tips = generateWeatherTips(data.current, data.forecast, {
     bedTypes,
@@ -135,6 +137,12 @@ export function WeatherWidget({
             <div className="mt-3">
               <TipBadge tip={tips[0]} />
             </div>
+          )}
+          {staleForecast && (
+            <p className="mt-3 text-center text-[11px] font-semibold text-amber-700 dark:text-amber-300 leading-tight">
+              Актуальный прогноз сейчас недоступен — нет интернета. Показаны последние сохранённые
+              данные.
+            </p>
           )}
         </Card>
       </MotionDiv>
@@ -249,6 +257,12 @@ export function WeatherWidget({
             ))}
           </div>
         </div>
+        {staleForecast && (
+          <p className="mt-4 text-center text-[11px] font-semibold text-amber-700 dark:text-amber-300 leading-tight">
+            Актуальный прогноз сейчас недоступен — нет интернета. Показаны последние сохранённые
+            данные.
+          </p>
+        )}
       </Card>
     </MotionDiv>
   );

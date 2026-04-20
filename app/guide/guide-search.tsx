@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CropImage } from "@/components/crop-image";
@@ -8,11 +8,11 @@ import { Search, Sparkles, Loader2, BookPlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { Crop } from "@/lib/types";
 import { getCropDisplayImageUrl } from "@/lib/crop-community";
 import type { CropWithSource } from "@/lib/crops-merge";
 import { enqueueOutbox } from "@/lib/offline/outbox";
 import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
+import { GUIDE_AI_SEARCH_READY_EVENT } from "@/lib/offline/sync-events";
 import { toast } from "sonner";
 
 export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
@@ -24,6 +24,22 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
   const [addToGuideLoading, setAddToGuideLoading] = useState(false);
   const [addToGuideError, setAddToGuideError] = useState<string | null>(null);
   const [aiExpanded, setAiExpanded] = useState(false);
+
+  useEffect(() => {
+    const onReady = (ev: Event) => {
+      const ce = ev as CustomEvent<{ searchTerm?: string; content?: string }>;
+      const term = ce.detail?.searchTerm?.trim() ?? "";
+      const content = ce.detail?.content;
+      if (!term || typeof content !== "string") return;
+      if (term.toLowerCase() !== searchTerm.trim().toLowerCase()) return;
+      setAiResult(content);
+      setAiError(null);
+      toast.success("Ответ нейроэксперта получен");
+    };
+    window.addEventListener(GUIDE_AI_SEARCH_READY_EVENT, onReady as EventListener);
+    return () =>
+      window.removeEventListener(GUIDE_AI_SEARCH_READY_EVENT, onReady as EventListener);
+  }, [searchTerm]);
 
   const filtered = searchTerm
     ? crops.filter(
@@ -48,7 +64,10 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
         const content = `Расскажи подробно о культуре "${searchTerm}" для выращивания на даче в России. Включи: описание, популярные сорта (3-5), сроки посадки (средняя полоса), полив, уход, болезни, урожай. Формат: структурированный текст с заголовками.`;
         const outId = await enqueueOutbox({
           action: "AI_CHAT_MESSAGE",
-          payload: { messages: [{ role: "user", content }] },
+          payload: {
+            messages: [{ role: "user", content }],
+            guideAiSearch: { searchTerm: searchTerm.trim() },
+          },
         });
         if (!outId) throw new Error("Локальное хранилище недоступно");
         toast.message("Запрос к ИИ в очереди");

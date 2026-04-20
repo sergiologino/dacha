@@ -76,6 +76,7 @@ export function useWeather(lat: number | null, lon: number | null) {
     enabled: lat !== null && lon !== null,
     staleTime: 15 * 60 * 1000,
     refetchInterval: 30 * 60 * 1000,
+    placeholderData: (prev) => prev,
   });
 
   const refresh = () => {

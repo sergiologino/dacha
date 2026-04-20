@@ -9,6 +9,7 @@ import {
   pickNextPendingOutbox,
   updateOutboxRecord,
 } from "@/lib/offline/outbox";
+import { mirrorOutboxCompleted } from "@/lib/offline/outbox-server-mirror";
 import { blobToDataUrl } from "@/lib/offline/blob-utils";
 import { DrainAuthError, isDrainAuthError } from "@/lib/offline/drain-errors";
 import { probeServerReachable } from "@/lib/offline/network-status";
@@ -16,7 +17,10 @@ import type { OutboxRecord } from "@/lib/offline/outbox-types";
 import {
   notifyAnalysesSynced,
   notifyChatHistorySynced,
+  notifyGallerySynced,
+  notifyGuideAiSearchReady,
   notifyGuideDetailReady,
+  notifyShareLinkReady,
 } from "@/lib/offline/sync-events";
 
 export type SyncEngineResult = {
@@ -266,6 +270,11 @@ async function applyOne(record: OutboxRecord, maps: IdMaps): Promise<void> {
         credentials: "same-origin",
       });
       await assertOkForDrain(res);
+      const data = (await res.json()) as { message?: string };
+      const assistantText = typeof data.message === "string" ? data.message : "";
+      const guideCtx = p.guideAiSearch as { searchTerm?: string } | undefined;
+      const term = typeof guideCtx?.searchTerm === "string" ? guideCtx.searchTerm.trim() : "";
+      if (term && assistantText) notifyGuideAiSearchReady(term, assistantText);
       notifyChatHistorySynced();
       return;
     }
@@ -290,6 +299,82 @@ async function applyOne(record: OutboxRecord, maps: IdMaps): Promise<void> {
       notifyGuideDetailReady(slug, content);
       return;
     }
+    case "SHARE_CONTENT": {
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: p.type, data: p.data }),
+        credentials: "same-origin",
+      });
+      await assertOkForDrain(res);
+      const shareData = (await res.json()) as { url?: string };
+      const shareUrl = typeof shareData.url === "string" ? shareData.url : "";
+      if (shareUrl) {
+        notifyShareLinkReady(shareUrl, String(p.type ?? ""));
+      }
+      return;
+    }
+    case "GALLERY_LIKE": {
+      const photoId = String(p.photoId ?? "");
+      const setLiked = Boolean(p.setLiked);
+      const res = await fetch(`/api/gallery/${photoId}/like`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ setLiked }),
+        credentials: "same-origin",
+      });
+      await assertOkForDrain(res);
+      return;
+    }
+    case "GALLERY_COMMENT": {
+      const photoId = String(p.photoId ?? "");
+      const commentText = String(
+        (p as { content?: string; comment?: string }).content ??
+          (p as { comment?: string }).comment ??
+          ""
+      );
+      const res = await fetch(`/api/gallery/${photoId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: commentText }),
+        credentials: "same-origin",
+      });
+      await assertOkForDrain(res);
+      return;
+    }
+    case "PAGE_VISIT": {
+      const path = String(p.path ?? "");
+      const res = await fetch("/api/analytics/page-visit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+        credentials: "same-origin",
+      });
+      await assertOkForDrain(res);
+      return;
+    }
+    case "PUSH_SUBSCRIBE": {
+      const sub = p.subscription as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+      const res = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription: sub }),
+        credentials: "same-origin",
+      });
+      await assertOkForDrain(res);
+      return;
+    }
+    case "PUSH_UNSUBSCRIBE": {
+      const endpoint = String(p.endpoint ?? "");
+      const res = await fetch("/api/push/unsubscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint }),
+        credentials: "same-origin",
+      });
+      await assertOkForDrain(res);
+      return;
+    }
     default:
       throw new Error(`sync-engine: неизвестное действие «${record.action}»`);
   }
@@ -305,6 +390,7 @@ export async function drainOutbox(): Promise<SyncEngineResult> {
   let processed = 0;
   let errors = 0;
   let authRequired = false;
+  const galleryTouchedIds = new Set<string>();
 
   for (;;) {
     if (!(await probeServerReachable())) break;
@@ -314,8 +400,14 @@ export async function drainOutbox(): Promise<SyncEngineResult> {
     await updateOutboxRecord(rec.id, { status: "syncing" });
     try {
       await applyOne(rec, maps);
-      await deleteOutboxRecord(rec.id);
+      void mirrorOutboxCompleted(rec.id);
+      await deleteOutboxRecord(rec.id, { skipMirrorCancel: true });
       processed += 1;
+      if (rec.action === "GALLERY_LIKE" || rec.action === "GALLERY_COMMENT") {
+        const op = rec.payload as Record<string, unknown>;
+        const pid = String(op.photoId ?? "");
+        if (pid) galleryTouchedIds.add(pid);
+      }
     } catch (e) {
       if (isDrainAuthError(e)) {
         await updateOutboxRecord(rec.id, {
@@ -341,6 +433,9 @@ export async function drainOutbox(): Promise<SyncEngineResult> {
   }
 
   if (processed > 0) invalidateGardenQueries();
+  if (galleryTouchedIds.size > 0) {
+    notifyGallerySynced([...galleryTouchedIds]);
+  }
 
   return { processed, errors, skippedOffline: false, authRequired };
 }
