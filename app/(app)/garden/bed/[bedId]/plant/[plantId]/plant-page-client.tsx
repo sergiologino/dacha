@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Camera, Image as ImageIcon, Plus } from "lucide-react";
+import { Loader2, Camera, Image as ImageIcon, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { GardenBreadcrumbs } from "@/components/garden-breadcrumbs";
@@ -20,6 +20,7 @@ import { getCropDisplayImageUrl } from "@/lib/crop-community";
 import { proxifyGuideMediaUrl } from "@/lib/guide-image-url";
 import { crops as staticCrops } from "@/lib/data/crops";
 import type { CropWithSource } from "@/lib/crops-merge";
+import { useDeletePlant } from "@/lib/hooks/use-plants";
 
 function toDateInputValue(iso: string) {
   return iso.slice(0, 10);
@@ -48,6 +49,7 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
   }>({ open: false, mode: "add", event: null });
 
   const uploadPhoto = useUploadPlantPhoto();
+  const deletePlant = useDeletePlant();
   const photoCameraInputRef = useRef<HTMLInputElement>(null);
   const photoGalleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,6 +88,23 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
       });
     }
     e.target.value = "";
+  };
+
+  const handleDeletePlant = () => {
+    if (!plant) return;
+    const ok = window.confirm(
+      `Удалить растение «${plant.name}»? Фото, анализы и план работ по нему тоже будут удалены.`
+    );
+    if (!ok) return;
+    deletePlant.mutate(plant.id, {
+      onSuccess: () => {
+        toast.success("Растение удалено");
+        router.replace("/garden");
+      },
+      onError: (err) => {
+        toast.error(err instanceof Error ? err.message : "Не удалось удалить растение");
+      },
+    });
   };
 
   if (status === "loading" || bedsQuery.isLoading) {
@@ -145,10 +164,27 @@ export function PlantPageClient({ bedId, plantId }: { bedId: string; plantId: st
             href={`/guide/${plant.cropSlug}`}
             className="inline-block mt-3 text-lg font-medium text-emerald-700 dark:text-emerald-400 hover:underline"
           >
-            Открыть культуру в справочнике →
+          Открыть культуру в справочнике →
           </Link>
         ) : null}
       </header>
+
+      <section className="mb-8" aria-label="Управление растением">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-12 text-base rounded-xl border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40"
+          disabled={deletePlant.isPending}
+          onClick={handleDeletePlant}
+        >
+          {deletePlant.isPending ? (
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+          ) : (
+            <Trash2 className="w-5 h-5 mr-2" />
+          )}
+          Удалить растение
+        </Button>
+      </section>
 
       <section className="mb-8" aria-label="Добавить фото растения">
         <input
