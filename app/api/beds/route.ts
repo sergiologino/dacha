@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (hasFullAccess(user)) {
       // без ограничений
     } else if (isLegacyFreeTierUser(user)) {
-      const bedCount = await prisma.bed.count({ where: { userId: user.id } });
+      const bedCount = await prisma.bed.count({ where: { userId: user.id, isVirtual: false } });
       if (bedCount >= LEGACY_FREE_BED_LIMIT) {
         return NextResponse.json(
           {

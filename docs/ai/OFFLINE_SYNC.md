@@ -96,10 +96,12 @@ Outbox для загрузки/анализа ссылается на `localBlob
 
 1. **Сеть + outbox + Dexie** (текущий коммит): типы, БД, постановка в очередь вручную из одного места (проверка).
 2. **Persist React Query** — офлайн чтение грядок без перезапуска с «пустым» UI.
-3. **Обёртка `apiFetch` / хуки мутаций** — все `POST/PATCH/DELETE` из сада и календаря: онлайн → API, офлайн → outbox + optimistic cache.
+3. **Обёртка `apiFetch` / хуки мутаций** — все `POST/PATCH/DELETE` из сада и календаря: онлайн → API, офлайн → outbox + optimistic cache. Для нового потока посадки `CREATE_PLANT` хранит `placementType`, а сервер сам создаёт/находит виртуальную грядку.
 4. **Фото**: сохранение в `localBlobs`, задачи `UPLOAD_PHOTO` / `AI_ANALYZE_PHOTO`. **Сделано на клиенте:** `UPLOAD_PHOTO`, офлайн `DELETE_PHOTO`, `AI_ANALYZE_PHOTO` (см. `sync-engine`, камера, `useUploadPlantPhoto` / `useDeletePlantPhoto`).
 5. **AI**: чат и анализ — через очередь офлайн (**реализовано** для камеры, чата, ИИ в справочнике, генерации таймлайна); индикатор «В очереди: N» и онлайн/офлайн — `SyncStatusBar`.
 6. **Batch sync** и политика конфликтов при необходимости.
+
+**Текущий статус 2026-05-11:** персист React Query (`beds`, `plants`), Dexie outbox, локальные блобы, drain по восстановлению сети/фокусу/интервалу, серверное зеркало `TaskQueue`, фото, AI, чат, справочник, шаринг, галерея, аналитика, push и `CREATE_PLANT + placementType` реализованы. Нативный Background Sync и batch endpoint остаются опциональными следующими улучшениями.
 
 ## 11. Диаграмма потока
 

@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { useCreatePlant } from "@/lib/hooks/use-plants";
 import { searchCropsAndVarieties, type CropSearchHit } from "@/lib/crops-search";
 import type { CropWithSource } from "@/lib/crops-merge";
+import {
+  type GardenPlacementType,
+  gardenPlacementLabels,
+  gardenPlacementTypes,
+} from "@/lib/garden-placement";
 
 function toDateInputValue(iso: string) {
   return iso.slice(0, 10);
@@ -19,6 +24,8 @@ type AddPlantToBedFormProps = {
   /** Если не задан — выбор грядки из списка (шаг после культуры). */
   bedId?: string;
   bedsForSelection?: { id: string; name: string }[];
+  /** Новый основной UX: без выбора грядки, только место посадки. */
+  usePlacementType?: boolean;
   crops: CropWithSource[];
   hasFullAccess: boolean | null;
   /** Если задано — блокировать добавление (например legacy-лимит растений). */
@@ -30,6 +37,7 @@ type AddPlantToBedFormProps = {
 export function AddPlantToBedForm({
   bedId: fixedBedId,
   bedsForSelection,
+  usePlacementType,
   crops: cropsList,
   hasFullAccess,
   blockAddPlant,
@@ -38,6 +46,7 @@ export function AddPlantToBedForm({
 }: AddPlantToBedFormProps) {
   const createPlant = useCreatePlant();
   const [selectedBedId, setSelectedBedId] = useState(() => bedsForSelection?.[0]?.id ?? "");
+  const [placementType, setPlacementType] = useState<GardenPlacementType>("greenhouse");
 
   useEffect(() => {
     if (fixedBedId || !bedsForSelection?.length) return;
@@ -71,7 +80,7 @@ export function AddPlantToBedForm({
         : "";
 
   const resolvedBedId = fixedBedId ?? selectedBedId;
-  const needsBedPick = !fixedBedId;
+  const needsBedPick = !fixedBedId && !usePlacementType;
   const canAdd =
     ((addMode === "search" && selectedHit) ||
       (addMode === "category" && selectedCrop && displayFromCategory)) &&
@@ -100,7 +109,8 @@ export function AddPlantToBedForm({
     createPlant.mutate(
       {
         name: hit.displayName.trim(),
-        bedId: resolvedBedId,
+        bedId: usePlacementType ? undefined : resolvedBedId,
+        placementType: usePlacementType ? placementType : undefined,
         plantedDate,
         cropSlug: hit.crop.slug,
       },
@@ -260,6 +270,26 @@ export function AddPlantToBedForm({
         </div>
       )}
 
+      {usePlacementType && !fixedBedId && (
+        <div>
+          <label className="sr-only" htmlFor="add-plant-placement">
+            Куда посадили
+          </label>
+          <select
+            id="add-plant-placement"
+            value={placementType}
+            onChange={(e) => setPlacementType(e.target.value as GardenPlacementType)}
+            className="w-full px-4 py-3 text-lg rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-slate-900 min-h-[3rem]"
+          >
+            {gardenPlacementTypes.map((type) => (
+              <option key={type} value={type}>
+                {gardenPlacementLabels[type]}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {needsBedPick && (
         <div>
           <label className="sr-only" htmlFor="add-plant-bed">
@@ -280,7 +310,7 @@ export function AddPlantToBedForm({
             </select>
           ) : (
             <p className="text-base text-amber-700 dark:text-amber-400">
-              Сначала создайте грядку на странице «Мой участок».
+              Сначала создайте грядку на странице «Мой участок» или добавьте культуру через выбор места посадки.
             </p>
           )}
         </div>
@@ -313,7 +343,7 @@ export function AddPlantToBedForm({
           ) : (
             <Plus className="w-5 h-5 mr-2" />
           )}
-          Добавить на грядку
+          {usePlacementType ? "Посадить" : "Добавить на грядку"}
         </Button>
       </div>
       {paywallBlocked && (

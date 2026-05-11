@@ -94,8 +94,8 @@ const features = [
   },
   {
     icon: Shield,
-    title: "Freemium",
-    description: "Базовые функции бесплатно. Премиум AI-анализ от 199 ₽/мес",
+    title: "14 дней полного доступа",
+    description: "Попробуйте весь функционал после регистрации. Далее — Премиум от 199 ₽/мес",
     color: "teal",
   },
 ];
@@ -183,7 +183,7 @@ export function LandingContent({
               className="h-14 px-8 text-lg rounded-3xl bg-gradient-to-r from-emerald-600 to-teal-600"
             >
               <Link href="/auth/signin">
-                Начать бесплатно <ChevronRight className="ml-2 w-5 h-5" />
+                Попробовать 14 дней <ChevronRight className="ml-2 w-5 h-5" />
               </Link>
             </Button>
             <Button size="lg" variant="outline" asChild className="h-14 px-8 text-lg rounded-3xl">
@@ -313,15 +313,15 @@ export function LandingContent({
               Присоединяйтесь к тем, кто собирает больше
             </h2>
             <p className="text-emerald-100 mb-8 text-lg">
-              Бесплатный календарь посадок, справочник культур и 3 AI-анализа в месяц. Премиум — без
-              ограничений.
+              14 дней полного доступа после регистрации: календарь, справочник, AI-анализ,
+              чат и напоминания. Затем — Премиум без ограничений.
             </p>
             <Button
               size="lg"
               asChild
               className="h-14 px-8 text-lg rounded-3xl bg-white text-emerald-700 hover:bg-emerald-50"
             >
-              <Link href="/auth/signin">Начать бесплатно</Link>
+              <Link href="/auth/signin">Попробовать 14 дней</Link>
             </Button>
           </Card>
         </MotionDiv>

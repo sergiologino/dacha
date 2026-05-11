@@ -3,14 +3,14 @@
 ## Стек технологий
 | Слой | Технология | Версия |
 |------|-----------|--------|
-| Framework | Next.js | 16.1.6 |
+| Framework | Next.js | 16.2.1 |
 | UI Library | React | 19.2.3 |
 | Language | TypeScript | ^5 |
 | Styling | Tailwind CSS v4 | ^4 |
 | UI Components | shadcn/ui (new-york) | via radix-ui ^1.4.3 |
 | Icons | lucide-react | ^0.574.0 |
 | Auth | NextAuth v5 beta | ^5.0.0-beta.30 |
-| ORM | Prisma | ^6.5.0 (client 6.19.2) |
+| ORM | Prisma | ^6.19.0 (client 6.19.3 generated) |
 | Database | PostgreSQL | 82.97.242.40:5432/dacha_db |
 | Local / offline | Dexie (IndexedDB) | см. `lib/offline/`, [OFFLINE_SYNC.md](./OFFLINE_SYNC.md) |
 | Date | date-fns | ^4.1.0 |
@@ -19,7 +19,7 @@
 | Toasts | sonner | ^2.0.7 |
 | Theme | next-themes | ^0.4.6 |
 | AI | AI Integration Service | мульти-нейросеть (GPT-4o/mini/5, GigaChat, Pollinations, Whisper) |
-| Weather | WeatherAPI.com | free tier (1M calls/mo) |
+| Weather | Open-Meteo | без ключа |
 | Payments | YooKassa | 199₽/мес, 1990₽/год |
 | Unit Tests | Vitest + React Testing Library | ^3.1.0 / ^16.3.0 |
 | E2E Tests | Playwright | ^1.52.0 |
@@ -52,7 +52,7 @@ app/
     ├── auth/[...nextauth]/route.ts  # NextAuth API
     ├── plants/route.ts              # Plants CRUD (GET+POST+DELETE)
     ├── beds/route.ts                # Beds CRUD (GET+POST+DELETE)
-    ├── weather/route.ts             # WeatherAPI.com proxy (3-day forecast + alerts)
+    ├── weather/route.ts             # Open-Meteo proxy (forecast + alerts)
     ├── ai/analyze/route.ts          # GPT-4o Vision анализ фото (через AI Integration)
     ├── ai/networks/route.ts         # Список доступных нейросетей
     ├── chat/route.ts                # AI-чат (через AI Integration)
@@ -91,12 +91,14 @@ lib/
 ├── data/fun-facts.ts          # 25 интересных фактов (5 категорий)
 ├── data/climate-zones.ts      # 5 климатических зон РФ
 ├── hooks/use-plants.ts        # React Query хуки для растений
-├── hooks/use-beds.ts          # React Query хуки для грядок
+├── hooks/use-beds.ts          # React Query хуки для грядок, включая виртуальные места посадки
 ├── hooks/use-weather.ts           # React Query хук для погоды
 ├── hooks/use-user-location.ts     # React Query хук для координат пользователя
 ├── hooks/use-onboarding-check.ts  # Проверка прохождения онбординга
 ├── hooks/use-chat.ts              # Хук AI-чата (состояние, отправка, очистка)
 ├── hooks/use-ai-networks.ts       # React Query хук для списка нейросетей
+├── garden-placement.ts            # Список мест посадки и подписи для виртуальных грядок
+├── virtual-beds.ts                # ensureVirtualBed() для нового UX "культура -> место"
 ├── weather-tips.ts                # Генерация рекомендаций по погоде
 ├── get-prompt.ts                 # getPromptByKey() — чтение промптов из БД
 ├── log-ai-call.ts                # logAiCall() — запись логов вызовов нейросетей
@@ -113,7 +115,12 @@ lib/
 ## Database
 - PostgreSQL на 82.97.242.40:5432 (dacha_db)
 - Prisma ORM, миграция `init` применена
-- Таблицы: users, accounts, sessions, verification_tokens, crops, beds, plants, photos, analyses, task_queue, payments, crop_guides (кеш AI-руководств), **prompts**, **ai_call_logs**
+- Таблицы: users, accounts, sessions, verification_tokens, crops, beds, plants, photos, analyses, task_queue, payments, crop_guides (кеш AI-руководств), **prompts**, **ai_call_logs**. `beds` используется и как пользовательские грядки, и как скрытые виртуальные места посадки (`isVirtual`, `virtualKey`).
+
+## Модель участка
+- Новый основной поток: `POST /api/plants` принимает `placementType` (`seedling_home`, `greenhouse`, `open`, `raised`). Сервер лениво создаёт/находит виртуальную `Bed` через `ensureVirtualBed()` и сохраняет `Plant.bedId`.
+- Старый поток с явным `bedId` сохраняется для существующих грядок и страниц `/garden/bed/[bedId]`.
+- Виртуальные грядки не считаются в legacy-лимит пользовательских грядок и скрываются из управления грядками, но участвуют в погоде, фото, таймлайне, календаре и offline sync.
 
 ## Промпты и логи AI
 - **prompts** — тексты промптов в БД (ключи: chat_system, vision_system, guide_detail_system, guide_detail_user, crops_image, crops_extract_system, timeline_system, timeline_user). Чтение: `getPromptByKey(key)` в `lib/get-prompt.ts`. Подстановки (локация, культура и т.д.) — в коде. Seed: `npm run db:seed`.
@@ -136,5 +143,5 @@ lib/
 - SSG для справочника (100 статических страниц культур)
 
 ## Тесты
-- 54 unit/component тестов (Vitest): utils, crops, climate-zones, fun-facts, weather-tips, beds-api, chat, Button, BottomNav, motion
+- Vitest + React Testing Library: utils, crops, climate-zones, fun-facts, weather-tips, beds-api, garden-placement, chat, Button, BottomNav, motion и др.
 - E2E: Playwright конфиг + тест лендинга

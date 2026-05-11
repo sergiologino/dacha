@@ -8,6 +8,7 @@ import {
   LEGACY_FREE_PLANT_LIMIT,
 } from "@/lib/user-access";
 import { tryRemoveStoredFile } from "@/lib/photo-storage";
+import { ensureVirtualBed, parsePlacementType } from "@/lib/virtual-beds";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { name, bedId, plantedDate, cropSlug } = await request.json();
+    const { name, bedId, plantedDate, cropSlug, placementType } = await request.json();
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -64,16 +65,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let resolvedBedId: string | null = null;
+
     if (bedId) {
       const bed = await prisma.bed.findFirst({ where: { id: bedId, userId: user.id } });
       if (!bed) return NextResponse.json({ error: "Bed not found" }, { status: 404 });
+      resolvedBedId = bed.id;
+    } else if (placementType != null) {
+      const parsedPlacementType = parsePlacementType(placementType);
+      if (!parsedPlacementType) {
+        return NextResponse.json({ error: "Invalid placement type" }, { status: 400 });
+      }
+      const virtualBed = await ensureVirtualBed(user.id, parsedPlacementType);
+      resolvedBedId = virtualBed.id;
     }
 
     const plant = await prisma.plant.create({
       data: {
         userId: user.id,
         name,
-        bedId: bedId || null,
+        bedId: resolvedBedId,
         plantedDate: plantedDate ? new Date(plantedDate) : new Date(),
         cropSlug: cropSlug || null,
       },
