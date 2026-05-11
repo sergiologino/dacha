@@ -8,6 +8,7 @@ const content = `# Любимая Дача
 ## Main pages
 - ${SITE_URL}/
 - ${SITE_URL}/guide
+- ${SITE_URL}/guide/lifehacks
 - ${SITE_URL}/kogda-sazhat-rassadu
 - ${SITE_URL}/kogda-sazhat-rassadu/vse-sovety
 - ${SITE_URL}/kalendar-posadok-2026

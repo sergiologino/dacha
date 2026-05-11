@@ -104,6 +104,32 @@ export function mergeVarieties(
   return merged.length > 0 ? merged : undefined;
 }
 
+export function cleanVarietyName(value: string | null | undefined): string | null {
+  const raw = value?.trim();
+  if (!raw) return null;
+  const cleaned = raw
+    .replace(/^[,:\-–—\s]+/, "")
+    .replace(/^(сорт|сорта|гибрид|разновидность)\s+/i, "")
+    .replace(/^["'`«»]+|["'`«»]+$/g, "")
+    .trim();
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+export function serializeVarietiesForDb(
+  varieties: CropVariety[] | undefined,
+): Array<{ name: string; desc: string; imageUrl?: string }> | undefined {
+  if (!varieties?.length) return undefined;
+  const cleaned = varieties
+    .map((v) => {
+      const name = v.name.trim();
+      const desc = v.desc?.trim() || "—";
+      const imageUrl = v.imageUrl?.trim();
+      return imageUrl ? { name, desc, imageUrl } : { name, desc };
+    })
+    .filter((v) => v.name.length > 0);
+  return cleaned.length > 0 ? cleaned : undefined;
+}
+
 export function mapCommunityCropRow(row: CommunityCropRow): Crop {
   return {
     id: row.id,
@@ -178,7 +204,7 @@ export function inferVarietyName(
 ): string | null {
   if (explicitVarietyName) {
     const cleaned = normalizeCropText(explicitVarietyName);
-    return cleaned ? explicitVarietyName.trim() : null;
+    return cleaned ? cleanVarietyName(explicitVarietyName) : null;
   }
 
   if (!crop) {
@@ -199,7 +225,7 @@ export function inferVarietyName(
 
       if (source.startsWith(`${alias} `)) {
         const variety = rawSource.trim().slice(rawSource.toLowerCase().indexOf(alias) + alias.length).trim();
-        return variety.replace(/^[,:\-–—\s]+/, "").trim() || null;
+        return cleanVarietyName(variety);
       }
     }
   }

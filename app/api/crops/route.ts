@@ -4,6 +4,8 @@ import {
   inferVarietyName,
   mergeVarieties,
   normalizeCropText,
+  serializeVarietiesForDb,
+  type CommunityCropRow,
 } from "@/lib/crop-community";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
@@ -194,6 +196,66 @@ async function uniqueSlug(base: string): Promise<string> {
   }
 }
 
+function inferCommunityVarietyName(
+  query: string,
+  baseCropName: string,
+  extractedName?: string,
+  explicitVarietyName?: string,
+): string | null {
+  const explicit = inferVarietyName(query, null, extractedName, explicitVarietyName);
+  if (explicit) return explicit;
+
+  const base = normalizeCropText(baseCropName);
+  if (!base) return null;
+
+  for (const raw of [query, extractedName ?? ""]) {
+    const normalized = normalizeCropText(raw);
+    if (normalized === base || !normalized.startsWith(`${base} `)) continue;
+    const index = raw.toLowerCase().replace(/ё/g, "е").indexOf(base);
+    const suffix = raw.slice(index + base.length);
+    const cleaned = inferVarietyName(`${baseCropName} ${suffix}`, {
+      id: -1,
+      name: baseCropName,
+      slug: "",
+      category: "",
+      region: [],
+      plantMonth: "",
+      harvestMonth: "",
+      water: "",
+      note: "",
+    });
+    if (cleaned) return cleaned;
+  }
+
+  return null;
+}
+
+function findCommunityCropMatch(
+  rows: CommunityCropRow[],
+  query: string,
+  extractedName?: string,
+  baseCropName?: string,
+): CommunityCropRow | null {
+  const candidates = [
+    normalizeCropText(baseCropName ?? ""),
+    normalizeCropText(extractedName ?? ""),
+    normalizeCropText(query),
+  ].filter(Boolean);
+
+  return (
+    rows.find((row) => {
+      const name = normalizeCropText(row.name);
+      return candidates.some(
+        (candidate) =>
+          candidate === name ||
+          candidate.startsWith(`${name} `) ||
+          candidate.endsWith(` ${name}`) ||
+          candidate.includes(` ${name} `),
+      );
+    }) ?? null
+  );
+}
+
 /** POST — добавить культуру в справочник (по запросу + опционально текст от нейроэксперта), с генерацией фото. */
 export async function POST(request: NextRequest) {
   try {
@@ -277,6 +339,7 @@ export async function POST(request: NextRequest) {
         mergedVarietiesForDb = attachVarietyImage(mergedVarieties, inferredVarietyName, varietyImageUrl);
       }
 
+      const varietiesForDb = serializeVarietiesForDb(mergedVarietiesForDb);
       const payload = {
         name: targetStaticCrop.name,
         slug: targetStaticCrop.slug,
@@ -288,10 +351,7 @@ export async function POST(request: NextRequest) {
         regions: existingOverlay?.regions ?? targetStaticCrop.region,
         careNotes: existingOverlay?.careNotes ?? targetStaticCrop.note,
         imageUrl: existingOverlay?.imageUrl ?? targetStaticCrop.imageUrl ?? null,
-        varieties:
-          mergedVarietiesForDb && mergedVarietiesForDb.length > 0
-            ? (mergedVarietiesForDb as object)
-            : undefined,
+        ...(varietiesForDb ? { varieties: varietiesForDb } : {}),
       };
 
       const crop = await prisma.crop.upsert({
@@ -313,10 +373,122 @@ export async function POST(request: NextRequest) {
           water: crop.waterSchedule ?? "",
           note: crop.careNotes ?? "",
           imageUrl: crop.imageUrl ?? targetStaticCrop.imageUrl ?? undefined,
-          varieties: mergedVarietiesForDb ?? mergedVarieties,
+          varieties: varietiesForDb ?? mergedVarietiesForDb ?? mergedVarieties,
           addedByCommunity: true,
         },
         { status: existingOverlay ? 200 : 201 },
+      );
+    }
+
+    const communityCrops = await prisma.crop.findMany({
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        category: true,
+        description: true,
+        plantMonths: true,
+        harvestMonths: true,
+        waterSchedule: true,
+        regions: true,
+        careNotes: true,
+        imageUrl: true,
+        varieties: true,
+      },
+    });
+    const targetCommunityCrop = findCommunityCropMatch(
+      communityCrops,
+      query,
+      extracted.name,
+      extracted.baseCropName,
+    );
+
+    if (targetCommunityCrop) {
+      const communityVarietyName = inferCommunityVarietyName(
+        query,
+        targetCommunityCrop.name,
+        extracted.name,
+        extracted.varietyName,
+      );
+      const currentVarieties = Array.isArray(targetCommunityCrop.varieties)
+        ? (targetCommunityCrop.varieties as { name: string; desc: string; imageUrl?: string }[])
+        : undefined;
+      let mergedVarieties = mergeVarieties(
+        currentVarieties,
+        communityVarietyName
+          ? [
+              {
+                name: communityVarietyName,
+                desc:
+                  extracted.description ||
+                  `Пользовательский сорт культуры «${targetCommunityCrop.name}».`,
+              },
+            ]
+          : extracted.varieties,
+      );
+
+      if (communityVarietyName) {
+        const varietyLabels = buildImageLabelsForCommunityCrop({
+          query,
+          name: `${targetCommunityCrop.name} ${communityVarietyName}`,
+          baseCropName: targetCommunityCrop.name,
+          varietyName: communityVarietyName,
+          staticBaseName: targetCommunityCrop.name,
+        });
+        const varietyImageUrl = await resolveCropImageUrl({
+          labels: varietyLabels,
+          category: targetCommunityCrop.category,
+          userId: user.id,
+        });
+        mergedVarieties = attachVarietyImage(mergedVarieties, communityVarietyName, varietyImageUrl);
+      }
+
+      const varietiesForDb = serializeVarietiesForDb(mergedVarieties);
+      if (!varietiesForDb) {
+        return NextResponse.json(
+          {
+            id: targetCommunityCrop.id,
+            name: targetCommunityCrop.name,
+            slug: targetCommunityCrop.slug,
+            category: targetCommunityCrop.category,
+            description: targetCommunityCrop.description ?? undefined,
+            region: targetCommunityCrop.regions,
+            plantMonth: targetCommunityCrop.plantMonths[0] ?? "",
+            harvestMonth: targetCommunityCrop.harvestMonths[0] ?? "",
+            water: targetCommunityCrop.waterSchedule ?? "",
+            note: targetCommunityCrop.careNotes ?? "",
+            imageUrl: targetCommunityCrop.imageUrl ?? undefined,
+            varieties: currentVarieties ?? [],
+            addedByCommunity: true,
+          },
+          { status: 200 },
+        );
+      }
+
+      const crop = await prisma.crop.update({
+        where: { slug: targetCommunityCrop.slug },
+        data: {
+          varieties: varietiesForDb,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          id: crop.id,
+          name: crop.name,
+          slug: crop.slug,
+          category: crop.category,
+          description: crop.description ?? undefined,
+          region: crop.regions,
+          plantMonth: crop.plantMonths[0] ?? "",
+          harvestMonth: crop.harvestMonths[0] ?? "",
+          water: crop.waterSchedule ?? "",
+          note: crop.careNotes ?? "",
+          imageUrl: crop.imageUrl ?? undefined,
+          varieties: varietiesForDb ?? currentVarieties ?? [],
+          addedByCommunity: true,
+        },
+        { status: 200 },
       );
     }
 
@@ -334,6 +506,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
     });
 
+    const varietiesForDb = serializeVarietiesForDb(extracted.varieties);
     const crop = await prisma.crop.create({
       data: {
         name: extracted.name,
@@ -346,7 +519,7 @@ export async function POST(request: NextRequest) {
         regions: extracted.regions,
         careNotes: extracted.careNotes,
         imageUrl: imageUrl || null,
-        varieties: extracted.varieties.length > 0 ? (extracted.varieties as object) : undefined,
+        ...(varietiesForDb ? { varieties: varietiesForDb } : {}),
       },
     });
 
@@ -362,7 +535,7 @@ export async function POST(request: NextRequest) {
       water: crop.waterSchedule ?? "",
       note: crop.careNotes ?? "",
       imageUrl: crop.imageUrl ?? undefined,
-      varieties: (Array.isArray(crop.varieties) ? crop.varieties : []) as { name: string; desc: string }[],
+      varieties: varietiesForDb ?? ((Array.isArray(crop.varieties) ? crop.varieties : []) as { name: string; desc: string }[]),
       addedByCommunity: true,
     };
 

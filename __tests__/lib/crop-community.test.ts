@@ -1,40 +1,53 @@
 import { describe, expect, it } from "vitest";
 import {
+  cleanVarietyName,
   findExistingCropMatch,
   inferVarietyName,
   mergeVarieties,
-  normalizeCropText,
+  serializeVarietiesForDb,
 } from "@/lib/crop-community";
+import { attachVarietyImage } from "@/lib/crop-image";
 
 describe("crop community helpers", () => {
-  it("normalizes crop text consistently", () => {
-    expect(normalizeCropText("Томат, «Всем на зависть»")).toBe("томат всем на зависть");
+  it("routes tomato variety queries to the base crop", () => {
+    const crop = findExistingCropMatch("томат сорта Черный бизон", "Томат Черный бизон", "Томат");
+
+    expect(crop?.slug).toBe("tomat");
+    expect(inferVarietyName("томат сорта Черный бизон", crop, "Томат Черный бизон")).toBe("Черный бизон");
   });
 
-  it("finds existing crop by common synonym", () => {
-    const match = findExistingCropMatch("помидор всем на зависть", "Томат", "Томат");
-    expect(match?.slug).toBe("tomat");
+  it("cleans service words from explicit variety names", () => {
+    expect(cleanVarietyName("сорт Черный бизон")).toBe("Черный бизон");
+    expect(cleanVarietyName("сорта «Черный бизон»")).toBe("Черный бизон");
   });
 
-  it("infers variety name from query", () => {
-    const crop = findExistingCropMatch("томат всем на зависть", "Томат", "Томат");
-    expect(inferVarietyName("томат всем на зависть", crop, "Томат", undefined)).toBe("всем на зависть");
-  });
-
-  it("merges varieties without duplicates", () => {
+  it("serializes varieties without undefined fields for Prisma JSON", () => {
     const merged = mergeVarieties(
-      [{ name: "Черри", desc: "base" }],
-      [{ name: "черри", desc: "updated" }, { name: "Всем на зависть", desc: "new" }],
+      [{ name: "Черри", desc: "Мелкие сладкие плоды." }],
+      [{ name: "Черный бизон", desc: "Крупноплодный тёмный сорт.", imageUrl: undefined }],
     );
 
-    expect(merged).toHaveLength(2);
-    expect(merged?.some((item) => item.name === "Всем на зависть")).toBe(true);
+    expect(serializeVarietiesForDb(merged)).toEqual([
+      { name: "Черри", desc: "Мелкие сладкие плоды." },
+      { name: "Черный бизон", desc: "Крупноплодный тёмный сорт." },
+    ]);
   });
 
-  it("merges variety imageUrl from newer entry", () => {
-    const merged = mergeVarieties([{ name: "Черри", desc: "мелкие" }], [
-      { name: "Черри", desc: "мелкие", imageUrl: "https://upload.wikimedia.org/test.jpg" },
-    ]);
-    expect(merged?.[0].imageUrl).toBe("https://upload.wikimedia.org/test.jpg");
+  it("keeps a resolved image on the newly added variety", () => {
+    const varieties = mergeVarieties(
+      [{ name: "Черри", desc: "Мелкие сладкие плоды." }],
+      [{ name: "Черный бизон", desc: "Крупноплодный тёмный сорт." }],
+    );
+    const withImage = attachVarietyImage(
+      varieties,
+      "Черный бизон",
+      "https://upload.wikimedia.org/example/chernyi-bizon.jpg",
+    );
+
+    expect(serializeVarietiesForDb(withImage)).toContainEqual({
+      name: "Черный бизон",
+      desc: "Крупноплодный тёмный сорт.",
+      imageUrl: "https://upload.wikimedia.org/example/chernyi-bizon.jpg",
+    });
   });
 });
