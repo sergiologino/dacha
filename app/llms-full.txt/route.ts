@@ -15,6 +15,7 @@ const content = `# Любимая Дача: расширенное описан�
 ## Основные URL
 - Главная: ${SITE_URL}/
 - Справочник: ${SITE_URL}/guide
+- Дачные лайфхаки и народные приёмы: ${SITE_URL}/guide/lifehacks
 - Календарь посадок 2026: ${SITE_URL}/kalendar-posadok-2026
 - Календарь — все советы (расширенный): ${SITE_URL}/kalendar-posadok-2026/vse-sovety
 - Когда сажать рассаду: ${SITE_URL}/kogda-sazhat-rassadu
