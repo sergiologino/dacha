@@ -2,16 +2,17 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { generateTimelineForPlant } from "@/lib/timeline-generate";
+import { demoBedForDate } from "@/lib/demo-garden";
 
 const DEMO_CROPS = [
-  { name: "Томат, Черри", slug: "tomat" },
-  { name: "Огурец, Зозуля F1", slug: "ogurets" },
+  { name: "Томат", slug: "tomat" },
+  { name: "Огурец", slug: "ogurets" },
 ] as const;
 
 /**
  * POST /api/user/seed-demo-garden
- * Для новых пользователей (0 грядок) создаёт демо-грядку «Рассада дома» с одним растением
- * (томат или огурец из справочника), запускает генерацию таймлайна и добавляет одну ручную работу.
+ * Для новых пользователей (0 грядок) создаёт сезонную демо-грядку с одним растением
+ * (томат или огурец), запускает генерацию таймлайна и добавляет одну ручную работу.
  * Идемпотентно: если у пользователя уже есть грядки — 200 без изменений.
  */
 export async function POST() {
@@ -26,12 +27,13 @@ export async function POST() {
 
     const crop = DEMO_CROPS[Math.floor(Math.random() * DEMO_CROPS.length)];
     const plantedDate = new Date();
+    const demoBed = demoBedForDate(plantedDate);
 
     const bed = await prisma.bed.create({
       data: {
         userId: user.id,
-        name: "Рассада дома",
-        type: "seedling_home",
+        name: demoBed.name,
+        type: demoBed.type,
       },
     });
 

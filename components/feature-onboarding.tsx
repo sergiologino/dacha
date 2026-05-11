@@ -20,13 +20,13 @@ const SLIDES: {
   {
     icon: Sprout,
     title: "Добро пожаловать в Любимую Дачу!",
-    text: "Планируйте посадки, уход и урожай в одном месте. Мы уже добавили для вас пример — грядку «Рассада дома» с растением и планом ухода.",
+    text: "Планируйте посадки, уход и урожай в одном месте. Мы уже добавили для вас пример — культуру в теплице с планом ухода.",
     mock: "garden",
   },
   {
     icon: LayoutGrid,
     title: "Мой участок",
-    text: "Сажайте культуры из справочника и указывайте место: дома, теплица, открытый грунт или высокая грядка. Дата посадки, фото и план ухода сохраняются автоматически.",
+    text: "Сажайте культуры и указывайте место: дома, теплица, открытый грунт или высокая грядка. Если культуры нет в справочнике, нейропоиск поможет добавить её.",
     mock: "garden",
   },
   {
@@ -64,8 +64,8 @@ function ScreenMock({ type }: { type: NonNullable<(typeof SLIDES)[number]["mock"
           <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Мой участок</span>
         </div>
         <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/30 p-2.5 border border-emerald-100 dark:border-emerald-800">
-          <p className="text-xs font-medium text-slate-800 dark:text-slate-100">🪴 Рассада дома</p>
-          <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1">Томат, Черри · 01.03</p>
+          <p className="text-xs font-medium text-slate-800 dark:text-slate-100">🏠 Теплица</p>
+          <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1">Томат · 10.05</p>
         </div>
       </div>
     );

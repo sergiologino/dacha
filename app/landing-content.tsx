@@ -40,6 +40,18 @@ const USER_COUNT = "30 000";
 /** Локальные иллюстрации (лежат в public/images/landing/). */
 const LANDING_HERO_IMAGE = "/images/landing/hero-garden.jpg";
 const LANDING_VEGETABLES_IMAGE = "/images/landing/fresh-vegetables.jpg";
+const LANDING_CROP_GALLERY = [
+  { src: "/images/guide/crops/tomat.jpg", title: "Томаты", text: "теплица и открытый грунт" },
+  { src: "/images/guide/crops/ogurets.jpg", title: "Огурцы", text: "полив и подкормки" },
+  { src: "/images/guide/crops/klubnika.jpg", title: "Клубника", text: "ягодные работы" },
+  { src: "/images/guide/crops/perets.jpg", title: "Перец", text: "рассада и тепло" },
+] as const;
+const LANDING_SEASON_PHOTOS = [
+  "/images/guide/crops/malina.jpg",
+  "/images/guide/crops/yablonya.jpg",
+  "/images/guide/crops/morkov.jpg",
+  "/images/guide/crops/kapusta.jpg",
+] as const;
 
 const TESTIMONIALS = [
   {
@@ -118,7 +130,7 @@ export function LandingContent({
 
   return (
     <GimnPlayerProvider withSpotlight={false}>
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 dark:from-emerald-950 dark:via-slate-950 dark:to-amber-950">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-lime-50 to-amber-100 dark:from-emerald-950 dark:via-slate-950 dark:to-amber-950">
         {/* Header */}
         <motion.header
           initial={{ opacity: 0, y: -20 }}
@@ -201,7 +213,7 @@ export function LandingContent({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, delay: 0.45, ease: "easeOut" }}
-          className="mt-12 relative w-full h-56 sm:h-72 rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-slate-700 bg-emerald-100 dark:bg-emerald-950"
+          className="mt-12 relative w-full h-56 sm:h-72 rounded-2xl overflow-hidden shadow-xl shadow-emerald-900/10 border border-white/80 dark:border-slate-700 bg-emerald-100 dark:bg-emerald-950"
         >
           <Image
             src={LANDING_HERO_IMAGE}
@@ -211,7 +223,70 @@ export function LandingContent({
             className="object-cover"
             priority
           />
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-emerald-950/80 to-transparent p-5 text-left">
+            <p className="text-white text-lg sm:text-xl font-semibold">
+              Сад, огород, теплица и рассада в одном календаре
+            </p>
+            <p className="text-emerald-100 text-sm mt-1">
+              Приложение помнит культуры, даты, фото и ближайшие работы.
+            </p>
+          </div>
         </motion.div>
+      </section>
+
+      {/* Photo gallery */}
+      <section className="max-w-4xl mx-auto px-4 py-10">
+        <MotionDiv variant="fadeUp" className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+          <div className="grid grid-cols-2 gap-3">
+            {LANDING_CROP_GALLERY.map((item) => (
+              <Card
+                key={item.src}
+                className="overflow-hidden rounded-2xl border-white/80 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 shadow-md"
+              >
+                <div className="relative h-32 sm:h-40">
+                  <Image
+                    src={item.src}
+                    alt={item.title}
+                    fill
+                    sizes="(max-width: 896px) 50vw, 220px"
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-3">
+                  <p className="font-semibold text-slate-900 dark:text-slate-100">{item.title}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{item.text}</p>
+                </div>
+              </Card>
+            ))}
+          </div>
+          <Card className="relative overflow-hidden rounded-2xl border-emerald-200/80 dark:border-emerald-800 bg-emerald-900 text-white min-h-[260px]">
+            <div className="absolute inset-0 grid grid-cols-2 opacity-70">
+              {LANDING_SEASON_PHOTOS.map((src) => (
+                <div key={src} className="relative">
+                  <Image
+                    src={src}
+                    alt=""
+                    fill
+                    sizes="(max-width: 896px) 50vw, 220px"
+                    className="object-cover"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/90 via-emerald-900/70 to-amber-700/70" />
+            <div className="relative p-6 sm:p-8 h-full flex flex-col justify-end">
+              <p className="text-sm uppercase tracking-wide text-emerald-100 mb-2">
+                Живой сезон
+              </p>
+              <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
+                Видно, что растёт, что пора сделать и где нужен AI-совет
+              </h2>
+              <p className="text-emerald-50 mt-3">
+                Фото культур, погодные подсказки, календарь работ и справочник помогают не терять контекст участка.
+              </p>
+            </div>
+          </Card>
+        </MotionDiv>
       </section>
 
       {/* Features */}
