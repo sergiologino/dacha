@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X, ChevronLeft, ChevronRight, Sprout, LayoutGrid, Calendar, BookOpen, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,14 +87,9 @@ export type FeatureOnboardingProps = {
 
 export function FeatureOnboarding({ open, onClose }: FeatureOnboardingProps) {
   const [step, setStep] = useState(0);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const markSeen = () => {
-    if (mounted && typeof localStorage !== "undefined") {
+    if (typeof localStorage !== "undefined") {
       localStorage.setItem(FEATURE_ONBOARDING_KEY, "1");
     }
   };

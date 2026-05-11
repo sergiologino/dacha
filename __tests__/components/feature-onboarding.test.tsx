@@ -7,18 +7,22 @@ vi.mock("next/image", () => ({
   default: ({
     alt = "",
     src,
-    fill: _fill,
-    priority: _priority,
+    fill,
+    priority,
     ...props
   }: {
     alt?: string;
     src: string;
     fill?: boolean;
     priority?: boolean;
-  }) => (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img alt={alt} src={src} {...props} />
-  ),
+  }) => {
+    void fill;
+    void priority;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img alt={alt} src={src} {...props} />
+    );
+  },
 }));
 
 describe("FeatureOnboarding", () => {
