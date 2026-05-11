@@ -1,13 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { X, ChevronLeft, ChevronRight, Sprout, LayoutGrid, Calendar, BookOpen, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { ONBOARDING_SLIDE_ART } from "@/components/onboarding-slide-illustrations";
 
 const FEATURE_ONBOARDING_KEY = "dacha_feature_onboarding_seen";
 
@@ -15,124 +17,59 @@ const SLIDES: {
   icon: typeof Sprout;
   title: string;
   text: string;
-  mock?: "garden" | "timeline" | "calendar" | "guide" | "chat";
+  image: string;
+  imageTitle: string;
+  imageText: string;
 }[] = [
   {
     icon: Sprout,
     title: "Добро пожаловать в Любимую Дачу!",
     text: "Планируйте посадки, уход и урожай в одном месте. Мы уже добавили для вас пример — культуру в теплице с планом ухода.",
-    mock: "garden",
+    image: "/images/landing/hero-garden.jpg",
+    imageTitle: "Теплица и участок под контролем",
+    imageText: "пример уже ждёт внутри",
   },
   {
     icon: LayoutGrid,
     title: "Мой участок",
     text: "Сажайте культуры и указывайте место: дома, теплица, открытый грунт или высокая грядка. Если культуры нет в справочнике, нейропоиск поможет добавить её.",
-    mock: "garden",
+    image: "/images/guide/crops/tomat.jpg",
+    imageTitle: "Что посадили и где растёт",
+    imageText: "томаты, огурцы, зелень и свои культуры",
   },
   {
     icon: Calendar,
-    title: "Таймлайн ухода",
-    text: "По каждому растению — план: всходы, полив, рыхление, подкормка, пересадка, урожай. Добавляйте свои работы и редактируйте даты.",
-    mock: "timeline",
+    title: "План ухода",
+    text: "По каждому растению видно, что делать дальше: полить, подкормить, пересадить, ждать всходов или урожая. Свои работы можно добавлять и переносить.",
+    image: "/images/guide/crops/ogurets.jpg",
+    imageTitle: "Ближайшие дела по растению",
+    imageText: "без непонятных таблиц и терминов",
   },
   {
     icon: Calendar,
     title: "Календарь",
     text: "Общие задачи на месяц по регионам и ваши запланированные работы с грядок. Лунный календарь с приметами и рекомендациями.",
-    mock: "calendar",
+    image: "/images/landing/fresh-vegetables.jpg",
+    imageTitle: "Работы по сезону",
+    imageText: "что делать сегодня, завтра и в выходные",
   },
   {
     icon: BookOpen,
     title: "Справочник и нейросеть",
     text: "100+ культур с описаниями и сортами. Не нашли? Спросите AI-агронома или добавьте культуру в справочник.",
-    mock: "guide",
+    image: "/images/guide/crops/klubnika.jpg",
+    imageTitle: "Справочник пополняется",
+    imageText: "культуры, сорта, уход и защита",
   },
   {
     icon: MessageCircle,
     title: "Чат и камера",
     text: "Задайте вопрос в «Чате» — совет по садоводству. Сфотографируйте растение в «Камере» — нейросеть подскажет, что с ним. Приятного урожая!",
-    mock: "chat",
+    image: "/images/guide/crops/perets.jpg",
+    imageTitle: "Фото и AI-подсказки",
+    imageText: "если лист желтеет или рост остановился",
   },
 ];
-
-function ScreenMock({ type }: { type: NonNullable<(typeof SLIDES)[number]["mock"]> }) {
-  if (type === "garden") {
-    return (
-      <div className="mx-auto w-full max-w-[200px] rounded-2xl border-2 border-emerald-200 dark:border-emerald-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
-        <div className="flex items-center gap-1.5 mb-2">
-          <LayoutGrid className="w-4 h-4 text-emerald-600" />
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Мой участок</span>
-        </div>
-        <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/30 p-2.5 border border-emerald-100 dark:border-emerald-800">
-          <p className="text-xs font-medium text-slate-800 dark:text-slate-100">🏠 Теплица</p>
-          <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1">Томат · 10.05</p>
-        </div>
-      </div>
-    );
-  }
-  if (type === "timeline") {
-    return (
-      <div className="mx-auto w-full max-w-[200px] rounded-2xl border-2 border-amber-200 dark:border-amber-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
-        <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-600 mb-2" />
-        <div className="flex gap-1 justify-between">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <span key={i} className="w-2 h-2 rounded-full bg-emerald-500" />
-          ))}
-        </div>
-        <p className="text-[10px] text-slate-500 mt-1.5">Всходы → Полив → Пересадка</p>
-      </div>
-    );
-  }
-  if (type === "calendar") {
-    return (
-      <div className="mx-auto w-full max-w-[200px] rounded-2xl border-2 border-blue-200 dark:border-blue-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
-        <div className="flex items-center gap-1.5 mb-2">
-          <Calendar className="w-4 h-4 text-blue-600" />
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Март</span>
-        </div>
-        <div className="grid grid-cols-7 gap-0.5 text-[10px] text-center text-slate-500">
-          {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((d) => (
-            <span key={d}>{d}</span>
-          ))}
-          {Array.from({ length: 14 }, (_, i) => (
-            <span key={i} className={i === 2 ? "text-emerald-600 font-bold" : ""}>{i + 1}</span>
-          ))}
-        </div>
-      </div>
-    );
-  }
-  if (type === "guide") {
-    return (
-      <div className="mx-auto w-full max-w-[200px] rounded-2xl border-2 border-violet-200 dark:border-violet-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
-        <div className="flex items-center gap-1.5 mb-2">
-          <BookOpen className="w-4 h-4 text-violet-600" />
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">Справочник</span>
-        </div>
-        <div className="flex gap-2">
-          <div className="w-12 h-12 rounded-lg bg-slate-200 dark:bg-slate-600 shrink-0" />
-          <div>
-            <p className="text-xs font-medium">Томат</p>
-            <p className="text-[10px] text-slate-500">6 сортов</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  if (type === "chat") {
-    return (
-      <div className="mx-auto w-full max-w-[200px] rounded-2xl border-2 border-teal-200 dark:border-teal-700 bg-white dark:bg-slate-800 p-3 shadow-lg">
-        <div className="flex items-center gap-1.5 mb-2">
-          <MessageCircle className="w-4 h-4 text-teal-600" />
-          <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">AI-агроном</span>
-        </div>
-        <div className="rounded-lg bg-teal-50 dark:bg-teal-900/30 p-2 text-[11px] text-slate-700 dark:text-slate-300">
-          Когда высаживать томаты в теплицу?
-        </div>
-      </div>
-    );
-  }
-  return null;
-}
 
 const GRADIENT_BY_STEP = [
   "from-emerald-100 to-teal-100 dark:from-emerald-950/60 dark:to-teal-950/40",
@@ -173,7 +110,6 @@ export function FeatureOnboarding({ open, onClose }: FeatureOnboardingProps) {
   };
 
   const slide = SLIDES[step];
-  const SlideIllustration = ONBOARDING_SLIDE_ART[step] ?? ONBOARDING_SLIDE_ART[0];
   const Icon = slide?.icon ?? Sprout;
   const isFirst = step === 0;
   const isLast = step === SLIDES.length - 1;
@@ -189,6 +125,8 @@ export function FeatureOnboarding({ open, onClose }: FeatureOnboardingProps) {
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={handleClose}
       >
+        <DialogTitle className="sr-only">{slide?.title}</DialogTitle>
+        <DialogDescription className="sr-only">{slide?.text}</DialogDescription>
         <div className={`bg-gradient-to-b ${gradient} min-h-0`}>
           <div className="relative p-4 sm:p-6 pb-4">
             <button
@@ -202,18 +140,30 @@ export function FeatureOnboarding({ open, onClose }: FeatureOnboardingProps) {
 
             <div className="flex flex-col items-center text-center">
               <div
-                className="relative w-full aspect-[16/10] max-h-[180px] sm:max-h-[220px] rounded-2xl overflow-hidden shadow-lg border border-white/50 dark:border-slate-600/50 mb-4 bg-slate-100 dark:bg-slate-800"
+                className="relative w-full aspect-[16/10] max-h-[260px] rounded-2xl overflow-hidden shadow-lg border border-white/60 dark:border-slate-600/50 mb-5 bg-slate-100 dark:bg-slate-800"
                 role="img"
-                aria-hidden
+                aria-label={slide?.imageTitle}
               >
-                <SlideIllustration className="absolute inset-0 w-full h-full" />
-              </div>
-
-              {slide?.mock && (
-                <div className="mb-4 w-full flex justify-center">
-                  <ScreenMock type={slide.mock} />
+                {slide?.image ? (
+                  <Image
+                    src={slide.image}
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 92vw, 560px"
+                    className="object-cover"
+                    priority={step === 0}
+                  />
+                ) : null}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
+                <div className="absolute inset-x-0 bottom-0 p-4 text-left">
+                  <p className="text-white text-base sm:text-lg font-semibold leading-tight">
+                    {slide?.imageTitle}
+                  </p>
+                  <p className="text-emerald-50 text-xs sm:text-sm mt-1">
+                    {slide?.imageText}
+                  </p>
                 </div>
-              )}
+              </div>
 
               <div className="w-12 h-12 rounded-xl bg-white/90 dark:bg-slate-800/90 flex items-center justify-center mb-3 shadow-sm border border-white/80">
                 <Icon className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
