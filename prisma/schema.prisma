@@ -170,7 +170,9 @@ model Bed {
   userId    String
   name      String
   number    String?
-  type      String   @default("open") // open, greenhouse, raised
+  type      String   @default("open") // open, greenhouse, raised, seedling_home
+  isVirtual Boolean  @default(false) // служебная грядка для нового UX "культура -> место"
+  virtualKey String? // open, greenhouse, raised, seedling_home; уникально на пользователя
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -178,6 +180,7 @@ model Bed {
   plants Plant[]
   photos Photo[]
 
+  @@unique([userId, virtualKey])
   @@map("beds")
 }
 

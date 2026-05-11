@@ -2,11 +2,12 @@ import { describe, it, expect } from "vitest";
 
 describe("Beds API data structures", () => {
   it("bed type labels cover all valid types", () => {
-    const validTypes = ["open", "greenhouse", "raised"];
+    const validTypes = ["open", "greenhouse", "raised", "seedling_home"];
     const labels: Record<string, string> = {
       open: "Открытый грунт",
       greenhouse: "Теплица",
       raised: "Высокая грядка",
+      seedling_home: "Рассада дома",
     };
     for (const t of validTypes) {
       expect(labels[t]).toBeTruthy();
@@ -20,6 +21,8 @@ describe("Beds API data structures", () => {
       number: "1",
       type: "open",
       createdAt: new Date().toISOString(),
+      isVirtual: false,
+      virtualKey: null,
       plants: [],
       photos: [],
     };
@@ -51,10 +54,11 @@ describe("Beds API data structures", () => {
   });
 
   it("bed types are limited to valid values", () => {
-    const validTypes = new Set(["open", "greenhouse", "raised"]);
+    const validTypes = new Set(["open", "greenhouse", "raised", "seedling_home"]);
     expect(validTypes.has("open")).toBe(true);
     expect(validTypes.has("greenhouse")).toBe(true);
     expect(validTypes.has("raised")).toBe(true);
+    expect(validTypes.has("seedling_home")).toBe(true);
     expect(validTypes.has("pool")).toBe(false);
   });
 });

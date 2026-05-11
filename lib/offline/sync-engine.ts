@@ -135,14 +135,16 @@ async function applyOne(record: OutboxRecord, maps: IdMaps): Promise<void> {
         body: JSON.stringify({
           name: p.name,
           bedId: bedId || undefined,
+          placementType: p.placementType,
           plantedDate: p.plantedDate,
           cropSlug: p.cropSlug,
         }),
         credentials: "same-origin",
       });
       await assertOkForDrain(res);
-      const plant = (await res.json()) as { id: string };
+      const plant = (await res.json()) as { id: string; bedId?: string | null };
       if (tempClientId) maps.plant.set(tempClientId, plant.id);
+      if (rawBedId && plant.bedId) maps.bed.set(rawBedId, plant.bedId);
       return;
     }
     case "UPDATE_PLANT": {

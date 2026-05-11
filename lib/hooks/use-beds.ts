@@ -11,6 +11,7 @@ import {
 } from "@/lib/offline/outbox";
 import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 import { newOfflineClientId } from "@/lib/offline/offline-id";
+import type { GardenPlacementType } from "@/lib/garden-placement";
 
 export type OfflineEntityMeta = { pendingOutboxId: string };
 
@@ -65,6 +66,8 @@ export interface Bed {
   name: string;
   number: string | null;
   type: string;
+  isVirtual?: boolean;
+  virtualKey?: GardenPlacementType | string | null;
   createdAt: string;
   plants: BedPlant[];
   photos: BedPhoto[];

@@ -176,9 +176,11 @@ export default function GardenContent() {
     cropsList ??
     staticCrops.map((c) => ({ ...c, addedByCommunity: false }));
 
+  const visibleBeds = beds.filter((bed) => !bed.isVirtual);
+  const virtualBeds = beds.filter((bed) => bed.isVirtual);
   const unassignedPlants = plants.filter((p) => !p.bedId);
 
-  const totalBeds = beds.length;
+  const totalBeds = visibleBeds.length;
   const bedInteractionMode = isMobile || desktopGardenView === "list" ? "navigate" : "graph";
 
   useEffect(() => {
@@ -322,24 +324,23 @@ export default function GardenContent() {
               <HelpCircle className="w-4 h-4 mr-1.5" />
               Помощь
             </Button>
-            {isMobile && (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  if (blockNewPlant) {
-                    setShowPaywall(true);
-                    return;
-                  }
-                  setShowAddPlantDialog(true);
-                }}
-                className="rounded-2xl border border-emerald-200 dark:border-emerald-800"
-              >
-                <Plus className="w-4 h-4 mr-1" /> Культура
-              </Button>
-            )}
             <Button
               size="sm"
+              variant="secondary"
+              onClick={() => {
+                if (blockNewPlant) {
+                  setShowPaywall(true);
+                  return;
+                }
+                setShowAddPlantDialog(true);
+              }}
+              className="rounded-2xl border border-emerald-200 dark:border-emerald-800"
+            >
+              <Plus className="w-4 h-4 mr-1" /> Посадить культуру
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => {
                 if (blockNewBed) {
                   setShowPaywall(true);
@@ -347,9 +348,9 @@ export default function GardenContent() {
                 }
                 setShowBedForm(!showBedForm);
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 rounded-2xl"
+              className="rounded-2xl"
             >
-              <Plus className="w-4 h-4 mr-1" /> Новая грядка
+              <Plus className="w-4 h-4 mr-1" /> Грядка
             </Button>
           </div>
         </div>
@@ -459,11 +460,11 @@ export default function GardenContent() {
       {isMobile && (beds.length > 0 || unassignedPlants.length > 0) && (
         <>
           <GardenMobilePlantGrid beds={beds} unassignedPlants={unassignedPlants} />
-          {beds.length > 0 && (
+          {visibleBeds.length > 0 && (
             <div className="mb-6 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 bg-slate-50/80 dark:bg-slate-900/40">
               <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Грядки</p>
               <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm">
-                {beds.map((b) => (
+                {visibleBeds.map((b) => (
                   <Link
                     key={b.id}
                     href={`/garden/bed/${b.id}`}
@@ -485,13 +486,21 @@ export default function GardenContent() {
             <LayoutGrid className="w-12 h-12 mx-auto text-emerald-300 mb-4" />
             <p className="text-slate-500 mb-2">Участок пока пустой</p>
             <p className="text-sm text-slate-400">
-              Создайте грядку и добавьте в неё растения
+              Посадите первую культуру и укажите, где она растёт
             </p>
           </Card>
         ) : (
           <>
+            {!isMobile && virtualBeds.some((bed) => (bed.plants?.length ?? 0) > 0) && (
+              <section className="mb-6">
+                <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 mb-3">
+                  Культуры по местам посадки
+                </h3>
+                <GardenMobilePlantGrid beds={virtualBeds} unassignedPlants={[]} />
+              </section>
+            )}
             {!isMobile &&
-              beds.map((bed: Bed) => (
+              visibleBeds.map((bed: Bed) => (
               <div key={bed.id}>
                 <BedCard
                   bed={bed}
@@ -627,10 +636,10 @@ export default function GardenContent() {
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" showCloseButton>
           <DialogTitle className="text-lg">Добавить культуру</DialogTitle>
           <p className="text-sm text-slate-500 mb-2">
-            Сначала выберите культуру и сорт, затем грядку и дату посадки.
+            Выберите культуру, сорт, место посадки и дату.
           </p>
           <AddPlantToBedForm
-            bedsForSelection={beds.map((b) => ({ id: b.id, name: b.name }))}
+            usePlacementType
             crops={crops}
             hasFullAccess={hasFullAccess}
             blockAddPlant={blockNewPlant}

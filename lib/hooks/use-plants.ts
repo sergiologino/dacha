@@ -6,6 +6,11 @@ import type { Bed, BedPlant, OfflineEntityMeta } from "./use-beds";
 import { enqueueOutbox } from "@/lib/offline/outbox";
 import { shouldQueueOfflineMutation } from "@/lib/offline/should-queue-offline";
 import { newOfflineClientId } from "@/lib/offline/offline-id";
+import {
+  type GardenPlacementType,
+  gardenPlacementShortLabels,
+  isGardenPlacementType,
+} from "@/lib/garden-placement";
 
 export interface Plant {
   id: string;
@@ -27,6 +32,7 @@ async function fetchPlants(): Promise<Plant[]> {
 async function createPlant(data: {
   name: string;
   bedId?: string;
+  placementType?: GardenPlacementType;
   plantedDate?: string;
   cropSlug?: string;
 }): Promise<Plant> {
@@ -94,20 +100,27 @@ export function useCreatePlant() {
     mutationFn: async (variables: {
       name: string;
       bedId?: string;
+      placementType?: GardenPlacementType;
       plantedDate?: string;
       cropSlug?: string;
     }) => {
       if (shouldQueueOfflineMutation()) {
         const tempClientId = newOfflineClientId();
         const beds = qc.getQueryData<Bed[]>(["beds"]);
-        const bed = variables.bedId ? beds?.find((b) => b.id === variables.bedId) : undefined;
+        const virtualBedId =
+          !variables.bedId && variables.placementType
+            ? `offline-virtual-bed-${variables.placementType}`
+            : undefined;
+        const resolvedBedId = variables.bedId ?? virtualBedId;
+        const bed = resolvedBedId ? beds?.find((b) => b.id === resolvedBedId) : undefined;
         const dependsOn = bed?.offlineMeta?.pendingOutboxId;
         const outId = await enqueueOutbox({
           action: "CREATE_PLANT",
           payload: {
             tempClientId,
             name: variables.name,
-            bedId: variables.bedId,
+            bedId: variables.bedId ?? virtualBedId,
+            placementType: variables.placementType,
             plantedDate: variables.plantedDate,
             cropSlug: variables.cropSlug,
           },
@@ -122,7 +135,7 @@ export function useCreatePlant() {
         const plant: Plant = {
           id: tempClientId,
           name: variables.name,
-          bedId: variables.bedId ?? null,
+          bedId: resolvedBedId ?? null,
           notes: null,
           status: "growing",
           plantedDate,
@@ -142,12 +155,48 @@ export function useCreatePlant() {
             : new Date(newPlant.plantedDate).toISOString(),
       };
       qc.setQueryData<Plant[]>(["plants"], (old) => (old ? [plantNorm, ...old] : [plantNorm]));
-      if (variables.bedId) {
+      const targetBedId = variables.bedId ?? plantNorm.bedId ?? null;
+      if (targetBedId) {
         qc.setQueryData<Bed[]>(["beds"], (old) => {
-          if (!old) return old;
+          const placementType = variables.placementType;
+          const hasTarget = Boolean(old?.some((bed) => bed.id === targetBedId)) || (!old && Boolean(placementType));
+          const base =
+            old ??
+            (placementType
+              ? [
+                  {
+                    id: targetBedId,
+                    name: gardenPlacementShortLabels[placementType],
+                    number: null,
+                    type: placementType,
+                    isVirtual: true,
+                    virtualKey: placementType,
+                    createdAt: new Date().toISOString(),
+                    plants: [],
+                    photos: [],
+                  } satisfies Bed,
+                ]
+              : []);
+          const withVirtual =
+            !hasTarget && placementType && isGardenPlacementType(placementType)
+              ? [
+                  {
+                    id: targetBedId,
+                    name: gardenPlacementShortLabels[placementType],
+                    number: null,
+                    type: placementType,
+                    isVirtual: true,
+                    virtualKey: placementType,
+                    createdAt: new Date().toISOString(),
+                    plants: [],
+                    photos: [],
+                  } satisfies Bed,
+                  ...base,
+                ]
+              : base;
           const bedPlant = plantToBedPlant(plantNorm);
-          return old.map((bed) =>
-            bed.id === variables.bedId
+          return withVirtual.map((bed) =>
+            bed.id === targetBedId
               ? { ...bed, plants: [bedPlant, ...(bed.plants ?? [])] }
               : bed
           );
