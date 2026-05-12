@@ -357,7 +357,9 @@ export async function POST(request: NextRequest) {
       const crop = await prisma.crop.upsert({
         where: { slug: targetStaticCrop.slug },
         create: payload,
-        update: payload,
+        update: {
+          ...(varietiesForDb ? { varieties: varietiesForDb } : {}),
+        },
       });
 
       return NextResponse.json(
