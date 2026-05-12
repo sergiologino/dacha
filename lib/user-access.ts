@@ -24,6 +24,12 @@ export function trialEndDate(createdAt: Date): Date {
   return d;
 }
 
+export function trialDaysLeft(user: UserAccessFields, now = new Date()): number | null {
+  if (user.isPremium || isLegacyFreeTierUser(user, now)) return null;
+  const msLeft = trialEndDate(user.createdAt).getTime() - now.getTime();
+  return Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+}
+
 /**
  * Полный функционал: Премиум, либо триал 14 дней (только для аккаунтов с 18.04.2026, не legacy-free).
  */

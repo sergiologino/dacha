@@ -21,6 +21,7 @@ import {
   HelpCircle,
   Pencil,
   Check,
+  Crown,
 } from "lucide-react";
 import { FeatureOnboarding, getFeatureOnboardingSeen } from "@/components/feature-onboarding";
 import { Button } from "@/components/ui/button";
@@ -120,6 +121,11 @@ export default function GardenContent() {
   const [showHelp, setShowHelp] = useState(false);
   const [hasFullAccess, setHasFullAccess] = useState<boolean | null>(null);
   const [isLegacyFreeTier, setIsLegacyFreeTier] = useState<boolean | null>(null);
+  const [premiumInfo, setPremiumInfo] = useState<{
+    isPremium: boolean;
+    trialActive: boolean;
+    trialDaysLeft: number | null;
+  } | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showAddPlantDialog, setShowAddPlantDialog] = useState(false);
   const [plannedWorkModal, setPlannedWorkModal] = useState<{
@@ -186,13 +192,25 @@ export default function GardenContent() {
   useEffect(() => {
     fetch("/api/user/premium")
       .then((r) => r.json())
-      .then((data: { hasFullAccess?: boolean; isPremium?: boolean; isLegacyFreeTier?: boolean }) => {
+      .then((data: {
+        hasFullAccess?: boolean;
+        isPremium?: boolean;
+        isLegacyFreeTier?: boolean;
+        trialActive?: boolean;
+        trialDaysLeft?: number | null;
+      }) => {
         setHasFullAccess(Boolean(data.hasFullAccess ?? data.isPremium));
         setIsLegacyFreeTier(Boolean(data.isLegacyFreeTier));
+        setPremiumInfo({
+          isPremium: Boolean(data.isPremium),
+          trialActive: Boolean(data.trialActive),
+          trialDaysLeft: typeof data.trialDaysLeft === "number" ? data.trialDaysLeft : null,
+        });
       })
       .catch(() => {
         setHasFullAccess(false);
         setIsLegacyFreeTier(false);
+        setPremiumInfo(null);
       });
   }, []);
 
@@ -205,6 +223,13 @@ export default function GardenContent() {
   /** Только премиум/триал: не legacy-бесплатный тариф. */
   const blockPremiumOnlyFeature =
     hasFullAccess === false && isLegacyFreeTier !== true;
+  const showTrialEndingBanner =
+    premiumInfo?.trialActive === true &&
+    premiumInfo.trialDaysLeft !== null &&
+    premiumInfo.trialDaysLeft <= 3;
+  const showAccessEndedBanner =
+    hasFullAccess === false && isLegacyFreeTier !== true && premiumInfo?.isPremium !== true;
+  const showGardenPaywallBanner = showTrialEndingBanner || showAccessEndedBanner;
 
   const showOnboardingParam = searchParams?.get?.("showOnboarding") === "1";
 
@@ -454,6 +479,35 @@ export default function GardenContent() {
             </div>
           </Card>
         </MotionDiv>
+      )}
+
+      {showGardenPaywallBanner && (
+        <Card className="mb-6 overflow-hidden border-amber-200 bg-gradient-to-r from-amber-50 via-lime-50 to-emerald-50 p-5 dark:border-amber-900/60 dark:from-amber-950/30 dark:via-slate-900 dark:to-emerald-950/30">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 rounded-2xl bg-amber-100 p-2 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300">
+                <Crown className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="font-semibold text-slate-900 dark:text-slate-100">
+                  {showTrialEndingBanner
+                    ? `До конца полного доступа ${premiumInfo?.trialDaysLeft} дн.`
+                    : "Пробный период закончился"}
+                </p>
+                <p className="mt-1 text-sm leading-snug text-slate-600 dark:text-slate-300">
+                  Не теряйте календарь ухода, AI-диагностику, напоминания и подсказки по урожаю, которым приятно похвастаться соседям.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              onClick={() => setShowPaywall(true)}
+              className="h-11 shrink-0 rounded-2xl bg-emerald-600 px-5 hover:bg-emerald-700"
+            >
+              Продолжить с Премиум
+            </Button>
+          </div>
+        </Card>
       )}
 
       {/* Мобильный вид — кубики культур; грядки отдельным списком ссылок */}

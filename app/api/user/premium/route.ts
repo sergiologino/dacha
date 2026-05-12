@@ -5,6 +5,7 @@ import {
   hasFullAccess,
   isLegacyFreeTierUser,
   isTrialActive,
+  trialDaysLeft,
   trialEndDate,
 } from "@/lib/user-access";
 
@@ -52,6 +53,7 @@ export async function GET() {
       /** Старый бесплатный тариф (регистрация до 17.04.2026 вкл.), с прежними лимитами. */
       isLegacyFreeTier: legacy,
       trialActive: isTrialActive(user),
+      trialDaysLeft: trialDaysLeft(user),
       trialEndsAt:
         user.isPremium || legacy ? null : trialEndDate(user.createdAt).toISOString(),
       isAdmin,
