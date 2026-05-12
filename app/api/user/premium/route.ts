@@ -8,6 +8,7 @@ import {
   trialDaysLeft,
   trialEndDate,
 } from "@/lib/user-access";
+import { getFamilyAccessUser } from "@/lib/family-access";
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase());
 
@@ -43,19 +44,20 @@ export async function GET() {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const isAdmin = !!user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+    const accessUser = await getFamilyAccessUser(user);
 
-    const full = hasFullAccess(user);
-    const legacy = isLegacyFreeTierUser(user);
+    const full = hasFullAccess(accessUser);
+    const legacy = isLegacyFreeTierUser(accessUser);
     return NextResponse.json({
-      isPremium: user.isPremium,
+      isPremium: accessUser.isPremium,
       /** Полный функционал: Премиум или триал 14 дней (только аккаунты с 18.04.2026). */
       hasFullAccess: full,
       /** Старый бесплатный тариф (регистрация до 17.04.2026 вкл.), с прежними лимитами. */
       isLegacyFreeTier: legacy,
-      trialActive: isTrialActive(user),
-      trialDaysLeft: trialDaysLeft(user),
+      trialActive: isTrialActive(accessUser),
+      trialDaysLeft: trialDaysLeft(accessUser),
       trialEndsAt:
-        user.isPremium || legacy ? null : trialEndDate(user.createdAt).toISOString(),
+        accessUser.isPremium || legacy ? null : trialEndDate(accessUser.createdAt).toISOString(),
       isAdmin,
     });
   } catch (err) {

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { randomUUID } from "crypto";
 import { analyzePhotoForTimeline } from "@/lib/analyze-photo-timeline";
+import { familyOwnerIdFor } from "@/lib/family-access";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ownerId = familyOwnerIdFor(user);
 
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -66,9 +68,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "plantId and bedId are required" }, { status: 400 });
     }
 
-    const plant = await prisma.plant.findFirst({ where: { id: plantId, userId: user.id } });
+    const plant = await prisma.plant.findFirst({ where: { id: plantId, userId: ownerId } });
     if (!plant) return NextResponse.json({ error: "Plant not found" }, { status: 404 });
-    const bed = await prisma.bed.findFirst({ where: { id: bedId, userId: user.id } });
+    const bed = await prisma.bed.findFirst({ where: { id: bedId, userId: ownerId } });
     if (!bed) return NextResponse.json({ error: "Bed not found" }, { status: 404 });
 
     const dir = UPLOAD_DIR;
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
 
     const photo = await prisma.photo.create({
       data: {
-        userId: user.id,
+        userId: ownerId,
         plantId,
         bedId,
         url,
@@ -124,7 +126,7 @@ export async function POST(request: NextRequest) {
       { name: plant.name, plantedDate: plant.plantedDate },
       { type: bed.type },
       takenAt,
-      user.id
+      ownerId
     ).catch((err) => console.error("analyzePhotoForTimeline:", err));
 
     const payload = {

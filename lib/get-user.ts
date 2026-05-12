@@ -16,6 +16,9 @@ const authUserSelect = {
   onboardingDone: true,
   isPremium: true,
   premiumUntil: true,
+  familyOwnerId: true,
+  familyInviteToken: true,
+  familyInviteExpiresAt: true,
   createdAt: true,
   updatedAt: true,
 } as const;

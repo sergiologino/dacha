@@ -1,16 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { signOutAndWipeLocalDevice } from "@/lib/auth/client-sign-out";
-import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3, BookOpen, CloudSun, ListTodo, Send } from "lucide-react";
+import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3, BookOpen, CloudSun, ListTodo, Send, QrCode, ScanLine, UserMinus } from "lucide-react";
 import { clearFeatureOnboardingSeen } from "@/components/feature-onboarding";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { usePushSubscription } from "@/lib/hooks/use-push-subscription";
@@ -49,6 +55,23 @@ type PageVisitSummaryItem = {
   totalVisits: number;
   uniqueUsers: number;
   topVisitors: { userEmail: string | null; userName: string | null; visitCount: number; lastVisitedAt: string }[];
+};
+
+type FamilyMember = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+};
+
+type FamilyStatus = {
+  role: "owner" | "member";
+  owner: { id: string; name: string | null; email: string | null; phone: string | null } | null;
+  members: FamilyMember[];
+};
+
+type BarcodeDetectorLike = {
+  detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue?: string }>>;
 };
 
 const MapComponent = dynamic(
@@ -96,6 +119,18 @@ export default function SettingsPage() {
   const [testPushLoading, setTestPushLoading] = useState(false);
   const [testPushMessage, setTestPushMessage] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [familyStatus, setFamilyStatus] = useState<FamilyStatus | null>(null);
+  const [familyLoading, setFamilyLoading] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteQrDataUrl, setInviteQrDataUrl] = useState<string | null>(null);
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [inviteExpiresAt, setInviteExpiresAt] = useState<string | null>(null);
+  const [acceptInviteOpen, setAcceptInviteOpen] = useState(false);
+  const [inviteCode, setInviteCode] = useState("");
+  const [acceptInviteLoading, setAcceptInviteLoading] = useState(false);
+  const [scannerMessage, setScannerMessage] = useState<string | null>(null);
+  const inviteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const acceptInviteHandlerRef = useRef<((code?: string) => void) | null>(null);
   const push = usePushSubscription();
 
   const fetchUsers = () => {
@@ -118,13 +153,25 @@ export default function SettingsPage() {
       .finally(() => setPageVisitsLoading(false));
   };
 
+  const fetchFamilyStatus = () => {
+    setFamilyLoading(true);
+    fetch("/api/family/status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.role) setFamilyStatus(data as FamilyStatus);
+      })
+      .catch(() => setFamilyStatus(null))
+      .finally(() => setFamilyLoading(false));
+  };
+
   useEffect(() => {
     Promise.all([
       fetch("/api/user/location").then((r) => r.json()),
       fetch("/api/user/premium").then((r) => r.json()),
       fetch("/api/user/weather-settings").then((r) => r.json()),
+      fetch("/api/family/status").then((r) => r.json()).catch(() => null),
     ])
-      .then(([loc, prem, weather]) => {
+      .then(([loc, prem, weather, family]) => {
         if (loc.latitude && loc.longitude) {
           setPosition({ lat: loc.latitude, lng: loc.longitude });
           setLocationName(loc.locationName || "");
@@ -139,6 +186,7 @@ export default function SettingsPage() {
             : WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT
         );
         setWeatherHasLocation(!!weather.hasLocation);
+        if (family?.role) setFamilyStatus(family as FamilyStatus);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -311,6 +359,134 @@ export default function SettingsPage() {
       setTestPushLoading(false);
     }
   };
+
+  const createFamilyInvite = async () => {
+    setInviteLoading(true);
+    try {
+      const res = await fetch("/api/family/invite", { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        token?: string;
+        qrDataUrl?: string;
+        expiresAt?: string;
+      };
+      if (!res.ok || !data.qrDataUrl || !data.token) {
+        throw new Error(data.error || "Не удалось создать приглашение");
+      }
+      setInviteQrDataUrl(data.qrDataUrl);
+      setInviteToken(data.token);
+      setInviteExpiresAt(data.expiresAt ?? null);
+      toast.success("QR-приглашение создано");
+      fetchFamilyStatus();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось создать приглашение");
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const acceptFamilyInvite = async (code?: string) => {
+    const token = (code ?? inviteCode).trim();
+    if (!token) {
+      setScannerMessage("Наведите камеру на QR-код или вставьте код вручную.");
+      return;
+    }
+    const ok = window.confirm(
+      "После подключения ваши текущие грядки, культуры и фото будут удалены, чтобы не смешивать их с участком владельца. Продолжить?"
+    );
+    if (!ok) return;
+    setAcceptInviteLoading(true);
+    try {
+      const res = await fetch("/api/family/accept", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Не удалось принять приглашение");
+      toast.success("Семейный доступ подключён");
+      setAcceptInviteOpen(false);
+      setInviteCode("");
+      setScannerMessage(null);
+      fetchFamilyStatus();
+      router.refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не удалось принять приглашение";
+      setScannerMessage(message);
+      toast.error(message);
+    } finally {
+      setAcceptInviteLoading(false);
+    }
+  };
+  acceptInviteHandlerRef.current = (code?: string) => {
+    void acceptFamilyInvite(code);
+  };
+
+  const removeFamilyMember = async (memberId: string) => {
+    if (!window.confirm("Удалить участника из семейного доступа?")) return;
+    try {
+      const res = await fetch(`/api/family/members/${memberId}`, { method: "DELETE" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "Не удалось удалить участника");
+      toast.success("Участник удалён");
+      fetchFamilyStatus();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Не удалось удалить участника");
+    }
+  };
+
+  useEffect(() => {
+    if (!acceptInviteOpen) return;
+    let cancelled = false;
+    let stream: MediaStream | null = null;
+    let timer: number | null = null;
+
+    const start = async () => {
+      const barcodeWindow = window as typeof window & {
+        BarcodeDetector?: new (options?: { formats?: string[] }) => BarcodeDetectorLike;
+      };
+      if (!barcodeWindow.BarcodeDetector || !navigator.mediaDevices?.getUserMedia) {
+        setScannerMessage("Сканер QR недоступен в этом браузере. Введите код вручную.");
+        return;
+      }
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+        });
+        const video = inviteVideoRef.current;
+        if (!video || cancelled) return;
+        video.srcObject = stream;
+        await video.play();
+        const detector = new barcodeWindow.BarcodeDetector({ formats: ["qr_code"] });
+        const scan = async () => {
+          if (cancelled || !inviteVideoRef.current) return;
+          try {
+            const codes = await detector.detect(inviteVideoRef.current);
+            const raw = codes[0]?.rawValue?.trim();
+            if (raw) {
+              setInviteCode(raw);
+              acceptInviteHandlerRef.current?.(raw);
+              return;
+            }
+          } catch {
+            // keep scanning
+          }
+          timer = window.setTimeout(scan, 700);
+        };
+        void scan();
+      } catch {
+        setScannerMessage("Не удалось открыть камеру. Разрешите доступ или введите код вручную.");
+      }
+    };
+
+    void start();
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+      stream?.getTracks().forEach((track) => track.stop());
+    };
+  }, [acceptInviteOpen]);
 
   if (loading) {
     return (
@@ -587,6 +763,107 @@ export default function SettingsPage() {
       )}
 
       <Card className="p-6 mb-6">
+        <h2 className="font-semibold mb-3 flex items-center gap-2">
+          <Users className="w-5 h-5 text-emerald-600" />
+          Семейный доступ
+        </h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+          Члены семьи работают с общими грядками и культурами. Удалять посаженные культуры может только владелец аккаунта.
+        </p>
+
+        {familyLoading ? (
+          <div className="flex justify-center py-4">
+            <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
+          </div>
+        ) : familyStatus?.role === "member" ? (
+          <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-4">
+            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+              Вы подключены к семейному участку
+            </p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+              Владелец: {familyStatus.owner?.name || familyStatus.owner?.email || familyStatus.owner?.phone || "аккаунт семьи"}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                type="button"
+                onClick={() => void createFamilyInvite()}
+                disabled={inviteLoading}
+                className="h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700"
+              >
+                {inviteLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <QrCode className="w-4 h-4 mr-2" />}
+                Пригласить по QR
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAcceptInviteOpen(true)}
+                className="h-11 rounded-2xl"
+              >
+                <ScanLine className="w-4 h-4 mr-2" />
+                Принять приглашение
+              </Button>
+            </div>
+
+            {inviteQrDataUrl && (
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-700 p-4 bg-slate-50 dark:bg-slate-900/50">
+                <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={inviteQrDataUrl}
+                    alt="QR-код семейного приглашения"
+                    className="w-44 h-44 rounded-xl border border-white bg-white p-2"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">Покажите этот QR-код члену семьи</p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Код действует 7 дней{inviteExpiresAt ? `, до ${new Date(inviteExpiresAt).toLocaleDateString("ru-RU")}` : ""}.
+                    </p>
+                    {inviteToken && (
+                      <p className="mt-2 break-all rounded-xl bg-white dark:bg-slate-950 px-3 py-2 text-xs text-slate-500">
+                        {inviteToken}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {familyStatus?.members?.length ? (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Участники семьи</p>
+                {familyStatus.members.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 dark:border-slate-700 px-4 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {member.name || member.email || member.phone || "Участник семьи"}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">{member.email || member.phone || member.id}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void removeFamilyMember(member.id)}
+                      className="rounded-xl text-red-600 border-red-200 hover:text-red-700"
+                    >
+                      <UserMinus className="w-4 h-4 mr-1" />
+                      Удалить
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-6 mb-6">
         <h2 className="font-semibold mb-2 flex items-center gap-2">
           <ListTodo className="w-5 h-5 text-emerald-600" />
           Очередь синхронизации
@@ -841,6 +1118,46 @@ export default function SettingsPage() {
           Для работы нужны включённые push-уведомления выше, подписка Премиум и сохранённое местоположение. По умолчанию проверка выполняется раз в час.
         </p>
       </Card>
+
+      <Dialog open={acceptInviteOpen} onOpenChange={setAcceptInviteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogTitle>Принять семейное приглашение</DialogTitle>
+          <DialogDescription>
+            Наведите камеру на QR-код владельца аккаунта или вставьте код вручную.
+          </DialogDescription>
+          <div className="space-y-4">
+            <div className="aspect-square overflow-hidden rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+              <video
+                ref={inviteVideoRef}
+                className="h-full w-full object-cover"
+                muted
+                playsInline
+              />
+            </div>
+            <label className="flex flex-col gap-2 text-sm">
+              <span className="text-slate-500">Код приглашения</span>
+              <input
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                placeholder="fam_..."
+                className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-sm"
+              />
+            </label>
+            {scannerMessage && (
+              <p className="text-sm text-slate-500">{scannerMessage}</p>
+            )}
+            <Button
+              type="button"
+              onClick={() => void acceptFamilyInvite()}
+              disabled={acceptInviteLoading}
+              className="w-full h-11 rounded-2xl bg-emerald-600 hover:bg-emerald-700"
+            >
+              {acceptInviteLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ScanLine className="w-4 h-4 mr-2" />}
+              Принять приглашение
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <SubscribeModal open={showPaywall} onOpenChange={setShowPaywall} />
 

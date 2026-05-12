@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
+import { familyOwnerIdFor } from "@/lib/family-access";
 
 export async function POST(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const ownerId = familyOwnerIdFor(user);
 
   const { latitude, longitude, locationName } = await request.json();
 
@@ -24,7 +26,7 @@ export async function POST(request: NextRequest) {
 
   try {
     updated = await prisma.user.update({
-      where: { id: user.id },
+      where: { id: ownerId },
       data: {
         latitude,
         longitude,
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
     }
 
     updated = await prisma.user.update({
-      where: { id: user.id },
+      where: { id: ownerId },
       data: {
         latitude,
         longitude,
@@ -71,11 +73,16 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const ownerId = familyOwnerIdFor(user);
+  const owner = ownerId === user.id ? user : await prisma.user.findUnique({
+    where: { id: ownerId },
+    select: { latitude: true, longitude: true, locationName: true },
+  });
 
   return NextResponse.json({
-    latitude: user.latitude,
-    longitude: user.longitude,
-    locationName: user.locationName,
+    latitude: owner?.latitude ?? null,
+    longitude: owner?.longitude ?? null,
+    locationName: owner?.locationName ?? null,
     onboardingDone: user.onboardingDone,
   });
 }

@@ -9,6 +9,7 @@ import {
 } from "@/lib/user-access";
 import { tryRemoveStoredFile } from "@/lib/photo-storage";
 import { ensureVirtualBed, parsePlacementType } from "@/lib/virtual-beds";
+import { assertOwnerCanDeletePlants, familyOwnerIdFor, getFamilyAccessUser } from "@/lib/family-access";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +17,10 @@ export async function GET() {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ownerId = familyOwnerIdFor(user);
 
     const plants = await prisma.plant.findMany({
-      where: { userId: user.id },
+      where: { userId: ownerId },
       orderBy: { createdAt: "desc" },
     });
 
@@ -33,6 +35,8 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ownerId = familyOwnerIdFor(user);
+    const accessUser = await getFamilyAccessUser(user);
 
     const { name, bedId, plantedDate, cropSlug, placementType } = await request.json();
 
@@ -40,10 +44,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    if (hasFullAccess(user)) {
+    if (hasFullAccess(accessUser)) {
       // ok
-    } else if (isLegacyFreeTierUser(user)) {
-      const plantCount = await prisma.plant.count({ where: { userId: user.id } });
+    } else if (isLegacyFreeTierUser(accessUser)) {
+      const plantCount = await prisma.plant.count({ where: { userId: ownerId } });
       if (plantCount >= LEGACY_FREE_PLANT_LIMIT) {
         return NextResponse.json(
           {
@@ -68,7 +72,7 @@ export async function POST(request: NextRequest) {
     let resolvedBedId: string | null = null;
 
     if (bedId) {
-      const bed = await prisma.bed.findFirst({ where: { id: bedId, userId: user.id } });
+      const bed = await prisma.bed.findFirst({ where: { id: bedId, userId: ownerId } });
       if (!bed) return NextResponse.json({ error: "Bed not found" }, { status: 404 });
       resolvedBedId = bed.id;
     } else if (placementType != null) {
@@ -76,13 +80,13 @@ export async function POST(request: NextRequest) {
       if (!parsedPlacementType) {
         return NextResponse.json({ error: "Invalid placement type" }, { status: 400 });
       }
-      const virtualBed = await ensureVirtualBed(user.id, parsedPlacementType);
+      const virtualBed = await ensureVirtualBed(ownerId, parsedPlacementType);
       resolvedBedId = virtualBed.id;
     }
 
     const plant = await prisma.plant.create({
       data: {
-        userId: user.id,
+        userId: ownerId,
         name,
         bedId: resolvedBedId,
         plantedDate: plantedDate ? new Date(plantedDate) : new Date(),
@@ -90,13 +94,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (hasFullAccess(user)) {
+    if (hasFullAccess(accessUser)) {
       generateTimelineForPlant(plant.id).catch((err) =>
         console.error("Timeline generation failed:", err)
       );
-    } else if (isLegacyFreeTierUser(user)) {
+    } else if (isLegacyFreeTierUser(accessUser)) {
       const existingTimelinePlant = await prisma.plantTimelineEvent.findFirst({
-        where: { plant: { userId: user.id } },
+        where: { plant: { userId: ownerId } },
         select: { id: true },
       });
       if (!existingTimelinePlant) {
@@ -117,6 +121,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ownerId = familyOwnerIdFor(user);
 
     const body = await request.json();
     const { id, plantedDate, name, notes, status } = body;
@@ -125,7 +130,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Plant id is required" }, { status: 400 });
     }
 
-    const plant = await prisma.plant.findFirst({ where: { id, userId: user.id } });
+    const plant = await prisma.plant.findFirst({ where: { id, userId: ownerId } });
     if (!plant) return NextResponse.json({ error: "Plant not found" }, { status: 404 });
 
     const data: { plantedDate?: Date; name?: string; notes?: string; status?: string } = {};
@@ -150,10 +155,17 @@ export async function DELETE(request: NextRequest) {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ownerId = familyOwnerIdFor(user);
+    if (!assertOwnerCanDeletePlants(user)) {
+      return NextResponse.json(
+        { error: "Удалять посаженные культуры может только владелец семейного аккаунта." },
+        { status: 403 }
+      );
+    }
 
     const { id } = await request.json();
 
-    const plant = await prisma.plant.findFirst({ where: { id, userId: user.id } });
+    const plant = await prisma.plant.findFirst({ where: { id, userId: ownerId } });
     if (!plant) return NextResponse.json({ error: "Plant not found" }, { status: 404 });
 
     const photoRows = await prisma.photo.findMany({
