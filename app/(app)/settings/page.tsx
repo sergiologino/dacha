@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { signOutAndWipeLocalDevice } from "@/lib/auth/client-sign-out";
-import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3, BookOpen, CloudSun, ListTodo } from "lucide-react";
+import { MapPin, LogOut, Loader2, Save, Crown, CreditCard, Bell, BellOff, Users, BarChart3, BookOpen, CloudSun, ListTodo, Send } from "lucide-react";
 import { clearFeatureOnboardingSeen } from "@/components/feature-onboarding";
 import { SubscribeModal } from "@/components/subscribe-modal";
 import { Button } from "@/components/ui/button";
@@ -64,6 +64,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isPremium, setIsPremium] = useState(false);
+  const [hasFullAccess, setHasFullAccess] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [togglingPremium, setTogglingPremium] = useState(false);
   const [tab, setTab] = useState<"profile" | "payments">("profile");
@@ -92,6 +93,8 @@ export default function SettingsPage() {
   );
   const [weatherHasLocation, setWeatherHasLocation] = useState(false);
   const [weatherSaving, setWeatherSaving] = useState(false);
+  const [testPushLoading, setTestPushLoading] = useState(false);
+  const [testPushMessage, setTestPushMessage] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
   const push = usePushSubscription();
 
@@ -127,6 +130,7 @@ export default function SettingsPage() {
           setLocationName(loc.locationName || "");
         }
         setIsPremium(!!prem.isPremium);
+        setHasFullAccess(!!(prem.hasFullAccess ?? prem.isPremium));
         setIsAdmin(!!prem.isAdmin);
         setWeatherPushEnabled(!!weather.weatherPushEnabled);
         setWeatherCheckIntervalMinutes(
@@ -175,6 +179,7 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       setIsPremium(data.isPremium);
+      setHasFullAccess(data.isPremium);
       toast.success(data.isPremium ? "Премиум включён" : "Премиум отключён");
     } catch {
       toast.error("Ошибка");
@@ -235,7 +240,7 @@ export default function SettingsPage() {
   };
 
   const saveWeatherSettings = async () => {
-    if (!isPremium) {
+    if (!hasFullAccess) {
       setShowPaywall(true);
       return;
     }
@@ -272,6 +277,38 @@ export default function SettingsPage() {
       );
     } finally {
       setWeatherSaving(false);
+    }
+  };
+
+  const sendTestPush = async () => {
+    if (!hasFullAccess) {
+      setShowPaywall(true);
+      return;
+    }
+    if (!guardOnlineForFeature("Тестовое push-уведомление")) return;
+    setTestPushLoading(true);
+    setTestPushMessage(null);
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        sent?: number;
+        failed?: number;
+        subscriptions?: number;
+      };
+      if (!res.ok) {
+        throw new Error(data.error || "Не удалось отправить тестовое уведомление");
+      }
+      const message = `Отправлено: ${data.sent ?? 0}, подписок: ${data.subscriptions ?? 0}, ошибок: ${data.failed ?? 0}`;
+      setTestPushMessage(message);
+      toast.success("Тестовое уведомление отправлено");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Не удалось отправить тестовое уведомление";
+      setTestPushMessage(message);
+      toast.error(message);
+    } finally {
+      setTestPushLoading(false);
     }
   };
 
@@ -647,7 +684,7 @@ export default function SettingsPage() {
         <h2 className="font-semibold mb-3 flex items-center gap-2">
           <Bell className="w-5 h-5 text-emerald-600" />
           Уведомления
-          {!isPremium && (
+          {!hasFullAccess && (
             <Badge variant="outline" className="ml-1 text-amber-700 border-amber-300 dark:text-amber-400 dark:border-amber-700">
               Премиум
             </Badge>
@@ -659,7 +696,7 @@ export default function SettingsPage() {
         {(() => {
           const pushLoading = push.state === "loading";
           const handleEnablePush = () => {
-            if (!isPremium) {
+            if (!hasFullAccess) {
               setShowPaywall(true);
               return;
             }
@@ -672,16 +709,28 @@ export default function SettingsPage() {
               ) : push.state === "subscribed" ? (
                 <div>
                   <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium mb-2">Уведомления включены</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={push.unsubscribe}
-                    disabled={pushLoading}
-                    className="rounded-xl"
-                  >
-                    {pushLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <BellOff className="w-4 h-4 mr-2" />}
-                    Отключить
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void sendTestPush()}
+                      disabled={pushLoading || testPushLoading}
+                      className="rounded-xl"
+                    >
+                      {testPushLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                      Отправить тест
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={push.unsubscribe}
+                      disabled={pushLoading || testPushLoading}
+                      className="rounded-xl"
+                    >
+                      {pushLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <BellOff className="w-4 h-4 mr-2" />}
+                      Отключить
+                    </Button>
+                  </div>
                 </div>
               ) : push.state === "denied" ? (
                 <p className="text-sm text-slate-500">Уведомления запрещены в настройках браузера. Разрешите их для этого сайта и нажмите «Включить» снова.</p>
@@ -700,6 +749,9 @@ export default function SettingsPage() {
               {push.message && (
                 <p className="text-sm text-slate-500 mt-3">{push.message}</p>
               )}
+              {testPushMessage && (
+                <p className="text-sm text-slate-500 mt-3">{testPushMessage}</p>
+              )}
             </>
           );
         })()}
@@ -709,7 +761,7 @@ export default function SettingsPage() {
         <h2 className="font-semibold mb-3 flex items-center gap-2 flex-wrap">
           <CloudSun className="w-5 h-5 text-emerald-600" />
           Погодные предупреждения
-          {!isPremium && (
+          {!hasFullAccess && (
             <Badge variant="outline" className="text-amber-700 border-amber-300 dark:text-amber-400 dark:border-amber-700">
               Премиум
             </Badge>
@@ -724,7 +776,7 @@ export default function SettingsPage() {
             type="checkbox"
             checked={weatherPushEnabled}
             onChange={(e) => {
-              if (!isPremium) {
+              if (!hasFullAccess) {
                 setShowPaywall(true);
                 return;
               }
@@ -748,7 +800,7 @@ export default function SettingsPage() {
           <select
             value={String(weatherCheckIntervalMinutes)}
             onChange={(e) => {
-              if (!isPremium) {
+              if (!hasFullAccess) {
                 setShowPaywall(true);
                 return;
               }
@@ -772,7 +824,7 @@ export default function SettingsPage() {
         <Button
           type="button"
           onClick={() => {
-            if (!isPremium) {
+            if (!hasFullAccess) {
               setShowPaywall(true);
               return;
             }

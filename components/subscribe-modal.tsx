@@ -39,6 +39,13 @@ const TESTIMONIALS = [
 
 const USER_COUNT = "более 30 000";
 
+const PREMIUM_BENEFITS = [
+  "AI-агроном подскажет, что делать с культурой именно сейчас",
+  "календарь ухода и push-напоминания не дадут пропустить полив, подкормку и обработку",
+  "фото-диагностика помогает спасти растения до того, как проблема стала видимой всем",
+  "сезонный план помогает вырастить урожай, которым приятно похвастаться соседям",
+];
+
 interface SubscribeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -73,7 +80,7 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
         body: JSON.stringify({ amount, description, plan: selectedPlan }),
       });
 
-      let data: any = null;
+      let data: { error?: string; paymentUrl?: string } | null = null;
       try {
         data = await response.json();
       } catch {
@@ -89,7 +96,7 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
       }
 
       if (data?.paymentUrl) {
-        window.location.href = data.paymentUrl as string;
+        window.location.href = data.paymentUrl;
       } else {
         setError("Платёж создан некорректно: не пришёл URL оплаты.");
       }
@@ -110,13 +117,13 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
         <div className="bg-gradient-to-br from-amber-50 via-white to-emerald-50 dark:from-amber-950/30 dark:via-slate-900 dark:to-emerald-950/30 rounded-t-lg px-6 pt-6 pb-4">
           <DialogHeader>
             <DialogTitle className="text-2xl text-center flex items-center justify-center gap-2">
-              <Crown className="w-8 h-8 text-amber-500" /> Любимая Дача Премиум
+              <Crown className="w-8 h-8 text-amber-500" /> Премиум для сильного урожая
             </DialogTitle>
           </DialogHeader>
 
           <p className="text-center text-sm text-slate-700 dark:text-slate-300 mt-3 px-2 leading-snug">
-            <strong>14 дней</strong> полного доступа после регистрации. Без отдельного бесплатного тарифа:
-            после окончания триала нужна подписка Премиум.
+            Сезон короткий: Премиум помогает вовремя посадить, подкормить, заметить болезнь и не забыть важные работы.
+            После <strong>14 дней полного доступа</strong> для AI-помощника, календаря ухода и уведомлений нужна подписка.
           </p>
 
           <div className="flex items-center justify-center gap-2 mt-4 text-slate-600 dark:text-slate-400">
@@ -124,6 +131,18 @@ export function SubscribeModal({ open, onOpenChange }: SubscribeModalProps) {
             <span className="text-sm font-medium">
               {USER_COUNT} дачников уже с нами
             </span>
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            {PREMIUM_BENEFITS.map((benefit) => (
+              <div
+                key={benefit}
+                className="flex items-start gap-2 rounded-xl bg-white/80 dark:bg-slate-800/80 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 border border-emerald-100 dark:border-emerald-900/60"
+              >
+                <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-600" />
+                <span>{benefit}</span>
+              </div>
+            ))}
           </div>
 
           <div className="mt-4 space-y-3 max-h-32 overflow-y-auto pr-1">
