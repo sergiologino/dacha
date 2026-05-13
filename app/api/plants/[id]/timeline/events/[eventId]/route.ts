@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
+import { familyOwnerIdFor } from "@/lib/family-access";
 
 const VALID_TYPES = new Set([
   "sprout", "transplant", "water", "loosen", "light_temp", "feed", "pinch", "harvest", "other",
@@ -14,13 +15,14 @@ export async function PATCH(
 ) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ownerId = familyOwnerIdFor(user);
 
   const { id: plantId, eventId } = await params;
   const event = await prisma.plantTimelineEvent.findFirst({
     where: { id: eventId, plantId },
     include: { plant: { select: { userId: true } } },
   });
-  if (!event || event.plant.userId !== user.id) {
+  if (!event || event.plant.userId !== ownerId) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 
@@ -92,13 +94,14 @@ export async function DELETE(
 ) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ownerId = familyOwnerIdFor(user);
 
   const { id: plantId, eventId } = await params;
   const event = await prisma.plantTimelineEvent.findFirst({
     where: { id: eventId, plantId },
     include: { plant: { select: { userId: true } } },
   });
-  if (!event || event.plant.userId !== user.id) {
+  if (!event || event.plant.userId !== ownerId) {
     return NextResponse.json({ error: "Event not found" }, { status: 404 });
   }
 

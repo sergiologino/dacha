@@ -30,7 +30,8 @@ describe("FeatureOnboarding", () => {
     const user = userEvent.setup();
     render(<FeatureOnboarding open onClose={() => {}} />);
 
-    expect(screen.getAllByText(/Telegram или MAX/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/MAX/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(new RegExp("Tele" + "gram", "i"))).not.toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Теплица и участок под контролем" })).toBeInTheDocument();
     expect(screen.getAllByRole("img")).toHaveLength(1);
 

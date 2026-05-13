@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { generateTimelineForPlant } from "@/lib/timeline-generate";
 import { demoBedForDate } from "@/lib/demo-garden";
+import { familyOwnerIdFor } from "@/lib/family-access";
 
 const DEMO_CROPS = [
   { name: "Томат", slug: "tomat" },
@@ -19,8 +20,9 @@ export async function POST() {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ownerId = familyOwnerIdFor(user);
 
-    const bedCount = await prisma.bed.count({ where: { userId: user.id } });
+    const bedCount = await prisma.bed.count({ where: { userId: ownerId } });
     if (bedCount > 0) {
       return NextResponse.json({ seeded: false });
     }
@@ -31,7 +33,7 @@ export async function POST() {
 
     const bed = await prisma.bed.create({
       data: {
-        userId: user.id,
+        userId: ownerId,
         name: demoBed.name,
         type: demoBed.type,
       },
@@ -39,7 +41,7 @@ export async function POST() {
 
     const plant = await prisma.plant.create({
       data: {
-        userId: user.id,
+        userId: ownerId,
         bedId: bed.id,
         name: crop.name,
         cropSlug: crop.slug,

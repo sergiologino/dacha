@@ -31,9 +31,14 @@ model User {
   onboardingDone Boolean  @default(false)
   isPremium     Boolean   @default(false)
   premiumUntil  DateTime?
+  familyOwnerId String?
+  familyInviteToken String? @unique
+  familyInviteExpiresAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  familyOwner User? @relation("FamilyMembers", fields: [familyOwnerId], references: [id], onDelete: SetNull)
+  familyMembers User[] @relation("FamilyMembers")
   accounts     Account[]
   sessions     Session[]
   plants       Plant[]
@@ -51,6 +56,7 @@ model User {
   phoneAuthCodes PhoneAuthCode[]
 
   @@map("users")
+  @@index([familyOwnerId])
 }
 
 model PushSubscription {

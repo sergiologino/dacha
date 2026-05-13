@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { hasFullAccess } from "@/lib/user-access";
+import { familyOwnerIdFor, getFamilyAccessUser } from "@/lib/family-access";
 import {
   WEATHER_CHECK_INTERVAL_MINUTES_DEFAULT,
   WEATHER_CHECK_INTERVAL_MINUTES_MAX,
@@ -16,10 +17,12 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const ownerId = familyOwnerIdFor(user);
+  const accessUser = await getFamilyAccessUser(user);
 
   try {
     const row = await prisma.user.findUnique({
-      where: { id: user.id },
+      where: { id: ownerId },
       select: {
         latitude: true,
         longitude: true,
@@ -37,7 +40,7 @@ export async function GET() {
     );
 
     return NextResponse.json({
-      weatherPushEnabled: hasFullAccess(user) && row.weatherPushEnabled,
+      weatherPushEnabled: hasFullAccess(accessUser) && row.weatherPushEnabled,
       weatherCheckIntervalMinutes: interval,
       hasLocation: row.latitude != null && row.longitude != null,
       minIntervalMinutes: WEATHER_CHECK_INTERVAL_MINUTES_MIN,
@@ -67,8 +70,10 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const ownerId = familyOwnerIdFor(user);
+  const accessUser = await getFamilyAccessUser(user);
 
-  if (!hasFullAccess(user)) {
+  if (!hasFullAccess(accessUser)) {
     return NextResponse.json(
       {
         error:
@@ -91,10 +96,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (
-    weatherPushEnabled &&
-    (user.latitude == null || user.longitude == null)
-  ) {
+  const ownerLocation = await prisma.user.findUnique({
+    where: { id: ownerId },
+    select: { latitude: true, longitude: true },
+  });
+
+  if (weatherPushEnabled && (ownerLocation?.latitude == null || ownerLocation.longitude == null)) {
     return NextResponse.json(
       { error: "Для погодных предупреждений сначала сохраните местоположение участка." },
       { status: 400 }
@@ -103,7 +110,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const updated = await prisma.user.update({
-      where: { id: user.id },
+      where: { id: ownerId },
       data: {
         weatherPushEnabled,
         weatherCheckIntervalMinutes,

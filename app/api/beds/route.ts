@@ -6,6 +6,7 @@ import {
   isLegacyFreeTierUser,
   LEGACY_FREE_BED_LIMIT,
 } from "@/lib/user-access";
+import { familyOwnerIdFor, getFamilyAccessUser } from "@/lib/family-access";
 
 export const dynamic = "force-dynamic";
 
@@ -51,14 +52,15 @@ export async function GET() {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ownerId = familyOwnerIdFor(user);
 
     const beds = await prisma.bed.findMany({
-      where: { userId: user.id },
+      where: { userId: ownerId },
       include: bedInclude,
       orderBy: { createdAt: "desc" },
     });
 
-    await attachOrphanBedPhotosToSinglePlantBeds(user.id, beds);
+    await attachOrphanBedPhotosToSinglePlantBeds(ownerId, beds);
 
     return NextResponse.json(beds);
   } catch (err) {
@@ -71,6 +73,8 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ownerId = familyOwnerIdFor(user);
+    const accessUser = await getFamilyAccessUser(user);
 
     const { name, number, type } = await request.json();
 
@@ -78,10 +82,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    if (hasFullAccess(user)) {
+    if (hasFullAccess(accessUser)) {
       // без ограничений
-    } else if (isLegacyFreeTierUser(user)) {
-      const bedCount = await prisma.bed.count({ where: { userId: user.id, isVirtual: false } });
+    } else if (isLegacyFreeTierUser(accessUser)) {
+      const bedCount = await prisma.bed.count({ where: { userId: ownerId, isVirtual: false } });
       if (bedCount >= LEGACY_FREE_BED_LIMIT) {
         return NextResponse.json(
           {
@@ -105,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     const bed = await prisma.bed.create({
       data: {
-        userId: user.id,
+        userId: ownerId,
         name,
         number: number || null,
         type: type || "open",
@@ -124,6 +128,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ownerId = familyOwnerIdFor(user);
 
     const body = await request.json();
     const { id, name, number, type } = body;
@@ -132,7 +137,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "id is required" }, { status: 400 });
     }
 
-    const bed = await prisma.bed.findFirst({ where: { id, userId: user.id } });
+    const bed = await prisma.bed.findFirst({ where: { id, userId: ownerId } });
     if (!bed) return NextResponse.json({ error: "Bed not found" }, { status: 404 });
 
     const data: { name?: string; number?: string | null; type?: string } = {};
@@ -157,9 +162,10 @@ export async function DELETE(request: NextRequest) {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ownerId = familyOwnerIdFor(user);
 
     const { id } = await request.json();
-    const bed = await prisma.bed.findFirst({ where: { id, userId: user.id } });
+    const bed = await prisma.bed.findFirst({ where: { id, userId: ownerId } });
     if (!bed) return NextResponse.json({ error: "Bed not found" }, { status: 404 });
 
     await prisma.bed.delete({ where: { id } });

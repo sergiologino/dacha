@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/get-user";
 import { generateTimelineForPlant } from "@/lib/timeline-generate";
 import { hasFullAccess, isLegacyFreeTierUser } from "@/lib/user-access";
+import { familyOwnerIdFor, getFamilyAccessUser } from "@/lib/family-access";
 
 export const dynamic = "force-dynamic";
 
@@ -12,21 +13,23 @@ export async function POST(
 ) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ownerId = familyOwnerIdFor(user);
+  const accessUser = await getFamilyAccessUser(user);
 
   const { id: plantId } = await params;
   const plant = await prisma.plant.findFirst({
-    where: { id: plantId, userId: user.id },
+    where: { id: plantId, userId: ownerId },
     select: { id: true },
   });
   if (!plant) return NextResponse.json({ error: "Plant not found" }, { status: 404 });
 
-  if (hasFullAccess(user)) {
+  if (hasFullAccess(accessUser)) {
     // ok
-  } else if (isLegacyFreeTierUser(user)) {
+  } else if (isLegacyFreeTierUser(accessUser)) {
     const otherTimelinePlant = await prisma.plantTimelineEvent.findFirst({
       where: {
         plant: {
-          userId: user.id,
+          userId: ownerId,
           id: { not: plantId },
         },
       },
