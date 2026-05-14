@@ -32,7 +32,8 @@ function formatEventDate(scheduledDate: string, dateTo: string | null): string {
   const d = new Date(scheduledDate);
   const day = d.getDate();
   const month = monthNames[d.getMonth()].slice(0, 3); // кратко: Март, Апр
-  if (!dateTo) return `${day} ${month}`;
+  const time = d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  if (!dateTo) return `${day} ${month}, ${time}`;
   const d2 = new Date(dateTo);
   const day2 = d2.getDate();
   const month2 = monthNames[d2.getMonth()].slice(0, 3);
@@ -82,7 +83,7 @@ export default function CalendarPage() {
   const currentYear = new Date().getFullYear();
   const plannedItems = useMemo(
     () => getPlannedEventsForMonth(beds, selectedMonth, currentYear),
-    [beds, selectedMonth]
+    [beds, selectedMonth, currentYear]
   );
 
   const todayStart = useMemo(() => {

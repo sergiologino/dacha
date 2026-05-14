@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getCropDisplayName } from "@/lib/crop-weather-context";
+import { hasFullAccess } from "@/lib/user-access";
 
 /** Смещение Москвы от UTC в миллисекундах (UTC+3). */
 const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -33,6 +34,16 @@ export function getDayBoundsInTimezone(
   return { dayStart: fallback, dayEnd: end };
 }
 
+export function dateRangeIntersectsDay(params: {
+  scheduledDate: Date;
+  dateTo?: Date | null;
+  dayStart: Date;
+  dayEnd: Date;
+}): boolean {
+  const end = params.dateTo ?? params.scheduledDate;
+  return end >= params.dayStart && params.scheduledDate <= params.dayEnd;
+}
+
 export type ReminderEvent = {
   id: string;
   title: string;
@@ -43,6 +54,47 @@ export type ReminderEvent = {
   description: string | null;
   isUserCreated: boolean;
 };
+
+export type ReminderRecipient = {
+  id: string;
+  ownerId: string;
+};
+
+export async function getReminderRecipientsByOwnerIds(
+  ownerIds: string[]
+): Promise<Map<string, ReminderRecipient[]>> {
+  const uniqueOwnerIds = Array.from(new Set(ownerIds)).filter(Boolean);
+  const recipients = new Map<string, ReminderRecipient[]>();
+  if (uniqueOwnerIds.length === 0) return recipients;
+
+  const owners = await prisma.user.findMany({
+    where: { id: { in: uniqueOwnerIds } },
+    select: { id: true, isPremium: true, createdAt: true },
+  });
+  const eligibleOwnerIds = new Set(
+    owners.filter((owner) => hasFullAccess(owner)).map((owner) => owner.id)
+  );
+  if (eligibleOwnerIds.size === 0) return recipients;
+
+  for (const ownerId of eligibleOwnerIds) {
+    recipients.set(ownerId, [{ id: ownerId, ownerId }]);
+  }
+
+  const members = await prisma.user.findMany({
+    where: { familyOwnerId: { in: [...eligibleOwnerIds] } },
+    select: { id: true, familyOwnerId: true },
+  });
+
+  for (const member of members) {
+    if (!member.familyOwnerId) continue;
+    recipients.get(member.familyOwnerId)?.push({
+      id: member.id,
+      ownerId: member.familyOwnerId,
+    });
+  }
+
+  return recipients;
+}
 
 function pluralizeRu(count: number, one: string, few: string, many: string): string {
   const mod10 = count % 10;

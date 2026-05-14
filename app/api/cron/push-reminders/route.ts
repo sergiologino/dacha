@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hasFullAccess } from "@/lib/user-access";
 import { isPushConfigured, sendPushToUser } from "@/lib/push-server";
 import {
   buildReminderDedupeKey,
@@ -8,6 +7,7 @@ import {
   formatReminderPayload,
   formatCombinedReminderPayload,
   getDayBoundsInTimezone,
+  getReminderRecipientsByOwnerIds,
 } from "@/lib/push-reminders";
 
 export const dynamic = "force-dynamic";
@@ -36,15 +36,8 @@ export async function GET(request: NextRequest) {
   const todayKey = todayStart.toISOString().slice(0, 10);
   const tomorrowKey = tomorrowStart.toISOString().slice(0, 10);
 
-  const allUserIds = new Set([...todayByUser.keys(), ...tomorrowByUser.keys()]);
-  const userRows =
-    allUserIds.size > 0
-      ? await prisma.user.findMany({
-          where: { id: { in: [...allUserIds] } },
-          select: { id: true, isPremium: true, createdAt: true },
-        })
-      : [];
-  const eligibleIds = new Set(userRows.filter((u) => hasFullAccess(u)).map((r) => r.id));
+  const allOwnerIds = new Set([...todayByUser.keys(), ...tomorrowByUser.keys()]);
+  const recipientsByOwner = await getReminderRecipientsByOwnerIds([...allOwnerIds]);
 
   let totalSent = 0;
   let totalFailed = 0;
@@ -52,10 +45,11 @@ export async function GET(request: NextRequest) {
   let totalSkippedWithoutSubscriptions = 0;
   let totalStaleDeleted = 0;
 
-  for (const userId of allUserIds) {
-    if (!eligibleIds.has(userId)) continue;
-    const todayEvents = todayByUser.get(userId) ?? [];
-    const tomorrowEvents = tomorrowByUser.get(userId) ?? [];
+  for (const ownerId of allOwnerIds) {
+    const recipients = recipientsByOwner.get(ownerId) ?? [];
+    if (recipients.length === 0) continue;
+    const todayEvents = todayByUser.get(ownerId) ?? [];
+    const tomorrowEvents = tomorrowByUser.get(ownerId) ?? [];
     if (todayEvents.length === 0 && tomorrowEvents.length === 0) continue;
 
     let payload: { title: string; body: string; url: string };
@@ -67,51 +61,53 @@ export async function GET(request: NextRequest) {
       payload = formatReminderPayload(tomorrowEvents, false);
     }
 
-    const dedupeKey = buildReminderDedupeKey({
-      userId,
-      todayKey,
-      todayEvents,
-      tomorrowKey,
-      tomorrowEvents,
-    });
-
-    try {
-      await prisma.pushDeliveryLog.create({
-        data: {
-          userId,
-          dedupeKey,
-        },
+    for (const recipient of recipients) {
+      const dedupeKey = buildReminderDedupeKey({
+        userId: recipient.id,
+        todayKey,
+        todayEvents,
+        tomorrowKey,
+        tomorrowEvents,
       });
-    } catch (error) {
-      if ((error as { code?: string } | null)?.code === "P2002") {
-        totalSkippedDuplicates++;
+
+      try {
+        await prisma.pushDeliveryLog.create({
+          data: {
+            userId: recipient.id,
+            dedupeKey,
+          },
+        });
+      } catch (error) {
+        if ((error as { code?: string } | null)?.code === "P2002") {
+          totalSkippedDuplicates++;
+          continue;
+        }
+        throw error;
+      }
+
+      const { sent, failed, subscriptions, staleDeleted } = await sendPushToUser(
+        recipient.id,
+        payload
+      );
+
+      if (subscriptions === 0) {
+        totalSkippedWithoutSubscriptions++;
+        await prisma.pushDeliveryLog.deleteMany({
+          where: { dedupeKey },
+        });
         continue;
       }
-      throw error;
+
+      if (sent === 0) {
+        await prisma.pushDeliveryLog.deleteMany({
+          where: { dedupeKey },
+        });
+      }
+
+      totalSent += sent;
+      totalFailed += failed;
+      totalStaleDeleted += staleDeleted;
     }
-
-    const { sent, failed, subscriptions, staleDeleted } = await sendPushToUser(
-      userId,
-      payload
-    );
-
-    if (subscriptions === 0) {
-      totalSkippedWithoutSubscriptions++;
-      await prisma.pushDeliveryLog.deleteMany({
-        where: { dedupeKey },
-      });
-      continue;
-    }
-
-    if (sent === 0) {
-      await prisma.pushDeliveryLog.deleteMany({
-        where: { dedupeKey },
-      });
-    }
-
-    totalSent += sent;
-    totalFailed += failed;
-    totalStaleDeleted += staleDeleted;
   }
 
   return NextResponse.json({
@@ -121,6 +117,6 @@ export async function GET(request: NextRequest) {
     skippedDuplicates: totalSkippedDuplicates,
     skippedWithoutSubscriptions: totalSkippedWithoutSubscriptions,
     staleDeleted: totalStaleDeleted,
-    users: allUserIds.size,
+    users: allOwnerIds.size,
   });
 }

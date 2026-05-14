@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildReminderDedupeKey,
+  dateRangeIntersectsDay,
   formatCombinedReminderPayload,
   formatReminderPayload,
   type ReminderEvent,
@@ -92,5 +93,25 @@ describe("push reminders", () => {
     });
 
     expect(first).toBe(second);
+  });
+
+  it("detects manually added work inside today's reminder window", () => {
+    const dayStart = new Date("2026-05-13T21:00:00.000Z");
+    const dayEnd = new Date("2026-05-14T20:59:59.999Z");
+
+    expect(
+      dateRangeIntersectsDay({
+        scheduledDate: new Date("2026-05-14T07:00:00.000Z"),
+        dayStart,
+        dayEnd,
+      })
+    ).toBe(true);
+    expect(
+      dateRangeIntersectsDay({
+        scheduledDate: new Date("2026-05-15T07:00:00.000Z"),
+        dayStart,
+        dayEnd,
+      })
+    ).toBe(false);
   });
 });

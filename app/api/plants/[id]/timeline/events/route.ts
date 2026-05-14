@@ -7,6 +7,15 @@ import {
   LEGACY_FREE_PLANNED_WORKS_LIMIT,
 } from "@/lib/user-access";
 import { familyOwnerIdFor, getFamilyAccessUser } from "@/lib/family-access";
+import { getCropDisplayName } from "@/lib/crop-weather-context";
+import { isPushConfigured, sendPushToUser } from "@/lib/push-server";
+import {
+  dateRangeIntersectsDay,
+  formatReminderPayload,
+  getDayBoundsInTimezone,
+  getReminderRecipientsByOwnerIds,
+  type ReminderEvent,
+} from "@/lib/push-reminders";
 
 const VALID_TYPES = new Set([
   "sprout", "transplant", "water", "loosen", "light_temp", "feed", "pinch", "harvest", "other",
@@ -99,6 +108,32 @@ export async function POST(
       sortOrder,
       isUserCreated: true,
     },
+    include: {
+      plant: {
+        include: {
+          bed: true,
+        },
+      },
+    },
+  });
+
+  await sendManualWorkCreatedPush({
+    ownerId,
+    event: {
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      scheduledDate: event.scheduledDate,
+      dateTo: event.dateTo,
+      isAction: event.isAction,
+      isUserCreated: event.isUserCreated,
+      plantName: event.plant.name,
+      cropSlug: event.plant.cropSlug,
+      bedName: event.plant.bed?.name ?? "Без грядки",
+      bedType: event.plant.bed?.type ?? null,
+    },
+  }).catch((error) => {
+    console.warn("Failed to send manual work push", error);
   });
 
   return NextResponse.json({
@@ -112,4 +147,81 @@ export async function POST(
     sortOrder: event.sortOrder,
     doneAt: event.doneAt?.toISOString() ?? null,
   }, { status: 201 });
+}
+
+async function sendManualWorkCreatedPush({
+  ownerId,
+  event,
+}: {
+  ownerId: string;
+  event: {
+    id: string;
+    title: string;
+    description: string | null;
+    scheduledDate: Date;
+    dateTo: Date | null;
+    isAction: boolean;
+    isUserCreated: boolean;
+    plantName: string;
+    cropSlug: string | null;
+    bedName: string;
+    bedType: string | null;
+  };
+}) {
+  if (!isPushConfigured() || !event.isAction) return;
+
+  const tz = process.env.PUSH_REMINDERS_TZ ?? process.env.TZ ?? "Europe/Moscow";
+  const today = getDayBoundsInTimezone(new Date(), tz);
+  const tomorrowStartSeed = new Date(today.dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrow = getDayBoundsInTimezone(tomorrowStartSeed, tz);
+  const isToday = dateRangeIntersectsDay({
+    scheduledDate: event.scheduledDate,
+    dateTo: event.dateTo,
+    dayStart: today.dayStart,
+    dayEnd: today.dayEnd,
+  });
+  const isTomorrow = dateRangeIntersectsDay({
+    scheduledDate: event.scheduledDate,
+    dateTo: event.dateTo,
+    dayStart: tomorrow.dayStart,
+    dayEnd: tomorrow.dayEnd,
+  });
+
+  if (!isToday && !isTomorrow) return;
+
+  const recipients = (await getReminderRecipientsByOwnerIds([ownerId])).get(ownerId) ?? [];
+  if (recipients.length === 0) return;
+
+  const reminderEvent: ReminderEvent = {
+    id: event.id,
+    title: event.title,
+    bedName: event.bedName,
+    bedType: event.bedType,
+    plantName: event.plantName,
+    cropLabel: getCropDisplayName({
+      name: event.plantName,
+      cropSlug: event.cropSlug,
+      bedType: event.bedType,
+    }),
+    description: event.description,
+    isUserCreated: event.isUserCreated,
+  };
+  const payload = formatReminderPayload([reminderEvent], isToday);
+
+  for (const recipient of recipients) {
+    const dedupeKey = ["webpush-manual-work", recipient.id, event.id].join(":");
+    try {
+      await prisma.pushDeliveryLog.create({
+        data: { userId: recipient.id, dedupeKey },
+      });
+    } catch (error) {
+      if ((error as { code?: string } | null)?.code === "P2002") continue;
+      throw error;
+    }
+
+    const { sent, subscriptions } = await sendPushToUser(recipient.id, payload);
+    if (subscriptions === 0 || sent === 0) {
+      await prisma.pushDeliveryLog.deleteMany({ where: { dedupeKey } });
+    }
+  }
 }

@@ -105,6 +105,13 @@ const features = [
     color: "orange",
   },
   {
+    icon: Users,
+    title: "Семейный доступ",
+    description:
+      "Пригласите семью по QR-коду: все видят один участок, добавляют работы и получают напоминания.",
+    color: "rose",
+  },
+  {
     icon: Shield,
     title: "14 дней полного доступа",
     description: "Попробуйте весь функционал после регистрации. Далее — Премиум от 199 ₽/мес",
@@ -118,6 +125,7 @@ const colorMap: Record<string, string> = {
   violet: "bg-violet-100 dark:bg-violet-900 text-violet-600 dark:text-violet-400",
   blue: "bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400",
   orange: "bg-orange-100 dark:bg-orange-900 text-orange-600 dark:text-orange-400",
+  rose: "bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-400",
   teal: "bg-teal-100 dark:bg-teal-900 text-teal-600 dark:text-teal-400",
 };
 
@@ -318,6 +326,53 @@ export function LandingContent({
             </StaggerItem>
           ))}
         </StaggerContainer>
+      </section>
+
+      {/* Family access */}
+      <section className="max-w-4xl mx-auto px-4 py-12">
+        <MotionDiv
+          variant="fadeUp"
+          className="grid gap-6 md:grid-cols-[0.95fr_1.05fr] items-stretch"
+        >
+          <div className="relative min-h-[280px] overflow-hidden rounded-2xl border border-rose-100 dark:border-rose-900 bg-rose-100 dark:bg-rose-950 shadow-lg">
+            <Image
+              src="/images/landing/hero-garden.jpg"
+              alt="Семья вместе ведёт дачный участок"
+              fill
+              sizes="(max-width: 896px) 100vw, 420px"
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/15 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 p-5">
+              <p className="text-white text-xl font-semibold">Один участок для всей семьи</p>
+              <p className="text-rose-50 text-sm mt-1">
+                QR-приглашение, общий календарь и напоминания для тех, кто помогает.
+              </p>
+            </div>
+          </div>
+          <Card className="p-6 sm:p-8 rounded-2xl border-rose-100 dark:border-rose-900 bg-white/95 dark:bg-slate-900/95 shadow-lg">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-300 flex items-center justify-center mb-4">
+              <Users className="w-6 h-6" />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
+              Подключите тех, кто реально помогает на даче
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 mt-3">
+              Владелец приглашает близких в профиле через QR-код. Участники видят те же посадки,
+              добавляют работы, фото и заметки по уходу, а важные удаления остаются только у владельца.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-3 mt-6 text-sm">
+              {["Общий участок", "QR-приглашение", "Напоминания всем"].map((item) => (
+                <div
+                  key={item}
+                  className="rounded-xl border border-rose-100 dark:border-rose-900 bg-rose-50/70 dark:bg-rose-950/30 px-3 py-2 font-medium text-slate-700 dark:text-slate-200"
+                >
+                  {item}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </MotionDiv>
       </section>
 
       {/* Testimonials */}

@@ -28,6 +28,13 @@ const EVENT_TYPES: { value: string; label: string }[] = [
   { value: "harvest", label: "Урожай" },
 ];
 
+export const PLANNED_WORK_TIME_OPTIONS = Array.from({ length: 48 }, (_, index) => {
+  const totalMinutes = index * 30;
+  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
+  const minutes = String(totalMinutes % 60).padStart(2, "0");
+  return `${hours}:${minutes}`;
+});
+
 export type PlannedWorkEvent = {
   id: string;
   title: string;
@@ -58,11 +65,38 @@ type PlannedWorkModalProps = {
 };
 
 function toDateInputValue(iso: string): string {
-  try {
-    return iso.slice(0, 10);
-  } catch {
-    return new Date().toISOString().slice(0, 10);
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return toDateInputValue(new Date().toISOString());
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getNextHalfHourTime(): string {
+  const date = new Date();
+  const minutes = date.getMinutes();
+  if (minutes === 0 || minutes === 30) {
+    return `${String(date.getHours()).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
   }
+  if (minutes < 30) return `${String(date.getHours()).padStart(2, "0")}:30`;
+  date.setHours(date.getHours() + 1, 0, 0, 0);
+  return `${String(date.getHours()).padStart(2, "0")}:00`;
+}
+
+function toTimeInputValue(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return getNextHalfHourTime();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = date.getMinutes() < 30 ? "00" : "30";
+  return `${hours}:${minutes}`;
+}
+
+export function combineLocalDateTime(dateValue: string, timeValue: string): string {
+  const [hours = "09", minutes = "00"] = timeValue.split(":");
+  const date = new Date(`${dateValue}T00:00:00`);
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+  return date.toISOString();
 }
 
 function sortTimelineEvents(ev: BedPlantTimelineEvent[]): BedPlantTimelineEvent[] {
@@ -96,7 +130,6 @@ export function PlannedWorkModal({
   onOpenChange,
   mode,
   plantId: initialPlantId,
-  bedId: initialBedId,
   bedName: initialBedName,
   plantName: initialPlantName,
   event,
@@ -109,6 +142,7 @@ export function PlannedWorkModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [scheduledDate, setScheduledDate] = useState(() => toDateInputValue(new Date().toISOString()));
+  const [scheduledTime, setScheduledTime] = useState(() => getNextHalfHourTime());
   const [dateTo, setDateTo] = useState("");
   const [isAction, setIsAction] = useState(true);
   const [type, setType] = useState("other");
@@ -117,7 +151,6 @@ export function PlannedWorkModal({
 
   const needPickPlant = mode === "add" && bedsForPick && bedsForPick.length > 0 && !initialPlantId;
   const effectivePlantId = initialPlantId || pickedPlant?.plantId || "";
-  const effectiveBedId = initialBedId || pickedPlant?.bedId || "";
   const effectiveBedName = initialBedName || pickedPlant?.bedName || "";
   const effectivePlantName = initialPlantName || pickedPlant?.plantName || "";
 
@@ -130,6 +163,7 @@ export function PlannedWorkModal({
       setTitle(event.title);
       setDescription(event.description ?? "");
       setScheduledDate(toDateInputValue(event.scheduledDate));
+      setScheduledTime(toTimeInputValue(event.scheduledDate));
       setDateTo(event.dateTo ? toDateInputValue(event.dateTo) : "");
       setIsAction(event.isAction);
       setType(event.type && EVENT_TYPES.some((t) => t.value === event.type) ? event.type : "other");
@@ -137,6 +171,7 @@ export function PlannedWorkModal({
       setTitle("");
       setDescription("");
       setScheduledDate(toDateInputValue(new Date().toISOString()));
+      setScheduledTime(getNextHalfHourTime());
       setDateTo("");
       setIsAction(true);
       setType("other");
@@ -161,8 +196,8 @@ export function PlannedWorkModal({
       const body = {
         title: title.trim(),
         description: description.trim() || null,
-        scheduledDate: `${scheduledDate}T12:00:00.000Z`,
-        dateTo: dateTo ? `${dateTo}T12:00:00.000Z` : null,
+        scheduledDate: combineLocalDateTime(scheduledDate, scheduledTime),
+        dateTo: dateTo ? combineLocalDateTime(dateTo, scheduledTime) : null,
         isAction,
         type,
       };
@@ -371,6 +406,20 @@ export function PlannedWorkModal({
                 className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"
                 required
               />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Время</span>
+              <select
+                value={scheduledTime}
+                onChange={(e) => setScheduledTime(e.target.value)}
+                className="mt-1 w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"
+              >
+                {PLANNED_WORK_TIME_OPTIONS.map((time) => (
+                  <option key={time} value={time}>
+                    {time}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="block">
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">По (необязательно)</span>

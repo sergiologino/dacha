@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getPublicAppUrl } from "@/lib/gallery";
 import { getAuthUser } from "@/lib/get-user";
+import { familyOwnerIdFor } from "@/lib/family-access";
 import { notFound, redirect } from "next/navigation";
 import { BedPageClient } from "./bed-page-client";
 
@@ -12,15 +13,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { bedId } = await params;
   const resolved = await getAuthUser();
-  const uid = resolved?.id ?? null;
-  if (!uid) {
+  if (!resolved) {
     return {
       title: "Грядка | Мой огород",
       robots: { index: false, follow: false },
     };
   }
+  const ownerId = familyOwnerIdFor(resolved);
   const bed = await prisma.bed.findFirst({
-    where: { id: bedId, userId: uid },
+    where: { id: bedId, userId: ownerId },
     select: { name: true },
   });
   const title = bed ? `${bed.name} — грядка и растения` : "Грядка";
@@ -48,8 +49,9 @@ export default async function GardenBedPage({
   const user = await getAuthUser();
   if (!user) redirect("/auth/signin");
   const { bedId } = await params;
+  const ownerId = familyOwnerIdFor(user);
   const ok = await prisma.bed.findFirst({
-    where: { id: bedId, userId: user.id },
+    where: { id: bedId, userId: ownerId },
     select: { id: true },
   });
   if (!ok) notFound();
