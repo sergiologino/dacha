@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/get-user";
 import { prisma } from "@/lib/prisma";
 import {
-  addMonthsPreservingDate,
-  getPremiumDurationMonths,
-  getYearlyPlanExtraMonths,
-} from "@/lib/yearly-promo";
+  getPremiumUntilForSubscriptionPlan,
+  normalizeSubscriptionPlan,
+} from "@/lib/subscription-plans";
 
 const shopId = process.env.YOOKASSA_SHOP_ID;
 const secretKey = process.env.YOOKASSA_SECRET_KEY;
@@ -44,12 +43,13 @@ export async function GET() {
         const now = new Date();
         const premiumFrom =
           user.premiumUntil && user.premiumUntil > now ? user.premiumUntil : now;
-        const durationMonths = getPremiumDurationMonths({
-          plan: payment.plan as "monthly" | "yearly",
+        const plan = normalizeSubscriptionPlan(payment.plan);
+        const premiumUntil = getPremiumUntilForSubscriptionPlan({
+          plan,
           createdAt: user.createdAt,
           purchasedAt: payment.createdAt,
+          premiumFrom,
         });
-        const premiumUntil = addMonthsPreservingDate(premiumFrom, durationMonths);
         await prisma.$transaction([
           prisma.payment.update({
             where: { id: payment.id },
@@ -109,25 +109,27 @@ export async function GET() {
           }
         }
 
-        const plan = (succeeded.metadata?.plan as string) || "yearly";
+        const plan = normalizeSubscriptionPlan(succeeded.metadata?.plan || "yearly");
         const promoExtraMonthsRaw = Number(
           (succeeded.metadata?.yearlyPromoExtraMonths as string | undefined) ?? NaN
         );
         const purchasedAt = new Date(
           (succeeded.created_at as string | undefined) ?? new Date().toISOString()
         );
-        const durationMonths =
-          plan === "yearly"
-            ? 12 +
-              (Number.isFinite(promoExtraMonthsRaw)
-                ? promoExtraMonthsRaw
-                : getYearlyPlanExtraMonths(user.createdAt, purchasedAt))
-            : 1;
         const premiumFrom =
           user.premiumUntil && user.premiumUntil > new Date()
             ? user.premiumUntil
             : new Date();
-        const premiumUntil = addMonthsPreservingDate(premiumFrom, durationMonths);
+        const premiumUntil = getPremiumUntilForSubscriptionPlan({
+          plan,
+          createdAt: user.createdAt,
+          purchasedAt,
+          premiumFrom,
+          yearlyPromoExtraMonths:
+            plan === "yearly" && Number.isFinite(promoExtraMonthsRaw)
+              ? promoExtraMonthsRaw
+              : undefined,
+        });
         const parsedAmount = Number(succeeded.amount?.value ?? NaN);
         await prisma.$transaction([
           prisma.user.update({

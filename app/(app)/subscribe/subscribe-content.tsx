@@ -13,6 +13,7 @@ import {
   Star,
   ShieldCheck,
   Quote,
+  SunMedium,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,6 +25,12 @@ import {
   useYearlyPromoOffer,
 } from "@/components/yearly-promo";
 import type { YearlyPromoOffer } from "@/lib/yearly-promo";
+import {
+  getDefaultSubscriptionPlan,
+  getSubscriptionPlanDescription,
+  SUBSCRIPTION_PLANS,
+  type SubscriptionPlan,
+} from "@/lib/subscription-plans";
 
 const USER_COUNT = "более 30 000";
 
@@ -57,7 +64,9 @@ export function SubscribeContent({
 }: {
   initialOffer: YearlyPromoOffer;
 }) {
-  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("yearly");
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>(() =>
+    getDefaultSubscriptionPlan()
+  );
   const [checking, setChecking] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,13 +96,11 @@ export function SubscribeContent({
   const createPayment = async () => {
     if (isSubmitting) return;
 
-    const amount = selectedPlan === "yearly" ? 1990 : 199;
-    const description =
-      selectedPlan === "yearly"
-        ? offer.isEligible
-          ? "Любимая Дача Премиум: 12 мес + 2 мес по акции новичка"
-          : "Любимая Дача Премиум на 12 месяцев (годовая оплата)"
-        : "Любимая Дача Премиум на месяц";
+    const amount = SUBSCRIPTION_PLANS[selectedPlan].amount;
+    const description = getSubscriptionPlanDescription(
+      selectedPlan,
+      offer.isEligible ? 2 : 0
+    );
 
     setError(null);
     setIsSubmitting(true);
@@ -201,6 +208,36 @@ export function SubscribeContent({
 
         <Card
           className={`p-6 cursor-pointer transition-all relative border-2 ${
+            selectedPlan === "seasonal"
+              ? "ring-2 ring-amber-500 border-amber-200 dark:border-amber-800 bg-amber-50/70 dark:bg-amber-950/20"
+              : "border-transparent"
+          }`}
+          onClick={() => setSelectedPlan("seasonal")}
+        >
+          <span className="absolute -top-3 right-6 rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold text-white shadow-sm">
+            Для тёплого сезона
+          </span>
+          <div className="flex justify-between items-start gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <SunMedium className="h-5 w-5 text-amber-500" />
+                <p className="text-xl font-semibold">Сезонный</p>
+              </div>
+              <p className="text-3xl font-bold mt-0.5">
+                990 ₽ <span className="text-base font-normal text-slate-500">май-октябрь</span>
+              </p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                Оплата на дачный сезон для тех, кто пользуется приложением в тёплые месяцы.
+              </p>
+            </div>
+            {selectedPlan === "seasonal" && (
+              <Check className="w-6 h-6 text-amber-600 mt-1 flex-shrink-0" />
+            )}
+          </div>
+        </Card>
+
+        <Card
+          className={`p-6 cursor-pointer transition-all relative border-2 ${
             selectedPlan === "yearly"
               ? "ring-2 ring-emerald-500 border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20"
               : "border-transparent"
@@ -230,9 +267,7 @@ export function SubscribeContent({
       >
         {isSubmitting
           ? "Создаём платёж..."
-          : `Оформить Премиум — ${
-              selectedPlan === "yearly" ? "1990 ₽ в год" : "199 ₽ в месяц"
-            }`}
+          : `Оформить Премиум — ${SUBSCRIPTION_PLANS[selectedPlan].paymentLabel}`}
       </Button>
 
       {error && (

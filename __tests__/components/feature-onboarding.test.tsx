@@ -47,5 +47,10 @@ describe("FeatureOnboarding", () => {
 
     expect(screen.getAllByRole("heading", { name: "Дача для всей семьи" }).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/QR-код/i).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: /далее/i }));
+
+    expect(screen.getAllByRole("heading", { name: "Сезонный тариф май–октябрь" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("img", { name: "Премиум на дачный сезон" })).toBeInTheDocument();
   });
 });
