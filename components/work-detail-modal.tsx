@@ -165,10 +165,12 @@ export function WorkDetailModal({
           <p className="text-slate-500 dark:text-slate-400">
             {event.isAction ? "Работа" : "Ориентир"} —
             {" "}
-            {new Date(event.scheduledDate).toLocaleDateString("ru-RU", {
+            {new Date(event.scheduledDate).toLocaleString("ru-RU", {
               day: "numeric",
               month: "long",
               year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
             })}
             {event.dateTo
               ? ` — ${new Date(event.dateTo).toLocaleDateString("ru-RU", {

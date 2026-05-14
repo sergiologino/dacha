@@ -21,11 +21,12 @@ function addDays(d: Date, n: number) {
   return x;
 }
 
-function formatRu(d: string) {
+function formatRu(d: string, withTime = false) {
   return new Date(d).toLocaleDateString("ru-RU", {
     day: "numeric",
     month: "long",
     year: "numeric",
+    ...(withTime ? { hour: "2-digit", minute: "2-digit" } : {}),
   });
 }
 
@@ -115,7 +116,7 @@ export function PlantWorksList({
                           <p className="text-base sm:text-lg font-medium text-slate-700 dark:text-slate-200">
                             {e.title}
                           </p>
-                          <p className="text-base text-slate-500 mt-0.5">{formatRu(e.scheduledDate)}</p>
+                          <p className="text-base text-slate-500 mt-0.5">{formatRu(e.scheduledDate, true)}</p>
                         </div>
                         <ChevronRight className="w-6 h-6 shrink-0 text-slate-400" aria-hidden />
                       </button>
@@ -145,7 +146,7 @@ export function PlantWorksList({
                             {e.title}
                           </p>
                           <p className="text-base text-red-700/90 dark:text-red-300/90">
-                            Было: {formatRu(e.scheduledDate)}
+                            Было: {formatRu(e.scheduledDate, true)}
                           </p>
                         </div>
                         <ChevronRight className="w-6 h-6 shrink-0" aria-hidden />
@@ -166,7 +167,7 @@ export function PlantWorksList({
                           {e.title}
                         </p>
                         <p className="text-base text-slate-600 dark:text-slate-400">
-                          {formatRu(e.scheduledDate)}
+                          {formatRu(e.scheduledDate, true)}
                           {e.dateTo
                             ? ` — ${new Date(e.dateTo).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
                             : null}
@@ -275,7 +276,7 @@ export function PlantWorksList({
                         ) : null}
                       </p>
                       <p className="text-base text-slate-500">
-                        {ev.doneAt ? formatRu(ev.doneAt) : formatRu(ev.scheduledDate)}
+                        {ev.doneAt ? formatRu(ev.doneAt, true) : formatRu(ev.scheduledDate, true)}
                       </p>
                     </div>
                     <ChevronRight className="w-6 h-6 shrink-0 text-slate-400" aria-hidden />

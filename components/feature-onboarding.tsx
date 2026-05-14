@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { X, ChevronLeft, ChevronRight, Sprout, LayoutGrid, Calendar, BookOpen, MessageCircle } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Sprout, LayoutGrid, Calendar, BookOpen, MessageCircle, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -54,6 +54,14 @@ const SLIDES: {
     imageText: "что делать сегодня, завтра и в выходные",
   },
   {
+    icon: Users,
+    title: "Дача для всей семьи",
+    text: "Пригласите близких через QR-код в настройках. Все видят один участок, добавляют работы и уход, а удалять посаженные культуры может только владелец аккаунта.",
+    image: "/images/guide/crops/malina.jpg",
+    imageTitle: "Один участок для семьи",
+    imageText: "план и уход видны всем, кто помогает на даче",
+  },
+  {
     icon: BookOpen,
     title: "Справочник и нейросеть",
     text: "100+ культур с описаниями и сортами. Не нашли? Спросите AI-агронома или добавьте культуру в справочник.",
@@ -76,6 +84,7 @@ const GRADIENT_BY_STEP = [
   "from-emerald-100 to-lime-100 dark:from-emerald-950/60 dark:to-lime-950/40",
   "from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/30",
   "from-sky-50 to-blue-50 dark:from-sky-950/40 dark:to-blue-950/40",
+  "from-rose-50 to-amber-50 dark:from-rose-950/30 dark:to-amber-950/30",
   "from-violet-50 to-purple-50 dark:from-violet-950/40 dark:to-purple-950/40",
   "from-teal-50 to-cyan-50 dark:from-teal-950/40 dark:to-cyan-950/40",
 ];

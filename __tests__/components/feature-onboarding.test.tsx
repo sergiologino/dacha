@@ -41,5 +41,11 @@ describe("FeatureOnboarding", () => {
     expect(screen.getAllByRole("heading", { name: "План ухода" }).length).toBeGreaterThan(0);
     expect(screen.getByRole("img", { name: "Ближайшие дела по растению" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /таймлайн/i })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /далее/i }));
+    await user.click(screen.getByRole("button", { name: /далее/i }));
+
+    expect(screen.getAllByRole("heading", { name: "Дача для всей семьи" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/QR-код/i).length).toBeGreaterThan(0);
   });
 });
