@@ -617,7 +617,7 @@ export default function SettingsPage() {
                       </td>
                       <td className="py-2 px-2">{p.amount} ₽</td>
                       <td className="py-2 px-2">
-                        {p.plan === "yearly" ? "Год" : "Месяц"}
+                        {p.plan === "yearly" ? "Год" : p.plan === "seasonal" ? "Сезон" : "Месяц"}
                       </td>
                       <td className="py-2 px-2">
                         <Badge

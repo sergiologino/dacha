@@ -20,7 +20,7 @@
 | Theme | next-themes | ^0.4.6 |
 | AI | AI Integration Service | мульти-нейросеть (GPT-4o/mini/5, GigaChat, Pollinations, Whisper) |
 | Weather | Open-Meteo | без ключа |
-| Payments | YooKassa | 199₽/мес, 1990₽/год |
+| Payments | YooKassa | 199₽/мес, 990₽/сезон май–октябрь, 1990₽/год |
 | Unit Tests | Vitest + React Testing Library | ^3.1.0 / ^16.3.0 |
 | E2E Tests | Playwright | ^1.52.0 |
 | Deploy | Docker → TimeWeb app-server | node:22-alpine |

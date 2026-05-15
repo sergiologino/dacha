@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/get-user";
 import { prisma } from "@/lib/prisma";
-import { getYearlyPlanExtraMonths } from "@/lib/yearly-promo";
+import {
+  getSubscriptionPlanAmount,
+  getSubscriptionPlanDescription,
+  getSubscriptionPlanReceiptDescription,
+  getYearlyPromoExtraMonthsForPlan,
+  normalizeSubscriptionPlan,
+} from "@/lib/subscription-plans";
 
 export async function POST(request: NextRequest) {
   const user = await getAuthUser();
@@ -20,8 +26,10 @@ export async function POST(request: NextRequest) {
   }
 
   const raw = body as { amount?: unknown; description?: unknown; plan?: unknown };
-  const amountNum = Number(raw.amount);
-  if (!Number.isFinite(amountNum) || amountNum <= 0) {
+  const plan = normalizeSubscriptionPlan(raw.plan);
+  const amountNum = getSubscriptionPlanAmount(plan);
+  const requestedAmount = Number(raw.amount);
+  if (!Number.isFinite(requestedAmount) || Math.round(requestedAmount) !== amountNum) {
     return NextResponse.json(
       { error: "Invalid amount" },
       { status: 400 }
@@ -32,8 +40,6 @@ export async function POST(request: NextRequest) {
     typeof raw.description === "string" && raw.description.trim().length > 0
       ? raw.description
       : null;
-  const plan =
-    raw.plan === "yearly" || raw.plan === "monthly" ? (raw.plan as "yearly" | "monthly") : "monthly";
 
   const shopId = process.env.YOOKASSA_SHOP_ID;
   const secretKey = process.env.YOOKASSA_SECRET_KEY;
@@ -48,17 +54,15 @@ export async function POST(request: NextRequest) {
   try {
     const idempotenceKey = crypto.randomUUID();
     const yearlyPromoExtraMonths =
-      plan === "yearly" ? getYearlyPlanExtraMonths(user.createdAt, new Date()) : 0;
+      getYearlyPromoExtraMonthsForPlan(plan, user.createdAt, new Date());
     const paymentUserIdentifier = user.email ?? user.phone ?? user.id;
 
     const returnUrl = `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin}/garden?payment=success`;
     const receiptDescription =
       description ??
-      (plan === "yearly"
-        ? yearlyPromoExtraMonths > 0
-          ? "Премиум 12 мес + 2 мес (акция новичка)"
-          : "Премиум 12 месяцев (год)"
-        : "Премиум на месяц");
+      getSubscriptionPlanReceiptDescription(plan, yearlyPromoExtraMonths);
+    const paymentDescription =
+      description ?? getSubscriptionPlanDescription(plan, yearlyPromoExtraMonths);
 
     const response = await fetch("https://api.yookassa.ru/v3/payments", {
       method: "POST",
@@ -74,7 +78,7 @@ export async function POST(request: NextRequest) {
           type: "redirect",
           return_url: returnUrl,
         },
-        description,
+        description: paymentDescription,
         metadata: {
           plan,
           userId: paymentUserIdentifier,
@@ -126,8 +130,8 @@ export async function POST(request: NextRequest) {
           userId: user.id,
           yookassaId: data.id,
           amount: Math.round(amountNum),
-          plan: plan ?? "monthly",
-          description: description ?? null,
+          plan,
+          description: paymentDescription,
           status: "pending",
         },
       });

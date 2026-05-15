@@ -114,7 +114,7 @@ const features = [
   {
     icon: Shield,
     title: "14 дней полного доступа",
-    description: "Попробуйте весь функционал после регистрации. Далее — Премиум от 199 ₽/мес",
+    description: "Попробуйте весь функционал после регистрации. Далее — Премиум от 199 ₽/мес или сезон май–октябрь",
     color: "teal",
   },
 ];
@@ -216,6 +216,32 @@ export function LandingContent({
         </MotionDiv>
         <MotionDiv variant="fadeUp" delay={0.35} className="mt-6">
           <YearlyPromoBanner offer={offer} ctaHref="/subscribe" />
+        </MotionDiv>
+        <MotionDiv variant="fadeUp" delay={0.38} className="mt-4">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50/95 p-4 text-left shadow-lg shadow-amber-500/10 dark:border-amber-800 dark:bg-amber-950/40">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200">
+                  <Sun className="h-6 w-6" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                    Новый сезонный тариф
+                  </p>
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-slate-50">
+                    Май–октябрь за 990 ₽
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                    Для тех, кто занимается дачей только в тёплые месяцы: календарь, AI-агроном,
+                    фото-анализ, напоминания и семейный доступ на весь сезон.
+                  </p>
+                </div>
+              </div>
+              <Button asChild className="rounded-2xl bg-amber-600 hover:bg-amber-700 sm:flex-shrink-0">
+                <Link href="/subscribe">Выбрать сезон</Link>
+              </Button>
+            </div>
+          </div>
         </MotionDiv>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
