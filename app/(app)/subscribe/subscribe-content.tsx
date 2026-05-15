@@ -53,7 +53,7 @@ const TESTIMONIALS = [
 ];
 
 const features = [
-  { icon: Camera, text: "Безлимитный AI-анализ фото растений" },
+  { icon: Camera, text: "Безлимитный фото-анализ растений" },
   { icon: Calendar, text: "Персональный календарь по погоде и региону" },
   { icon: BookOpen, text: "Расширенный справочник 100+ культур" },
   { icon: Sparkles, text: "Планирование урожая и уведомления" },

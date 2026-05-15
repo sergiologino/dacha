@@ -12,7 +12,7 @@ import { logAiCall } from "@/lib/log-ai-call";
 const AI_URL = process.env.AI_INTEGRATION_URL;
 const AI_KEY = process.env.AI_INTEGRATION_API_KEY;
 
-const CHAT_SYSTEM_FALLBACK = `Ты — нейроэксперт-агроном, помощник для дачников и садоводов в России. Твоё имя — Любимая Дача.
+const CHAT_SYSTEM_FALLBACK = `Ты — Агроэксперт, помощник для дачников и садоводов в России. Твоё имя — Любимая Дача.
 
 Правила:
 - Отвечай на русском языке
@@ -112,7 +112,7 @@ async function buildSystemPrompt(locationName: string | null, hasLocation: boole
 export async function POST(request: NextRequest) {
   if (!AI_URL || !AI_KEY) {
     return NextResponse.json(
-      { error: "AI integration not configured" },
+      { error: "Сервис Агроэксперта не настроен" },
       { status: 500 }
     );
   }
@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ message: aiMessage });
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : "Failed to process AI request";
+    const errorMessage = err instanceof Error ? err.message : "Не удалось обработать запрос";
     try {
       const user = await getAuthUser();
       const userInfo = user ? await getUserLocation(user.id) : null;
@@ -258,7 +258,7 @@ export async function POST(request: NextRequest) {
       // ignore log failure
     }
     return NextResponse.json(
-      { error: "Failed to process AI request" },
+      { error: "Не удалось обработать запрос" },
       { status: 502 }
     );
   }
@@ -304,6 +304,6 @@ async function callAI(
 
   const content =
     (data.response as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ||
-    "Не удалось получить ответ от ИИ.";
+    "Не удалось получить ответ от Агроэксперта.";
   return { content, responseData: data };
 }

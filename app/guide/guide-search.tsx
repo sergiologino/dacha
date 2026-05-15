@@ -34,7 +34,7 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
       if (term.toLowerCase() !== searchTerm.trim().toLowerCase()) return;
       setAiResult(content);
       setAiError(null);
-      toast.success("Ответ нейроэксперта получен");
+      toast.success("Ответ Агроэксперта получен");
     };
     window.addEventListener(GUIDE_AI_SEARCH_READY_EVENT, onReady as EventListener);
     return () =>
@@ -70,7 +70,7 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
           },
         });
         if (!outId) throw new Error("Локальное хранилище недоступно");
-        toast.message("Запрос к ИИ в очереди");
+        toast.message("Запрос к Агроэксперту в очереди");
         setAiResult(
           "Ответ появится после подключения к сети — откройте чат с агрономом или обновите страницу."
         );
@@ -189,12 +189,12 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
             {aiLoading ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Ищу данные в нейросети...
+                Агроэксперт ищет данные...
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4 mr-2" />
-                Найти через нейроэксперта
+                Найти через Агроэксперта
               </>
             )}
           </Button>
@@ -213,7 +213,12 @@ export function GuideSearch({ crops }: { crops: CropWithSource[] }) {
         <Card className="p-6">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="w-5 h-5 text-amber-500" />
-            <h3 className="font-bold">Ответ нейроэксперта</h3>
+            <h3 className="font-bold">
+              Ответ{" "}
+              <Link href="/agroexpert" className="text-emerald-700 underline underline-offset-4 dark:text-emerald-300">
+                Агроэксперта
+              </Link>
+            </h3>
           </div>
           <div className="space-y-2">
             <div

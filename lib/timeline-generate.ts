@@ -61,7 +61,7 @@ async function callAI(
   }
   const content =
     (data.response as { choices?: { message?: { content?: string } }[] })?.choices?.[0]?.message?.content ||
-    "Не удалось получить ответ от ИИ.";
+    "Не удалось получить ответ от Агроэксперта.";
   return { content, responseData: data };
 }
 
@@ -113,7 +113,7 @@ function parseEvent(
 }
 
 /**
- * Генерирует таймлайн событий для растения через нейросеть и сохраняет в БД.
+ * Генерирует план ухода для растения через интегратор и сохраняет в БД.
  * Вызывать после создания растения (асинхронно, не блокируя ответ).
  */
 export async function generateTimelineForPlant(plantId: string): Promise<void> {

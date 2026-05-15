@@ -81,8 +81,8 @@ const features = [
   },
   {
     icon: Camera,
-    title: "AI фото-анализ",
-    description: "Сфотографируй лист — ИИ определит болезнь и подскажет лечение",
+    title: "Фото-анализ растений",
+    description: "Сфотографируйте лист — Агроэксперт подскажет, на что похожа проблема и что делать дальше",
     color: "amber",
   },
   {
@@ -159,6 +159,7 @@ export function LandingContent({
           </div>
           <div className="flex items-center gap-1 sm:gap-2 md:gap-3 flex-shrink-0">
             <MessengerFeedbackButtons size="sm" />
+            <GimnLandingHeroButton />
             <ThemeToggle />
             <Button variant="outline" size="sm" asChild className="text-xs sm:text-sm px-2 sm:px-3">
               <Link href="/guide">Справочник</Link>
@@ -182,9 +183,12 @@ export function LandingContent({
         </MotionDiv>
         <MotionDiv variant="fadeUp" delay={0.15}>
           <p className="text-xl text-slate-600 dark:text-slate-400 max-w-xl mx-auto mb-8">
-            AI-агроном в кармане: календарь посадок весна–лето с учётом региона и погоды, анализ
-            болезней по фото, справочник культур и материалы про удобрения и защиту растений. Работает
-            даже без интернета.
+            <Link href="/agroexpert" className="font-semibold text-emerald-700 underline underline-offset-4 dark:text-emerald-300">
+              Агроэксперт
+            </Link>{" "}
+            в кармане: календарь посадок весна–лето с учётом региона и погоды, анализ
+            болезней по фото, справочник культур и материалы про удобрения и защиту растений.
+            Работает даже без интернета.
           </p>
         </MotionDiv>
         <MotionDiv variant="fadeUp" delay={0.25}>
@@ -211,9 +215,6 @@ export function LandingContent({
             </Button>
           </div>
         </MotionDiv>
-        <MotionDiv variant="fadeUp" delay={0.32} className="mt-8 px-1">
-          <GimnLandingHeroButton />
-        </MotionDiv>
         <MotionDiv variant="fadeUp" delay={0.35} className="mt-6">
           <YearlyPromoBanner offer={offer} ctaHref="/subscribe" />
         </MotionDiv>
@@ -232,7 +233,7 @@ export function LandingContent({
                     Май–октябрь за 990 ₽
                   </h2>
                   <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                    Для тех, кто занимается дачей только в тёплые месяцы: календарь, AI-агроном,
+                    Для тех, кто занимается дачей только в тёплые месяцы: календарь, Агроэксперт,
                     фото-анализ, напоминания и семейный доступ на весь сезон.
                   </p>
                 </div>
@@ -313,7 +314,7 @@ export function LandingContent({
                 Живой сезон
               </p>
               <h2 className="text-2xl sm:text-3xl font-bold leading-tight">
-                Видно, что растёт, что пора сделать и где нужен AI-совет
+                Видно, что растёт, что пора сделать и где нужен совет Агроэксперта
               </h2>
               <p className="text-emerald-50 mt-3">
                 Фото культур, погодные подсказки, календарь работ и справочник помогают не терять контекст участка.
@@ -448,7 +449,7 @@ export function LandingContent({
           </div>
           <div className="bg-gradient-to-t from-slate-900/90 to-transparent p-6 sm:p-8 -mt-24 relative z-10">
             <p className="text-white text-lg sm:text-xl font-medium max-w-xl">
-              Планируйте посев и высадку по сезону, ведите участок и получайте подсказки AI — всё в одном
+              Планируйте посев и высадку по сезону, ведите участок и получайте подсказки Агроэксперта — всё в одном
               приложении.
             </p>
           </div>
@@ -469,7 +470,7 @@ export function LandingContent({
               Присоединяйтесь к тем, кто собирает больше
             </h2>
             <p className="text-emerald-100 mb-8 text-lg">
-              14 дней полного доступа после регистрации: календарь, справочник, AI-анализ,
+              14 дней полного доступа после регистрации: календарь, справочник, фото-анализ,
               чат и напоминания. Затем — Премиум без ограничений.
             </p>
             <Button

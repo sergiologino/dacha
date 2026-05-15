@@ -4,7 +4,7 @@ export const OUTBOX_CHANGED_EVENT = "dacha-outbox-changed";
 export const CHAT_HISTORY_SYNC_EVENT = "dacha-offline-sync-chat";
 export const ANALYSES_SYNC_EVENT = "dacha-offline-sync-analyses";
 export const GUIDE_DETAIL_READY_EVENT = "dacha-guide-detail-ready";
-/** Ответ нейроэксперта из outbox (страница справочника /guide). */
+/** Ответ Агроэксперта из outbox (страница справочника /guide). */
 export const GUIDE_AI_SEARCH_READY_EVENT = "dacha-guide-ai-search-ready";
 /** Ссылка «Поделиться» создана после отправки из очереди. */
 export const SHARE_LINK_READY_EVENT = "dacha-share-link-ready";

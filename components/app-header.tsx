@@ -12,7 +12,6 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SyncStatusBar } from "@/components/sync-status-bar";
 import {
   GimnHeaderIconButton,
-  GimnMobileLaunchButton,
   GimnPlayerProvider,
   GimnSpotlightBanner,
 } from "@/components/gimn-player-control";
@@ -32,7 +31,7 @@ export function AppHeader() {
 
   const shareApp = async () => {
     const url = window.location.origin;
-    const text = "Любимая Дача — умный помощник для вашей дачи. AI-агроном, справочник, календарь.";
+    const text = "Любимая Дача — умный помощник для вашей дачи. Агроэксперт, справочник, календарь.";
 
     if (navigator.share) {
       try {
@@ -105,9 +104,6 @@ export function AppHeader() {
           </div>
         </div>
         <GimnSpotlightBanner />
-        <div className="mt-2 md:hidden px-0.5">
-          <GimnMobileLaunchButton />
-        </div>
         <SyncStatusBar />
       </header>
     </GimnPlayerProvider>

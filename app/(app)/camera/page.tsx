@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
 import { Camera, RefreshCw, Loader2 } from "lucide-react";
@@ -253,7 +254,10 @@ export default function CameraPage() {
             <Camera className="w-16 h-16 mx-auto text-emerald-500 mb-6" />
             <p className="text-lg font-medium mb-2">Сфоткай растение</p>
             <p className="text-sm text-slate-500 mb-8">
-              ИИ скажет, что не так и как лечить
+              <Link href="/agroexpert" className="font-medium text-emerald-700 underline underline-offset-4 dark:text-emerald-300">
+                Агроэксперт
+              </Link>{" "}
+              скажет, что не так и как лечить
             </p>
             <div className="flex flex-col gap-3">
               <Button
@@ -296,7 +300,7 @@ export default function CameraPage() {
                 className="w-full h-14 rounded-3xl bg-gradient-to-r from-emerald-600 to-teal-600"
               >
                 {isAnalyzing && <RefreshCw className="animate-spin mr-2" />}
-                {isAnalyzing ? "Анализирую..." : "Анализировать с Любимая Дача"}
+                {isAnalyzing ? "Анализирую..." : "Проверить с Агроэкспертом"}
               </Button>
             </div>
           </Card>

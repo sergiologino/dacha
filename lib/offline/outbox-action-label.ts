@@ -39,11 +39,11 @@ export function outboxActionDescription(record: OutboxRecord): string {
     case "DELETE_PHOTO":
       return "Удалить фото";
     case "AI_ANALYZE_PHOTO":
-      return "ИИ: анализ фото болезни";
+      return "Агроэксперт: анализ фото";
     case "AI_CHAT_MESSAGE":
-      return "ИИ: сообщение в чат";
+      return "Агроэксперт: сообщение в чат";
     case "AI_TIMELINE_GENERATE":
-      return "ИИ: генерация таймлайна";
+      return "Агроэксперт: план ухода";
     case "GUIDE_DETAIL_FETCH":
       return `Справочник: текст по «${String(p.slug ?? "")}»`;
     case "SHARE_CONTENT":

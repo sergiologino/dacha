@@ -278,8 +278,7 @@ export function GimnSpotlightBanner() {
             </p>
             <p className="text-xs sm:text-sm text-emerald-900/85 dark:text-emerald-100/85 leading-relaxed">
               Мы добавили небольшую музыкальную открытку для настроения. Кнопка с
-              нотой — рядом с профилем на большом экране; на телефоне чуть ниже
-              названия «Любимая Дача». Эту подсказку покажем один раз — дальше
+              нотой — рядом с профилем в шапке приложения. Эту подсказку покажем один раз — дальше
               просто включайте, когда захочется.
             </p>
             <div className="flex flex-wrap items-center gap-2 pt-0.5">
@@ -311,7 +310,7 @@ export function GimnSpotlightBanner() {
 const spotlightBtnClass =
   "ring-2 ring-amber-400/90 dark:ring-amber-500/80 ring-offset-2 ring-offset-white dark:ring-offset-slate-950 gimn-spotlight-glow relative z-[1]";
 
-/** Иконка в строке шапки (планшеты и десктоп). */
+/** Иконка в строке шапки рядом с профилем. */
 export function GimnHeaderIconButton() {
   const { openPlayer, spotlightActive } = useGimn();
   return (
@@ -323,7 +322,7 @@ export function GimnHeaderIconButton() {
       title="Гимн дачников"
       aria-label="Открыть проигрыватель — гимн дачников"
       className={cn(
-        "hidden md:inline-flex text-emerald-600 dark:text-emerald-400 shrink-0",
+        "inline-flex text-emerald-600 dark:text-emerald-400 shrink-0",
         "hover:bg-emerald-50 dark:hover:bg-emerald-950/50",
         spotlightActive && spotlightBtnClass
       )}
@@ -333,7 +332,7 @@ export function GimnHeaderIconButton() {
   );
 }
 
-/** Крупная кнопка гимна для лендинга (hero). */
+/** Компактная кнопка гимна для лендинга. */
 export function GimnLandingHeroButton() {
   const { openPlayer } = useGimn();
   return (
@@ -343,26 +342,12 @@ export function GimnLandingHeroButton() {
       title="Гимн дачников"
       aria-label="Открыть проигрыватель — гимн дачников"
       className={cn(
-        "group w-full max-w-xl mx-auto flex items-center justify-center gap-4 rounded-3xl px-6 py-4 sm:py-5",
-        "bg-gradient-to-r from-emerald-500 via-emerald-600 to-amber-500 text-white",
-        "shadow-lg shadow-emerald-600/35 border-2 border-amber-200/90 dark:border-amber-400/50",
-        "hover:brightness-105 hover:shadow-xl hover:shadow-emerald-600/25 active:scale-[0.99] transition-all"
+        "inline-flex h-10 w-10 items-center justify-center rounded-xl",
+        "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50",
+        "transition-colors"
       )}
     >
-      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/25 backdrop-blur-sm ring-2 ring-white/40">
-        <Music2 className="h-8 w-8" aria-hidden />
-      </span>
-      <span className="text-left min-w-0">
-        <span className="block text-xl sm:text-2xl font-bold leading-tight tracking-tight">
-          Гимн дачников
-        </span>
-        <span className="mt-1 block text-sm sm:text-base text-white/95 font-medium leading-snug">
-          Немного музыки для настроения на грядки и тёплые вечера
-        </span>
-      </span>
-      <span className="hidden sm:flex shrink-0 h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white ring-2 ring-white/30 group-hover:bg-white/30 transition-colors pl-0.5">
-        <Play className="h-7 w-7 fill-current" aria-hidden />
-      </span>
+      <Music2 className="h-5 w-5" aria-hidden />
     </button>
   );
 }

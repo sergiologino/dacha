@@ -670,7 +670,7 @@ export default function SettingsPage() {
                     <th className="text-left py-2 px-2 font-medium">Оплата</th>
                     <th className="text-left py-2 px-2 font-medium">Грядки</th>
                     <th className="text-left py-2 px-2 font-medium">Растения</th>
-                    <th className="text-left py-2 px-2 font-medium">Запросы в нейросеть</th>
+                    <th className="text-left py-2 px-2 font-medium">Запросы к Агроэксперту</th>
                   </tr>
                 </thead>
                 <tbody>

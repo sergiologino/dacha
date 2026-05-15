@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import {
   Send,
   Loader2,
@@ -100,7 +101,9 @@ function MessageBubble({
         </div>
         {!isUser && (
           <div className="flex items-center justify-between mt-1">
-            <p className="text-[10px] text-slate-400">Нейроэксперт</p>
+            <Link href="/agroexpert" className="text-[10px] text-slate-400 hover:text-emerald-600">
+              Агроэксперт
+            </Link>
             {onShare && prevMessage && (
               <button
                 onClick={() => onShare(prevMessage.content, message.content)}
@@ -231,8 +234,10 @@ export default function ChatPage() {
         <MotionDiv variant="fadeUp">
           <div className="flex items-center justify-between mb-3">
             <h1 className="text-2xl font-semibold flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-amber-500" /> Чат с
-              нейроэкспертом
+              <Sparkles className="w-6 h-6 text-amber-500" /> Чат с{" "}
+              <Link href="/agroexpert" className="text-emerald-700 underline underline-offset-4 dark:text-emerald-300">
+                Агроэкспертом
+              </Link>
             </h1>
             {messages.length > 0 && (
               <Button variant="ghost" size="sm" onClick={clearChat}>
