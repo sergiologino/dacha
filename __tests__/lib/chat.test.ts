@@ -41,8 +41,8 @@ describe("Chat data structures", () => {
   });
 
   it("system prompt contains key instructions", () => {
-    const systemPrompt = "Ты — AI-агроном, помощник для дачников и садоводов в России";
-    expect(systemPrompt).toContain("агроном");
+    const systemPrompt = "Ты — Агроэксперт, помощник для дачников и садоводов в России";
+    expect(systemPrompt).toContain("Агроэксперт");
     expect(systemPrompt).toContain("Росси");
   });
 });

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   try {
     if (!AI_URL || !AI_KEY) {
       return NextResponse.json(
-        { error: "AI service not configured" },
+        { error: "Сервис фото-анализа не настроен" },
         { status: 500 }
       );
     }
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
         errorMessage: (data.errorMessage as string) ?? undefined,
       });
       return NextResponse.json(
-        { error: (data.errorMessage as string) || "AI analysis failed" },
+        { error: (data.errorMessage as string) || "Фото-анализ не выполнен" },
         { status: 502 }
       );
     }
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("Analyze POST error:", err);
     return NextResponse.json(
-      { error: "AI analysis failed" },
+      { error: "Фото-анализ не выполнен" },
       { status: 500 }
     );
   }

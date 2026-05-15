@@ -66,7 +66,7 @@ export async function GET() {
   }
 }
 
-/** Извлечение структурированных данных культуры через AI (из текста ответа нейроэксперта или по запросу). */
+/** Извлечение структурированных данных культуры через интегратор (из текста ответа Агроэксперта или по запросу). */
 async function extractCropFromAI(
   query: string,
   userId: string | null,
@@ -256,7 +256,7 @@ function findCommunityCropMatch(
   );
 }
 
-/** POST — добавить культуру в справочник (по запросу + опционально текст от нейроэксперта), с генерацией фото. */
+/** POST — добавить культуру в справочник (по запросу + опционально текст от Агроэксперта), с генерацией фото. */
 export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser();
@@ -275,7 +275,7 @@ export async function POST(request: NextRequest) {
     const extracted = await extractCropFromAI(query, user.id, aiResult);
     if (!extracted) {
       return NextResponse.json(
-        { error: "Не удалось извлечь данные культуры из ответа нейросети" },
+        { error: "Не удалось извлечь данные культуры из ответа Агроэксперта" },
         { status: 502 }
       );
     }

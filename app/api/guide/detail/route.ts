@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
 
   if (!AI_URL || !AI_KEY) {
     return NextResponse.json(
-      { error: "AI service not configured" },
+      { error: "Сервис подробных руководств не настроен" },
       { status: 500 }
     );
   }
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
         errorMessage: (data.errorMessage as string) ?? undefined,
       });
       return NextResponse.json(
-        { error: (data.errorMessage as string) || "AI generation failed" },
+        { error: (data.errorMessage as string) || "Не удалось подготовить руководство" },
         { status: 502 }
       );
     }

@@ -283,7 +283,7 @@ export function CropDetailContent({ crop }: Props) {
           </MotionDiv>
         )}
 
-        {/* AI Detail button */}
+        {/* Detailed guide button */}
         <MotionDiv variant="fadeUp" delay={0.3}>
           <Card className="p-6 mb-8">
             <div className="flex items-start gap-4">
@@ -296,7 +296,7 @@ export function CropDetailContent({ crop }: Props) {
                 </h2>
                 <p className="text-sm text-slate-500 mb-4">
                   Полная инструкция: подготовка, посадка, уход, болезни,
-                  хранение, лайфхаки. Генерируется AI-агрономом.
+                  хранение, лайфхаки. Генерируется Агроэкспертом.
                 </p>
                 {!detailContent && !hasFullAccess && (
                   <Button

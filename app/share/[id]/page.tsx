@@ -26,10 +26,10 @@ export async function generateMetadata({
   const data = shared.data as ShareData;
   const isChat = shared.type === "chat";
   const title = isChat
-    ? "Вопрос нейроэксперту — Любимая Дача"
+    ? "Вопрос Агроэксперту — Любимая Дача"
     : "Фото-анализ растения — Любимая Дача";
   const description = isChat
-    ? (data.question || "Ответ AI-агронома").substring(0, 200)
+    ? (data.question || "Ответ Агроэксперта").substring(0, 200)
     : (data.result || "Диагностика растения от Любимая Дача").substring(0, 200);
 
   const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://dacha-ai.ru";
@@ -40,7 +40,7 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      siteName: "Любимая Дача — AI-агроном для дачников",
+      siteName: "Любимая Дача — Агроэксперт для дачников",
       type: "article",
       url: `${baseUrl}/share/${id}`,
       images: data.imageUrl && !data.imageUrl.startsWith("data:")
@@ -81,7 +81,7 @@ export default async function SharePage({
       <main className="max-w-3xl mx-auto px-4 py-8">
         {shared.type === "chat" && (
           <div className="space-y-4">
-            <h1 className="text-xl font-bold mb-6">Вопрос нейроэксперту</h1>
+            <h1 className="text-xl font-bold mb-6">Вопрос Агроэксперту</h1>
 
             {data.question && (
               <div className="flex gap-2 justify-end">
@@ -103,7 +103,7 @@ export default async function SharePage({
                   <p className="text-sm whitespace-pre-wrap leading-relaxed">
                     {data.answer}
                   </p>
-                  <p className="text-[10px] text-slate-400 mt-1">Нейроэксперт</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Агроэксперт</p>
                 </div>
               </div>
             )}
@@ -140,7 +140,7 @@ export default async function SharePage({
 
         <div className="mt-10 text-center">
           <p className="text-sm text-slate-500 mb-4">
-            Хотите своего AI-агронома?
+            Хотите своего Агроэксперта?
           </p>
           <Button
             asChild

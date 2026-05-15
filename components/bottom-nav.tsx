@@ -10,7 +10,7 @@ const navItems = [
   { href: "/garden", icon: Sprout, label: "Главная" },
   { href: "/calendar", icon: CalendarIcon, label: "Календарь" },
   { href: "/gallery", icon: Images, label: "Галерея" },
-  { href: "/chat", icon: MessageCircle, label: "Нейроэксперт" },
+  { href: "/chat", icon: MessageCircle, label: "Агроэксперт" },
   { href: "/guide", icon: BookOpen, label: "Справочник" },
   { href: "/camera", icon: Camera, label: "Анализ" },
 ];
